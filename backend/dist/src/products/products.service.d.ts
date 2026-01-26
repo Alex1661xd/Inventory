@@ -9,6 +9,9 @@ export declare class ProductsService {
     create(tenantId: string, dto: CreateProductDto): Promise<{
         id: string;
         name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
         description: string | null;
         barcode: string | null;
         sku: string | null;
@@ -16,15 +19,15 @@ export declare class ProductsService {
         costPrice: import("@prisma/client/runtime/library").Decimal;
         salePrice: import("@prisma/client/runtime/library").Decimal;
         isPublic: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
         categoryId: string | null;
     }>;
     findAllWithTotalStock(tenantId: string): Promise<{
         totalStock: number;
         id: string;
         name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
         description: string | null;
         barcode: string | null;
         sku: string | null;
@@ -32,15 +35,15 @@ export declare class ProductsService {
         costPrice: import("@prisma/client/runtime/library").Decimal;
         salePrice: import("@prisma/client/runtime/library").Decimal;
         isPublic: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
         categoryId: string | null;
     }[]>;
     findOne(tenantId: string, id: string): Promise<{
         totalStock: number;
         id: string;
         name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
         description: string | null;
         barcode: string | null;
         sku: string | null;
@@ -48,15 +51,15 @@ export declare class ProductsService {
         costPrice: import("@prisma/client/runtime/library").Decimal;
         salePrice: import("@prisma/client/runtime/library").Decimal;
         isPublic: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
         categoryId: string | null;
     }>;
     findByBarcode(tenantId: string, barcode: string): Promise<{
         totalStock: number;
         id: string;
         name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
         description: string | null;
         barcode: string | null;
         sku: string | null;
@@ -64,14 +67,14 @@ export declare class ProductsService {
         costPrice: import("@prisma/client/runtime/library").Decimal;
         salePrice: import("@prisma/client/runtime/library").Decimal;
         isPublic: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
         categoryId: string | null;
     }>;
     update(tenantId: string, id: string, dto: UpdateProductDto): Promise<{
         id: string;
         name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
         description: string | null;
         barcode: string | null;
         sku: string | null;
@@ -79,14 +82,14 @@ export declare class ProductsService {
         costPrice: import("@prisma/client/runtime/library").Decimal;
         salePrice: import("@prisma/client/runtime/library").Decimal;
         isPublic: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
         categoryId: string | null;
     }>;
     remove(tenantId: string, id: string): Promise<{
         id: string;
         name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
         description: string | null;
         barcode: string | null;
         sku: string | null;
@@ -94,9 +97,6 @@ export declare class ProductsService {
         costPrice: import("@prisma/client/runtime/library").Decimal;
         salePrice: import("@prisma/client/runtime/library").Decimal;
         isPublic: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        tenantId: string;
         categoryId: string | null;
     }>;
 }

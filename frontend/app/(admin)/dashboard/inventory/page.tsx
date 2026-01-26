@@ -11,7 +11,14 @@ import { cn } from '@/lib/utils'
 
 interface AggregatedStock {
     productId: string
-    product: Product | null
+    product: {
+        id: string
+        name: string
+        barcode?: string | null
+        sku?: string | null
+        costPrice?: string | null
+        categoryId?: string | null
+    } | null
     warehouseQuantities: Record<string, number>
     totalQuantity: number
 }

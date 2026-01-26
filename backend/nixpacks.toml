@@ -1,0 +1,12 @@
+[phases.setup]
+# Prisma necesita OpenSSL
+nixPkgs = ["openssl"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = ["npx prisma generate", "npm run build"]
+
+[start]
+cmd = "npx prisma db push && node dist/main"
