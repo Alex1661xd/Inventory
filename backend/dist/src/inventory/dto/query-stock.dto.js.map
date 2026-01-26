@@ -1,0 +1,1 @@
+{"version":3,"file":"query-stock.dto.js","sourceRoot":"","sources":["../../../../src/inventory/dto/query-stock.dto.ts"],"names":[],"mappings":";;;;;;;;;;;;AAAA,qDAAqD;AAErD,MAAa,aAAa;IAGtB,SAAS,CAAU;IAInB,WAAW,CAAU;CACxB;AARD,sCAQC;AALG;IAFC,IAAA,4BAAU,GAAE;IACZ,IAAA,wBAAM,GAAE;;gDACU;AAInB;IAFC,IAAA,4BAAU,GAAE;IACZ,IAAA,wBAAM,GAAE;;kDACY"}

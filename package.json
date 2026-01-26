@@ -1,0 +1,12 @@
+{
+    "name": "muebleria-saas-monorepo",
+    "version": "1.0.0",
+    "scripts": {
+        "dev:backend": "cd backend && npm run start:dev",
+        "dev:frontend": "cd frontend && npm run dev",
+        "dev": "npx concurrently \"npm run dev:backend\" \"npm run dev:frontend\""
+    },
+    "devDependencies": {
+        "concurrently": "^9.1.2"
+    }
+}

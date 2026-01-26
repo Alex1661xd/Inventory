@@ -1,0 +1,272 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+:root {
+  /* Modern SaaS Color Palette - Versatile for Any Business */
+  --primary: 220 90 56;
+  /* Vibrant Blue - Professional & Trustworthy */
+  --primary-light: 220 85 65;
+  /* Light Blue */
+  --primary-dark: 220 95 45;
+  /* Deep Blue */
+
+  --secondary: 270 70 60;
+  /* Purple - Innovation & Creativity */
+  --secondary-light: 270 65 70;
+  /* Light Purple */
+  --secondary-dark: 270 75 50;
+  /* Deep Purple */
+
+  --accent: 340 82 52;
+  /* Vibrant Pink/Red - Energy & Action */
+  --accent-light: 340 77 62;
+  /* Light Pink */
+  --accent-dark: 340 87 42;
+  /* Deep Pink */
+
+  /* Neutrals - Modern & Clean */
+  --background: 220 20 98;
+  /* Cool White */
+  --surface: 0 0 100;
+  /* Pure White */
+  --surface-elevated: 220 25 96;
+  /* Slightly elevated surface */
+  --foreground: 220 15 15;
+  /* Deep Charcoal */
+  --muted: 220 10 60;
+  /* Cool Gray */
+  --muted-light: 220 10 85;
+  /* Light Gray */
+  --border: 220 15 90;
+  /* Subtle Border */
+
+  /* Semantic Colors */
+  --success: 142 71 45;
+  /* Green - Success states */
+  --success-light: 142 65 55;
+  --warning: 38 92 50;
+  /* Amber - Warnings */
+  --warning-light: 38 85 60;
+  --error: 0 84 60;
+  /* Red - Errors */
+  --error-light: 0 75 70;
+  --info: 199 89 48;
+  /* Cyan - Information */
+  --info-light: 199 80 58;
+
+  /* Gradients - Premium & Dynamic */
+  --gradient-primary: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
+  --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)) 0%, hsl(var(--accent)) 100%);
+  --gradient-accent: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(var(--primary)) 100%);
+  --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
+  --gradient-mesh: radial-gradient(at 0% 0%, hsl(var(--primary) / 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, hsl(var(--secondary) / 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, hsl(var(--accent) / 0.15) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, hsl(var(--primary) / 0.15) 0px, transparent 50%);
+}
+
+@theme inline {
+  --color-background: rgb(var(--background));
+  --color-foreground: rgb(var(--foreground));
+  --color-primary: rgb(var(--primary));
+  --color-secondary: rgb(var(--secondary));
+  --color-accent: rgb(var(--accent));
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Outfit', 'Inter', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: rgb(var(--background));
+  background-image: var(--gradient-mesh);
+  color: rgb(var(--foreground));
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* Smooth Scrolling */
+html {
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar - Hidden for clean UI */
+::-webkit-scrollbar {
+  width: 0px;
+  height: 0px;
+  background: transparent;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: transparent;
+}
+
+/* Firefox scrollbar hiding */
+html {
+  scrollbar-width: none;
+}
+
+/* IE/Edge scrollbar hiding */
+body {
+  -ms-overflow-style: none;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 40px hsl(var(--primary) / 0.6), 0 0 60px hsl(var(--secondary) / 0.4);
+  }
+}
+
+@keyframes gradient-shift {
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Utility Classes */
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.5s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+}
+
+.glass-effect {
+  background: var(--gradient-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+.card-elevated {
+  background: hsl(var(--surface));
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.card-elevated:hover {
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+/* Focus Styles */
+*:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+  background: hsl(var(--primary) / 0.2);
+  color: rgb(var(--foreground));
+}
+
+/* Fix specifically for select text color */
+select, select option {
+  color: inherit !important;
+}

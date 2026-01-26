@@ -1,0 +1,214 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")       
+}
+
+
+
+// --------------------------------------
+// ENUMS (Opciones fijas)
+// --------------------------------------
+
+enum Role {
+  SUPER_ADMIN // Tú (Gestor de todo el software)
+  ADMIN       // Tu papá (Administrador de su mueblería)
+  SELLER      // Los vendedores
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+  OTHER
+}
+
+enum InvoiceStatus {
+  PAID
+  PENDING
+  CANCELLED
+}
+
+// --------------------------------------
+// MODELO SAAS (EL SECRETO PARA VENDER EL SOFTWARE)
+// --------------------------------------
+
+// Cada "Tenant" es una empresa cliente (Ej: "Muebles Mamá", "Mueblería Pérez")
+model Tenant {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique // Para la url del catalogo: miapp.com/muebles-mama
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relaciones: Todo lo de abajo pertenece a un Tenant
+  users       User[]
+  products    Product[]
+  warehouses  Warehouse[]
+  customers   Customer[]
+  invoices    Invoice[]
+  categories  Category[]
+}
+
+// --------------------------------------
+// USUARIOS Y SEGURIDAD
+// --------------------------------------
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   // Recuerda hashear la contraseña (bcrypt)
+  name      String
+  role      Role     @default(SELLER)
+  
+  // Multi-tenancy
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  
+  // Relaciones
+  sales     Invoice[] // Las ventas que ha hecho este usuario
+
+  @@index([tenantId])
+}
+
+// --------------------------------------
+// INVENTARIO Y PRODUCTOS
+// --------------------------------------
+
+model Category {
+  id        String    @id @default(uuid())
+  name      String
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  products  Product[]
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  barcode     String?  // Aquí escaneas el código de barras
+  sku         String?  // Código interno
+  imageUrl    String?  // Para el catálogo online
+  
+  // Precios (Usamos Decimal para evitar errores de dinero)
+  costPrice   Decimal  @default(0) // Cuanto le costó a tu mamá (Privado)
+  salePrice   Decimal  @default(0) // Precio al público
+  
+  isPublic    Boolean  @default(true) // Si false, no sale en el catálogo web
+
+  // Multi-tenancy
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
+
+  // Relaciones
+  inventory   Stock[]       // Relación con almacenes
+  invoiceItems InvoiceItem[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Un código de barras debe ser único SOLO dentro de la misma empresa
+  @@unique([barcode, tenantId]) 
+  @@index([tenantId])
+}
+
+model Warehouse {
+  id        String   @id @default(uuid())
+  name      String   // Ej: "Bodega Principal", "Sala de Ventas Centro"
+  address   String?
+  
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  
+  // Inventario en este almacén específico
+  stocks    Stock[]
+
+  @@index([tenantId])
+}
+
+// TABLA PIVOTE: Relaciona Producto con Almacén y guarda la cantidad
+model Stock {
+  id          String    @id @default(uuid())
+  quantity    Int       @default(0)
+  
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+
+  // Es buena práctica poner una restricción única para no duplicar filas
+  @@unique([productId, warehouseId])
+  @@index([productId])
+  @@index([warehouseId])
+}
+
+// --------------------------------------
+// FACTURACIÓN Y CLIENTES
+// --------------------------------------
+
+model Customer {
+  id        String    @id @default(uuid())
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  docNumber String?   // Cédula o NIT
+  
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  
+  invoices  Invoice[]
+}
+
+model Invoice {
+  id              String        @id @default(uuid())
+  invoiceNumber   Int           @default(autoincrement()) // Consecutivo (1, 2, 3...)
+  total           Decimal
+  status          InvoiceStatus @default(PAID)
+  paymentMethod   PaymentMethod
+  
+  // Fechas (Importante para que tu papá vea el flujo diario)
+  createdAt       DateTime      @default(now()) 
+  
+  // Relaciones
+  tenantId        String
+  tenant          Tenant        @relation(fields: [tenantId], references: [id])
+  
+  customerId      String?
+  customer        Customer?     @relation(fields: [customerId], references: [id])
+  
+  sellerId        String
+  seller          User          @relation(fields: [sellerId], references: [id]) // Quién vendió
+  
+  items           InvoiceItem[]
+}
+
+// Detalle de la factura (Qué productos se llevaron)
+model InvoiceItem {
+  id              String   @id @default(uuid())
+  quantity        Int
+  
+  // IMPORTANTE: Guardamos el precio AL MOMENTO de la venta.
+  // Si mañana el sofá sube de precio, la factura vieja no debe cambiar.
+  unitPrice       Decimal 
+  
+  invoiceId       String
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id])
+  
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id])
+}

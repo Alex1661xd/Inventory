@@ -1,0 +1,97 @@
+🛋️ Sistema de Gestión de Mueblerías (SaaS Multi-Tenant)
+1. Propósito de la Aplicación
+El sistema está diseñado para digitalizar y optimizar la operación de una mueblería con múltiples almacenes, resolviendo tres problemas críticos:
+
+Eficiencia en Ventas: Elimina la necesidad de que los vendedores memoricen precios. Mediante el uso de códigos de barras, pueden consultar precios y existencias en tiempo real.
+
+Control Administrativo (Flujo de Caja): Permite al administrador (dueño) supervisar ventas, calcular ganancias netas (Precio Venta - Precio Costo), ver el rendimiento de cada vendedor y gestionar el inventario entre múltiples bodegas.
+
+Presencia Digital: Genera automáticamente un catálogo web actualizado para los clientes finales, sincronizado directamente con las ventas realizadas en físico.
+
+Modelo de Negocio (SaaS): La arquitectura permite que el software sea vendido a otras mueblerías, manteniendo los datos de cada cliente totalmente aislados y seguros.
+
+2. Estructura de Datos (Entidades Principales)
+El corazón del sistema es una base de datos relacional optimizada para el aislamiento de datos (Multi-tenancy):
+
+Tenant (Inquilino): Representa a cada mueblería cliente. Todo dato en el sistema pertenece a un TenantId.
+
+User: Gestiona el acceso con roles (ADMIN para dueños, SELLER para vendedores).
+
+Product: Almacena información del mueble, imágenes, precios de costo y venta, y su código de barras único.
+
+Warehouse & Stock: Permite rastrear cuántas unidades de un producto hay en cada ubicación física (Bodega A, Local B, etc.).
+
+Invoice & InvoiceItem: Registra cada venta, el método de pago, el cliente y congela el precio de venta en el tiempo para reportes contables precisos.
+
+3. Estado Actual del Backend (NestJS)
+El backend ya cuenta con la infraestructura de seguridad y la base de datos sincronizada.
+
+Estructura de Carpetas:
+Plaintext
+backend/src/
+├── auth/           # Registro transaccional de negocios y seguridad JWT
+├── prisma/         # Conexión y modelos de base de datos (PostgreSQL)
+├── supabase/       # Integración con el motor de identidad de Supabase
+├── common/         # Decoradores y Guards para extraer el TenantId
+├── products/       # Módulo de productos (CRUD completo + validaciones)
+├── warehouses/     # Módulo de almacenes (CRUD básico)
+└── inventory/      # Módulo de inventario (actualización de stock + consultas)
+
+Hitos Logrados:
+Registro Transaccional: Al crear una cuenta, el sistema crea en un solo paso el usuario, la empresa y la primera bodega.
+
+Seguridad SaaS: Implementación de SupabaseStrategy que valida tokens y asegura que ningún usuario acceda a datos de otra mueblería.
+
+ORM Prisma: Modelado completo de las relaciones de inventario y facturación.
+
+Módulo de Products (CRUD completo):
+- POST /products: Crea productos con tenantId automático y barcode autogenerado (MUE-XXXXXXXX) si no se proporciona.
+- GET /products: Lista productos del tenant con stock total sumado de todos los almacenes.
+- GET /products/:id: Detalle de producto con stock total.
+- PATCH /products/:id: Edición parcial de producto.
+- DELETE /products/:id: Borrado de producto.
+- Validaciones con class-validator: longitud máxima, precios >= 0, UUIDs, etc.
+
+Módulo de Warehouses:
+- POST /warehouses: Crea almacén con tenantId automático.
+- GET /warehouses: Lista almacenes del tenant.
+- Validaciones con class-validator.
+
+Módulo de Inventory:
+- PATCH /inventory/update-stock: Actualiza stock (sumar/restar) por producto y almacén.
+  - Solo usuarios ADMIN/SUPER_ADMIN pueden modificar stock.
+  - Valida que producto y almacén pertenezcan al tenant.
+  - Bloquea cantidades negativas.
+  - Usa transacciones para consistencia.
+- GET /inventory/stock: Consulta stock con filtros opcionales por productId y warehouseId.
+  - Incluye datos anidados de producto y almacén.
+  - Scoping estricto por tenant.
+
+4. Estado Actual del Frontend (Next.js 15)
+El frontend utiliza las últimas tecnologías de React para ofrecer una experiencia rápida y segura.
+
+Estructura de Carpetas:
+Plaintext
+frontend/app/
+├── (admin)/        # Dashboard privado (Protegido por Server-side auth)
+│   └── dashboard/  # Panel de control de tu papá
+├── (public)/       # Vistas para clientes y login
+│   ├── login/      # Acceso al sistema
+│   ├── register/   # Registro de nuevas mueblerías
+│   └── [slug]/     # Ruta dinámica para el catálogo de cada mueblería
+└── utils/supabase/ # Configuración SSR para persistencia de sesión
+Hitos Logrados:
+Autenticación SSR: El sistema verifica la sesión en el servidor antes de renderizar la página, evitando parpadeos de contenido protegido.
+
+Route Groups: Separación clara entre lo que ve el cliente final (Catálogo) y lo que ven tus papás (Administración).
+
+UI Base: Integración de Tailwind CSS y componentes listos para formularios y tablas.
+
+5. Resumen del Flujo Tecnológico
+Identidad: Gestionada por Supabase Auth.
+
+Base de Datos: PostgreSQL alojado en Supabase, consultado vía Prisma.
+
+Lógica de Negocio: Centralizada en NestJS para garantizar que las reglas de inventario y precios se cumplan estrictamente.
+
+Interfaz: Next.js para un catálogo SEO-friendly y un dashboard administrativo tipo aplicación de escritorio.

@@ -1,0 +1,157 @@
+import { createClient } from '@/utils/supabase/client';
+
+const getBackendUrl = () => {
+    const url = process.env.NEXT_PUBLIC_BACKEND_URL;
+    if (!url) throw new Error('NEXT_PUBLIC_BACKEND_URL is not set');
+    return url;
+};
+
+async function getAccessToken() {
+    const supabase = createClient();
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token;
+}
+
+async function backendFetch<T>(
+    path: string,
+    options: RequestInit & { json?: unknown } = {},
+): Promise<T> {
+    const token = await getAccessToken();
+
+    const headers = new Headers(options.headers);
+
+    if (options.json !== undefined) {
+        headers.set('Content-Type', 'application/json');
+    }
+
+    if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+    }
+
+    const res = await fetch(`${getBackendUrl()}${path}`, {
+        ...options,
+        headers,
+        body: options.json !== undefined ? JSON.stringify(options.json) : options.body,
+    });
+
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : null;
+
+    if (!res.ok) {
+        throw new Error(data?.message || `Request failed: ${res.status}`);
+    }
+
+    return data as T;
+}
+
+export type Category = {
+    id: string;
+    name: string;
+    description?: string | null;
+    tenantId: string;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type Product = {
+    id: string;
+    name: string;
+    description?: string | null;
+    barcode?: string | null;
+    sku?: string | null;
+    imageUrl?: string | null;
+    costPrice: string;
+    salePrice: string;
+    isPublic: boolean;
+    tenantId: string;
+    createdAt: string;
+    updatedAt: string;
+    categoryId?: string | null;
+    totalStock?: number;
+};
+
+export type Warehouse = {
+    id: string;
+    name: string;
+    address?: string | null;
+    tenantId: string;
+};
+
+export type StockRow = {
+    id: string;
+    quantity: number;
+    productId: string;
+    warehouseId: string;
+    product: { id: string; name: string; barcode?: string | null; sku?: string | null; costPrice?: string | null; categoryId?: string | null };
+    warehouse: { id: string; name: string };
+};
+
+export const api = {
+    products: {
+        list: () => backendFetch<Product[]>('/products'),
+        get: (id: string) => backendFetch<Product>(`/products/${id}`),
+        findByBarcode: (barcode: string) => {
+            const search = new URLSearchParams();
+            if (barcode) search.set('barcode', barcode);
+            const q = search.toString();
+            return backendFetch<Product>(`/products/by-barcode${q ? `?${q}` : ''}`);
+        },
+        create: (payload: {
+            name: string;
+            description?: string;
+            sku?: string;
+            imageUrl?: string;
+            costPrice?: number;
+            salePrice?: number;
+            isPublic?: boolean;
+            initialStock?: number;
+            initialWarehouseId?: string;
+            categoryId?: string;
+        }) => backendFetch<Product>('/products', { method: 'POST', json: payload }),
+        update: (id: string, payload: Partial<{
+            name: string;
+            description?: string;
+            sku?: string;
+            imageUrl?: string;
+            costPrice?: number;
+            salePrice?: number;
+            isPublic?: boolean;
+            categoryId?: string;
+        }>) => backendFetch<Product>(`/products/${id}`, { method: 'PATCH', json: payload }),
+        remove: (id: string) => backendFetch<Product>(`/products/${id}`, { method: 'DELETE' }),
+    },
+    warehouses: {
+        list: () => backendFetch<Warehouse[]>('/warehouses'),
+        create: (payload: { name: string; address?: string }) =>
+            backendFetch<Warehouse>('/warehouses', { method: 'POST', json: payload }),
+        update: (id: string, payload: Partial<{ name: string; address?: string }>) =>
+            backendFetch<Warehouse>(`/warehouses/${id}`, { method: 'PATCH', json: payload }),
+        remove: (id: string) => backendFetch<Warehouse>(`/warehouses/${id}`, { method: 'DELETE' }),
+    },
+    categories: {
+        list: () => backendFetch<Category[]>('/categories'),
+        get: (id: string) => backendFetch<Category>(`/categories/${id}`),
+        create: (payload: {
+            name: string;
+            description?: string;
+        }) => backendFetch<Category>('/categories', { method: 'POST', json: payload }),
+        update: (id: string, payload: Partial<{
+            name: string;
+            description?: string;
+        }>) => backendFetch<Category>(`/categories/${id}`, { method: 'PATCH', json: payload }),
+        remove: (id: string) => backendFetch<Category>(`/categories/${id}`, { method: 'DELETE' }),
+    },
+    inventory: {
+        updateStock: (payload: { productId: string; warehouseId: string; quantityDelta: number }) =>
+            backendFetch<any>('/inventory/update-stock', { method: 'PATCH', json: payload }),
+        transfer: (payload: { productId: string; fromWarehouseId: string; toWarehouseId: string; quantity: number }) =>
+            backendFetch<any>('/inventory/transfer', { method: 'PATCH', json: payload }),
+        stock: (params: { productId?: string; warehouseId?: string }) => {
+            const search = new URLSearchParams();
+            if (params.productId) search.set('productId', params.productId);
+            if (params.warehouseId) search.set('warehouseId', params.warehouseId);
+            const q = search.toString();
+            return backendFetch<StockRow[]>(`/inventory/stock${q ? `?${q}` : ''}`);
+        },
+    },
+};
