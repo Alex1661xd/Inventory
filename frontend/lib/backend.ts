@@ -28,7 +28,10 @@ async function backendFetch<T>(
         headers.set('Authorization', `Bearer ${token}`);
     }
 
-    const res = await fetch(`${getBackendUrl()}${path}`, {
+    const baseUrl = getBackendUrl().replace(/\/$/, ''); // Quita la barra final si existe
+    const cleanPath = path.startsWith('/') ? path : `/${path}`; // Asegura que el path empiece con /
+
+    const res = await fetch(`${baseUrl}${cleanPath}`, {
         ...options,
         headers,
         body: options.json !== undefined ? JSON.stringify(options.json) : options.body,
