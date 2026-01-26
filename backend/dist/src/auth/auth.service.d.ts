@@ -7,16 +7,16 @@ export declare class AuthService {
     constructor(supabaseService: SupabaseService, prisma: PrismaService);
     registerBusiness(dto: RegisterBusinessDto): Promise<{
         user: {
-            id: string;
-            name: string;
             email: string;
             password: string;
+            name: string;
+            id: string;
             role: import("@prisma/client").$Enums.Role;
             tenantId: string;
         };
         tenant: {
-            id: string;
             name: string;
+            id: string;
             slug: string;
             createdAt: Date;
             updatedAt: Date;

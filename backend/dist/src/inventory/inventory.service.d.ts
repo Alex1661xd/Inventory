@@ -11,26 +11,26 @@ export declare class InventoryService {
     }>;
     updateStock(tenantId: string, dto: UpdateStockDto): Promise<{
         id: string;
-        quantity: number;
         productId: string;
+        quantity: number;
         warehouseId: string;
     }>;
     findStock(tenantId: string, query: QueryStockDto): Promise<{
         product: {
-            id: string;
             name: string;
-            barcode: string | null;
+            id: string;
             sku: string | null;
             costPrice: import("@prisma/client/runtime/library").Decimal;
             categoryId: string | null;
+            barcode: string | null;
         };
         warehouse: {
-            id: string;
             name: string;
+            id: string;
         };
         id: string;
-        quantity: number;
         productId: string;
+        quantity: number;
         warehouseId: string;
     }[]>;
 }
