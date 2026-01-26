@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { BrowserMultiFormatReader } from '@zxing/browser'
+import { NotFoundException } from '@zxing/library'
 import { api, type Product, type StockRow, type Warehouse } from '@/lib/backend'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -27,10 +29,17 @@ export function BarcodeProductScanner({ className }: Props) {
 
     const [scanning, setScanning] = useState(false)
     const [cameraError, setCameraError] = useState<string | null>(null)
+    const [scanMethod, setScanMethod] = useState<'zxing' | 'native'>('zxing')
 
     const streamRef = useRef<MediaStream | null>(null)
     const videoRef = useRef<HTMLVideoElement | null>(null)
-    const rafRef = useRef<number | null>(null)
+    const scannerControlsRef = useRef<any | null>(null)
+
+    // Check if we're on HTTPS or localhost
+    const isSecureContext = useMemo(() => {
+        if (typeof window === 'undefined') return false
+        return window.isSecureContext || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    }, [])
 
     const hasBarcodeDetector = useMemo(() => {
         return typeof window !== 'undefined' && typeof (window as any).BarcodeDetector !== 'undefined'
@@ -71,27 +80,38 @@ export function BarcodeProductScanner({ className }: Props) {
     }, [stockRows, warehouses])
 
     const stopScan = useCallback(() => {
-        if (rafRef.current) {
-            cancelAnimationFrame(rafRef.current)
-            rafRef.current = null
+        // Stop ZXing scanner controls
+        if (scannerControlsRef.current) {
+            try {
+                scannerControlsRef.current.stop()
+            } catch (e) {
+                console.error('Error stopping ZXing scanner:', e)
+            }
+            scannerControlsRef.current = null
         }
+
+        // Stop media stream
         if (streamRef.current) {
-            for (const track of streamRef.current.getTracks()) track.stop()
+            for (const track of streamRef.current.getTracks()) {
+                track.stop()
+            }
             streamRef.current = null
         }
+
         if (videoRef.current) {
             videoRef.current.srcObject = null
         }
+
         setScanning(false)
     }, [])
 
-    const startScan = async () => {
+    const startScanWithZXing = async () => {
         setCameraError(null)
         setProduct(null)
         setStockRows([])
 
-        if (!hasBarcodeDetector) {
-            setCameraError('Tu navegador no soporta escaneo nativo (BarcodeDetector).')
+        if (!isSecureContext) {
+            setCameraError('⚠️ Se requiere HTTPS para acceder a la cámara. Por favor, accede desde https:// o localhost.')
             return
         }
 
@@ -101,53 +121,79 @@ export function BarcodeProductScanner({ className }: Props) {
         }
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-            streamRef.current = stream
+            const codeReader = new BrowserMultiFormatReader()
 
-            const video = document.createElement('video')
-            video.playsInline = true
-            video.muted = true
-            video.srcObject = stream
-            videoRef.current = video
+            // Get video devices
+            const videoInputDevices = await BrowserMultiFormatReader.listVideoInputDevices()
 
-            await video.play()
-            setScanning(true)
-
-            const detector = new (window as any).BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'qr_code'] })
-            const canvas = document.createElement('canvas')
-            const ctx = canvas.getContext('2d')
-
-            const tick = async () => {
-                if (!videoRef.current || !ctx) return
-                if (videoRef.current.readyState < 2) {
-                    rafRef.current = requestAnimationFrame(tick)
-                    return
-                }
-
-                canvas.width = videoRef.current.videoWidth
-                canvas.height = videoRef.current.videoHeight
-                ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height)
-
-                try {
-                    const codes = await detector.detect(canvas)
-                    const raw = codes?.[0]?.rawValue
-                    if (raw) {
-                        setBarcode(raw)
-                        stopScan()
-                        await fetchByBarcode(raw)
-                        return
-                    }
-                } catch {
-                }
-
-                rafRef.current = requestAnimationFrame(tick)
+            if (videoInputDevices.length === 0) {
+                setCameraError('No se encontraron cámaras disponibles.')
+                return
             }
 
-            rafRef.current = requestAnimationFrame(tick)
+            // Try to use back camera on mobile
+            const backCamera = videoInputDevices.find((device: MediaDeviceInfo) =>
+                device.label.toLowerCase().includes('back') ||
+                device.label.toLowerCase().includes('trasera') ||
+                device.label.toLowerCase().includes('rear')
+            )
+
+            const selectedDeviceId = backCamera?.deviceId || videoInputDevices[0].deviceId
+
+            setScanning(true)
+
+            // Start decoding from video device and store the scanner controls
+            const controls = await codeReader.decodeFromVideoDevice(
+                selectedDeviceId,
+                videoRef.current!,
+                (result, error) => {
+                    if (result) {
+                        const code = result.getText()
+                        setBarcode(code)
+                        stopScan()
+                        fetchByBarcode(code)
+                    }
+                    // Ignore NotFoundException - it just means no barcode was found in this frame
+                    if (error && !(error instanceof NotFoundException)) {
+                        console.error('Scan error:', error)
+                    }
+                }
+            )
+
+            // Store the scanner controls so we can stop it later
+            scannerControlsRef.current = controls
+
+            // Store the stream reference
+            if (videoRef.current?.srcObject) {
+                streamRef.current = videoRef.current.srcObject as MediaStream
+            }
+
         } catch (e: any) {
-            setCameraError(e?.message ?? 'No se pudo iniciar la cámara')
+            console.error('Camera error:', e)
+            let errorMessage = 'No se pudo iniciar la cámara.'
+
+            if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+                errorMessage = '❌ Permiso de cámara denegado. Por favor, permite el acceso a la cámara en la configuración de tu navegador.'
+            } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
+                errorMessage = '❌ No se encontró ninguna cámara en tu dispositivo.'
+            } else if (e.name === 'NotReadableError' || e.name === 'TrackStartError') {
+                errorMessage = '❌ La cámara está siendo usada por otra aplicación.'
+            } else if (e.name === 'OverconstrainedError') {
+                errorMessage = '❌ No se pudo acceder a la cámara trasera. Intentando con otra cámara...'
+            } else if (e.name === 'NotSupportedError') {
+                errorMessage = '❌ Tu navegador no soporta acceso a la cámara.'
+            } else if (e.message) {
+                errorMessage = `❌ ${e.message}`
+            }
+
+            setCameraError(errorMessage)
             stopScan()
         }
+    }
+
+    const startScan = async () => {
+        // Always use ZXing as it's more compatible
+        await startScanWithZXing()
     }
 
     const fetchByBarcode = async (code?: string) => {
@@ -220,8 +266,22 @@ export function BarcodeProductScanner({ className }: Props) {
                         </div>
                     </div>
 
+                    {scanning && (
+                        <div className="relative w-full max-w-md mx-auto">
+                            <video
+                                ref={videoRef}
+                                className="w-full rounded-lg border-2 border-[hsl(var(--border))]"
+                                playsInline
+                                muted
+                            />
+                            <div className="absolute top-2 left-2 bg-black/50 text-white px-3 py-1 rounded-md text-sm">
+                                📷 Escaneando...
+                            </div>
+                        </div>
+                    )}
+
                     {cameraError && (
-                        <div className="text-sm text-red-600">{cameraError}</div>
+                        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">{cameraError}</div>
                     )}
 
                     {product && (
