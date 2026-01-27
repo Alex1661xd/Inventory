@@ -49,6 +49,7 @@ export default function InventoryPage() {
     const [selectedProduct, setSelectedProduct] = useState('')
     const [selectedWarehouse, setSelectedWarehouse] = useState('')
     const [searchQuery, setSearchQuery] = useState('')
+    const [showFilters, setShowFilters] = useState(false)
 
     const loadData = async () => {
         setLoading(true)
@@ -226,51 +227,81 @@ export default function InventoryPage() {
             {/* Filters & Stats */}
             <div className="bg-white/50 backdrop-blur-sm p-4 rounded-2xl border border-[rgb(230,225,220)]">
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <div className="space-y-2">
+                    <div className="space-y-2 lg:col-span-1 md:col-span-2">
                         <Label className="text-xs font-medium text-[hsl(var(--muted))]">Búsqueda</Label>
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                                <span className="text-lg">🔍</span>
+                        <div className="flex gap-2">
+                            <div className="relative flex-1">
+                                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                                    <span className="text-lg">🔍</span>
+                                </div>
+                                <Input
+                                    placeholder="Producto o almacén..."
+                                    className="pl-10 h-10"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
                             </div>
-                            <Input
-                                placeholder="Producto o almacén..."
-                                className="pl-10 h-10"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setShowFilters(!showFilters)}
+                                className={cn("lg:hidden h-10 w-10 transition-colors", showFilters && "bg-[rgb(25,35,25)] text-white hover:bg-[rgb(45,55,45)]")}
+                            >
+                                <span className="text-lg">⚙️</span>
+                            </Button>
                         </div>
                     </div>
-                    <div className="space-y-2">
-                        <Label className="text-xs font-medium text-[rgb(120,115,110)]">Filtrar por Producto</Label>
-                        <select
-                            className="flex h-10 w-full rounded-lg border border-[rgb(230,225,220)] bg-white/90 px-3 py-2 text-sm"
-                            value={selectedProduct}
-                            onChange={(e) => setSelectedProduct(e.target.value)}
-                        >
-                            <option value="">Todos los productos</option>
-                            {products.map(p => (
-                                <option key={p.id} value={p.id}>{p.name}</option>
-                            ))}
-                        </select>
+
+                    {/* Stats Summary - Always visible on mobile, maybe in a row */}
+                    <div className="grid grid-cols-2 gap-2 lg:hidden md:col-span-2">
+                        <div className="bg-[hsl(var(--primary))] text-white shadow-md rounded-xl p-3 flex flex-col items-center justify-center">
+                            <div className="text-[10px] font-medium opacity-80 uppercase">Unidades</div>
+                            <div className="text-xl font-bold">{totalItems}</div>
+                        </div>
+                        <div className="bg-[hsl(var(--secondary))] text-white shadow-md rounded-xl p-3 flex flex-col items-center justify-center">
+                            <div className="text-[10px] font-medium opacity-80 uppercase">Valor Est.</div>
+                            <div className="text-sm font-bold">${totalValue.toLocaleString()}</div>
+                        </div>
                     </div>
-                    <div className="space-y-2">
-                        <Label className="text-xs font-medium text-[rgb(120,115,110)]">Filtrar por Almacén</Label>
-                        <select
-                            className="flex h-10 w-full rounded-lg border border-[rgb(230,225,220)] bg-white/90 px-3 py-2 text-sm"
-                            value={selectedWarehouse}
-                            onChange={(e) => setSelectedWarehouse(e.target.value)}
-                        >
-                            <option value="">Todos los almacenes</option>
-                            {warehouses.map(w => (
-                                <option key={w.id} value={w.id}>{w.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="bg-[hsl(var(--primary))] text-white border-none shadow-lg rounded-lg p-4 flex flex-col items-center justify-center h-full text-center">
-                        <div className="text-sm font-medium opacity-80 mb-2">Total Unidades Filtradas</div>
-                        <div className="text-4xl font-bold mb-2">{totalItems}</div>
-                        <div className="text-xs opacity-70">
-                            Valor Est. Costo: ${totalValue.toLocaleString()}
+
+                    {/* Secondary Filters - Hidden on mobile unless showFilters is true */}
+                    <div className={cn(
+                        "grid gap-4 md:grid-cols-2 lg:grid-cols-3 lg:col-span-3 items-end",
+                        !showFilters && "hidden lg:grid"
+                    )}>
+                        <div className="space-y-2">
+                            <Label className="text-xs font-medium text-[rgb(120,115,110)]">Filtrar por Producto</Label>
+                            <select
+                                className="flex h-10 w-full rounded-lg border border-[rgb(230,225,220)] bg-white/90 px-3 py-2 text-sm focus:outline-none focus:border-[rgb(25,35,25)]"
+                                value={selectedProduct}
+                                onChange={(e) => setSelectedProduct(e.target.value)}
+                                style={{ color: selectedProduct ? 'rgb(25,35,25)' : 'rgb(120,115,110)' }}
+                            >
+                                <option value="">Todos los productos</option>
+                                {products.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-xs font-medium text-[rgb(120,115,110)]">Filtrar por Almacén</Label>
+                            <select
+                                className="flex h-10 w-full rounded-lg border border-[rgb(230,225,220)] bg-white/90 px-3 py-2 text-sm focus:outline-none focus:border-[rgb(25,35,25)]"
+                                value={selectedWarehouse}
+                                onChange={(e) => setSelectedWarehouse(e.target.value)}
+                                style={{ color: selectedWarehouse ? 'rgb(25,35,25)' : 'rgb(120,115,110)' }}
+                            >
+                                <option value="">Todos los almacenes</option>
+                                {warehouses.map(w => (
+                                    <option key={w.id} value={w.id}>{w.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        {/* Hidden on mobile, shown on large screens */}
+                        <div className="hidden lg:flex bg-[hsl(var(--primary))] text-white border-none shadow-lg rounded-lg p-4 flex-col items-center justify-center h-full text-center">
+                            <div className="text-sm font-medium opacity-80 mb-1">Total Unidades</div>
+                            <div className="text-3xl font-bold mb-1">{totalItems}</div>
+                            <div className="text-xs opacity-70">${totalValue.toLocaleString()}</div>
                         </div>
                     </div>
                 </div>
@@ -344,7 +375,7 @@ export default function InventoryPage() {
                                 )}
                                 {paginatedStock.flatMap((item) => {
                                     // Si hay filtros específicos, mostrar solo las filas que coinciden
-                                    const relevantWarehouses = selectedWarehouse 
+                                    const relevantWarehouses = selectedWarehouse
                                         ? warehouses.filter(w => w.id === selectedWarehouse && (item.warehouseQuantities[w.id] || 0) > 0)
                                         : warehouses.filter(w => (item.warehouseQuantities[w.id] || 0) > 0);
 
@@ -379,7 +410,7 @@ export default function InventoryPage() {
                                         const quantity = item.warehouseQuantities[warehouse.id] || 0;
                                         const stockStatus = quantity > 10 ? 'Alto' : quantity > 0 ? 'Medio' : 'Sin Stock';
                                         const statusColor = quantity > 10 ? 'emerald' : quantity > 0 ? 'amber' : 'red';
-                                        
+
                                         return (
                                             <tr key={`${item.productId}-${warehouse.id}`} className="group hover:bg-[hsl(var(--surface-elevated))] transition-colors">
                                                 <td className="px-6 py-4">
@@ -498,6 +529,7 @@ export default function InventoryPage() {
                                     className="flex h-10 w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                     value={updateStockForm.productId}
                                     onChange={(e) => setUpdateStockForm(prev => ({ ...prev, productId: e.target.value }))}
+                                    style={{ color: updateStockForm.productId ? 'inherit' : 'rgb(120,115,110)' }}
                                 >
                                     <option value="">Selecciona un producto...</option>
                                     {products.map(p => (
@@ -512,6 +544,7 @@ export default function InventoryPage() {
                                     className="flex h-10 w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                     value={updateStockForm.warehouseId}
                                     onChange={(e) => setUpdateStockForm(prev => ({ ...prev, warehouseId: e.target.value }))}
+                                    style={{ color: updateStockForm.warehouseId ? 'inherit' : 'rgb(120,115,110)' }}
                                 >
                                     <option value="">Selecciona un almacén...</option>
                                     {warehouses.map(w => (

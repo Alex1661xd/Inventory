@@ -23,8 +23,8 @@ export default function TransfersPage() {
 
     const availableStock = useMemo(() => {
         if (!productId || !fromWarehouseId) return null;
-        
-        const stockItem = stock.find(item => 
+
+        const stockItem = stock.find(item =>
             item.productId === productId && item.warehouseId === fromWarehouseId
         );
         return stockItem?.quantity || 0;
@@ -111,9 +111,10 @@ export default function TransfersPage() {
                         <div className="space-y-2">
                             <Label className="text-xs font-medium text-[rgb(120,115,110)]">Producto</Label>
                             <select
-                                className="flex h-11 w-full rounded-lg border-2 border-[rgb(230,225,220)] bg-white/90 px-4 py-2.5 text-sm font-medium shadow-sm transition-all duration-300 focus:outline-none focus:border-[rgb(25,35,25)]"
+                                className="flex h-11 w-full rounded-lg border-2 border-[rgb(230,225,220)] bg-white/90 px-4 py-2.5 text-sm font-medium shadow-sm transition-all duration-300 focus:outline-none focus:border-[rgb(25,35,25)] [&>option:first-child]:text-[rgb(120,115,110)]"
                                 value={productId}
                                 onChange={(e) => setProductId(e.target.value)}
+                                style={{ color: productId ? 'rgb(25,35,25)' : 'rgb(120,115,110)' }}
                             >
                                 <option value="">Selecciona un producto...</option>
                                 {products.map((p) => (
@@ -139,9 +140,10 @@ export default function TransfersPage() {
                         <div className="space-y-2">
                             <Label className="text-xs font-medium text-[rgb(120,115,110)]">Almacén Origen</Label>
                             <select
-                                className="flex h-11 w-full rounded-lg border-2 border-[rgb(230,225,220)] bg-white/90 px-4 py-2.5 text-sm font-medium shadow-sm transition-all duration-300 focus:outline-none focus:border-[rgb(25,35,25)]"
+                                className="flex h-11 w-full rounded-lg border-2 border-[rgb(230,225,220)] bg-white/90 px-4 py-2.5 text-sm font-medium shadow-sm transition-all duration-300 focus:outline-none focus:border-[rgb(25,35,25)] [&>option:first-child]:text-[rgb(120,115,110)]"
                                 value={fromWarehouseId}
                                 onChange={(e) => setFromWarehouseId(e.target.value)}
+                                style={{ color: fromWarehouseId ? 'rgb(25,35,25)' : 'rgb(120,115,110)' }}
                             >
                                 <option value="">Selecciona origen...</option>
                                 {warehouses.map((w) => (
@@ -171,9 +173,10 @@ export default function TransfersPage() {
                         <div className="space-y-2">
                             <Label className="text-xs font-medium text-[rgb(120,115,110)]">Almacén Destino</Label>
                             <select
-                                className="flex h-11 w-full rounded-lg border-2 border-[rgb(230,225,220)] bg-white/90 px-4 py-2.5 text-sm font-medium shadow-sm transition-all duration-300 focus:outline-none focus:border-[rgb(25,35,25)]"
+                                className="flex h-11 w-full rounded-lg border-2 border-[rgb(230,225,220)] bg-white/90 px-4 py-2.5 text-sm font-medium shadow-sm transition-all duration-300 focus:outline-none focus:border-[rgb(25,35,25)] [&>option:first-child]:text-[rgb(120,115,110)]"
                                 value={toWarehouseId}
                                 onChange={(e) => setToWarehouseId(e.target.value)}
+                                style={{ color: toWarehouseId ? 'rgb(25,35,25)' : 'rgb(120,115,110)' }}
                             >
                                 <option value="">Selecciona destino...</option>
                                 {warehouses.map((w) => (
@@ -184,7 +187,7 @@ export default function TransfersPage() {
                                 <div className="text-xs text-[rgb(120,115,110)] mt-1">
                                     Stock actual: <span className="font-bold text-[rgb(25,35,25)]">
                                         {(() => {
-                                            const stockItem = stock.find(item => 
+                                            const stockItem = stock.find(item =>
                                                 item.productId === productId && item.warehouseId === toWarehouseId
                                             );
                                             return stockItem?.quantity || 0;
@@ -194,7 +197,7 @@ export default function TransfersPage() {
                                         <span className="block mt-1">
                                             Después del traslado: <span className="font-bold text-emerald-600">
                                                 {(() => {
-                                                    const currentStock = stock.find(item => 
+                                                    const currentStock = stock.find(item =>
                                                         item.productId === productId && item.warehouseId === toWarehouseId
                                                     )?.quantity || 0;
                                                     return currentStock + Number(quantity);

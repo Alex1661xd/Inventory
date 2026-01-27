@@ -55,6 +55,7 @@ export default function ProductsPage() {
     const barcodeSvgRef = useRef<SVGSVGElement | null>(null)
     const [viewModal, setViewModal] = useState<{ product: Product | null; visible: boolean }>({ product: null, visible: false })
     const viewBarcodeSvgRef = useRef<SVGSVGElement | null>(null)
+    const [showFilters, setShowFilters] = useState(false)
 
     const isEditing = useMemo(() => Boolean(editingId), [editingId])
 
@@ -356,64 +357,81 @@ export default function ProductsPage() {
             {/* Filter Section */}
             <div className="bg-white/50 backdrop-blur-sm p-4 rounded-2xl border border-[rgb(230,225,220)]">
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <div className="space-y-2">
+                    <div className="space-y-2 lg:col-span-1 md:col-span-2">
                         <Label className="text-xs font-medium text-[hsl(var(--muted))]">Búsqueda</Label>
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                                <span className="text-lg">🔍</span>
-                            </div>
-                            <Input
-                                placeholder="Nombre, SKU o código..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                className="pl-10 h-10"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label className="text-xs font-medium text-[rgb(120,115,110)]">Categoría</Label>
-                        <select
-                            className="flex h-10 w-full rounded-lg border border-[rgb(230,225,220)] bg-white/90 px-3 py-2 text-sm"
-                            value={selectedCategory}
-                            onChange={(e) => setSelectedCategory(e.target.value)}
-                        >
-                            <option value="">Todas las categorías</option>
-                            {categories.map((cat) => (
-                                <option key={cat.id} value={cat.id}>{cat.name}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label className="text-xs font-medium text-[rgb(120,115,110)]">Rango de Precio</Label>
                         <div className="flex gap-2">
-                            <Input
-                                placeholder="Mín"
-                                value={priceRange.min}
-                                onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
-                                className="h-10"
-                            />
-                            <Input
-                                placeholder="Máx"
-                                value={priceRange.max}
-                                onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
-                                className="h-10"
-                            />
+                            <div className="relative flex-1">
+                                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                                    <span className="text-lg">🔍</span>
+                                </div>
+                                <Input
+                                    placeholder="Nombre, SKU o código..."
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    className="pl-10 h-10"
+                                />
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setShowFilters(!showFilters)}
+                                className={cn("lg:hidden h-10 w-10 transition-colors", showFilters && "bg-[rgb(25,35,25)] text-white hover:bg-[rgb(45,55,45)]")}
+                            >
+                                <span className="text-lg">⚙️</span>
+                            </Button>
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <Label className="text-xs font-medium text-[rgb(120,115,110)]">Stock</Label>
-                        <select
-                            className="flex h-10 w-full rounded-lg border border-[rgb(230,225,220)] bg-white/90 px-3 py-2 text-sm"
-                            value={stockFilter}
-                            onChange={(e) => setStockFilter(e.target.value)}
-                        >
-                            <option value="all">Todos</option>
-                            <option value="inStock">Con stock</option>
-                            <option value="outOfStock">Sin stock</option>
-                        </select>
+                    {/* Secondary Filters - Hidden on mobile unless showFilters is true */}
+                    <div className={cn(
+                        "grid gap-4 md:grid-cols-2 lg:grid-cols-3 lg:col-span-3",
+                        !showFilters && "hidden lg:grid"
+                    )}>
+                        <div className="space-y-2">
+                            <Label className="text-xs font-medium text-[rgb(120,115,110)]">Categoría</Label>
+                            <select
+                                className="flex h-10 w-full rounded-lg border border-[rgb(230,225,220)] bg-white/90 px-3 py-2 text-sm focus:outline-none focus:border-[rgb(25,35,25)]"
+                                value={selectedCategory}
+                                onChange={(e) => setSelectedCategory(e.target.value)}
+                                style={{ color: selectedCategory ? 'rgb(25,35,25)' : 'rgb(120,115,110)' }}
+                            >
+                                <option value="">Todas las categorías</option>
+                                {categories.map((cat) => (
+                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-xs font-medium text-[rgb(120,115,110)]">Rango de Precio</Label>
+                            <div className="flex gap-2">
+                                <Input
+                                    placeholder="Mín"
+                                    value={priceRange.min}
+                                    onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
+                                    className="h-10"
+                                />
+                                <Input
+                                    placeholder="Máx"
+                                    value={priceRange.max}
+                                    onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
+                                    className="h-10"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-xs font-medium text-[rgb(120,115,110)]">Stock</Label>
+                            <select
+                                className="flex h-10 w-full rounded-lg border border-[rgb(230,225,220)] bg-white/90 px-3 py-2 text-sm focus:outline-none focus:border-[rgb(25,35,25)]"
+                                value={stockFilter}
+                                onChange={(e) => setStockFilter(e.target.value)}
+                            >
+                                <option value="all">Todos</option>
+                                <option value="inStock">Con stock</option>
+                                <option value="outOfStock">Sin stock</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -622,6 +640,7 @@ export default function ProductsPage() {
                                         className="flex h-11 w-full rounded-lg border-2 border-[rgb(230,225,220)] bg-white/90 px-4 py-2.5 text-sm font-medium shadow-sm transition-all duration-300 focus:outline-none focus:border-[rgb(25,35,25)]"
                                         value={form.categoryId}
                                         onChange={(e) => setForm((s) => ({ ...s, categoryId: e.target.value }))}
+                                        style={{ color: form.categoryId ? 'rgb(25,35,25)' : 'rgb(120,115,110)' }}
                                     >
                                         <option value="">Sin categoría</option>
                                         {categories.map((cat) => (
@@ -648,6 +667,7 @@ export default function ProductsPage() {
                                             className="flex h-11 w-full rounded-lg border-2 border-[rgb(230,225,220)] bg-white/90 px-4 py-2.5 text-sm font-medium shadow-sm transition-all duration-300 focus:outline-none focus:border-[rgb(25,35,25)]"
                                             value={form.initialWarehouseId}
                                             onChange={(e) => setForm((s) => ({ ...s, initialWarehouseId: e.target.value }))}
+                                            style={{ color: form.initialWarehouseId ? 'rgb(25,35,25)' : 'rgb(120,115,110)' }}
                                         >
                                             <option value="">Selecciona un almacén...</option>
                                             {warehouses.map((w) => (
