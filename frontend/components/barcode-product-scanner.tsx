@@ -120,6 +120,12 @@ export function BarcodeProductScanner({ className }: Props) {
             return
         }
 
+        // First set scanning to true so the video element is rendered
+        setScanning(true)
+
+        // Wait for next render cycle to ensure video element exists
+        await new Promise(resolve => setTimeout(resolve, 100))
+
         try {
             const codeReader = new BrowserMultiFormatReader()
 
@@ -128,6 +134,7 @@ export function BarcodeProductScanner({ className }: Props) {
 
             if (videoInputDevices.length === 0) {
                 setCameraError('No se encontraron cámaras disponibles.')
+                setScanning(false)
                 return
             }
 
@@ -140,12 +147,17 @@ export function BarcodeProductScanner({ className }: Props) {
 
             const selectedDeviceId = backCamera?.deviceId || videoInputDevices[0].deviceId
 
-            setScanning(true)
+            // Make sure video element is available
+            if (!videoRef.current) {
+                setCameraError('Error: elemento de video no disponible.')
+                setScanning(false)
+                return
+            }
 
             // Start decoding from video device and store the scanner controls
             const controls = await codeReader.decodeFromVideoDevice(
                 selectedDeviceId,
-                videoRef.current!,
+                videoRef.current,
                 (result, error) => {
                     if (result) {
                         const code = result.getText()
