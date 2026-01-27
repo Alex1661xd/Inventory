@@ -92,27 +92,31 @@ export class ProductsService {
     }
 
     async findAllWithTotalStock(tenantId: string) {
+        // Optimized query: Get all stock data in a single query
+        const stockData = await this.prisma.stock.groupBy({
+            by: ['productId'],
+            _sum: {
+                quantity: true,
+            },
+        });
+
+        // Create a map for fast lookup
+        const stockMap = new Map<string, number>();
+        stockData.forEach(item => {
+            stockMap.set(item.productId, item._sum.quantity ?? 0);
+        });
+
+        // Fetch all products in a single query
         const products = await this.prisma.product.findMany({
             where: { tenantId },
             orderBy: { createdAt: 'desc' },
         });
 
-        // Fetch stock totals in parallel for all products
-        const productsWithStock = await Promise.all(
-            products.map(async (product) => {
-                const stockAggregate = await this.prisma.stock.aggregate({
-                    where: { productId: product.id },
-                    _sum: { quantity: true },
-                });
-
-                return {
-                    ...product,
-                    totalStock: stockAggregate._sum.quantity ?? 0,
-                };
-            })
-        );
-
-        return productsWithStock;
+        // Combine products with their stock totals using the map
+        return products.map(product => ({
+            ...product,
+            totalStock: stockMap.get(product.id) ?? 0,
+        }));
     }
 
     async findOne(tenantId: string, id: string) {

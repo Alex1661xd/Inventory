@@ -8,8 +8,8 @@ export declare class InventoryController {
     constructor(inventoryService: InventoryService);
     updateStock(tenantId: string, dto: UpdateStockDto, req: Request): Promise<{
         id: string;
-        productId: string;
         quantity: number;
+        productId: string;
         warehouseId: string;
     }>;
     transferStock(tenantId: string, dto: TransferStockDto, req: Request): Promise<{
@@ -30,8 +30,8 @@ export declare class InventoryController {
             id: string;
         };
         id: string;
-        productId: string;
         quantity: number;
+        productId: string;
         warehouseId: string;
     }[]>;
 }

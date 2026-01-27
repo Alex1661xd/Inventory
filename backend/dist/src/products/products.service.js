@@ -90,21 +90,24 @@ let ProductsService = class ProductsService {
         }
     }
     async findAllWithTotalStock(tenantId) {
+        const stockData = await this.prisma.stock.groupBy({
+            by: ['productId'],
+            _sum: {
+                quantity: true,
+            },
+        });
+        const stockMap = new Map();
+        stockData.forEach(item => {
+            stockMap.set(item.productId, item._sum.quantity ?? 0);
+        });
         const products = await this.prisma.product.findMany({
             where: { tenantId },
             orderBy: { createdAt: 'desc' },
         });
-        const productsWithStock = await Promise.all(products.map(async (product) => {
-            const stockAggregate = await this.prisma.stock.aggregate({
-                where: { productId: product.id },
-                _sum: { quantity: true },
-            });
-            return {
-                ...product,
-                totalStock: stockAggregate._sum.quantity ?? 0,
-            };
+        return products.map(product => ({
+            ...product,
+            totalStock: stockMap.get(product.id) ?? 0,
         }));
-        return productsWithStock;
     }
     async findOne(tenantId, id) {
         const product = await this.prisma.product.findFirst({
