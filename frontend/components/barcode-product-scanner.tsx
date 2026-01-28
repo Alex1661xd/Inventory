@@ -35,6 +35,8 @@ export function BarcodeProductScanner({ className }: Props) {
     const videoRef = useRef<HTMLVideoElement | null>(null)
     const scannerControlsRef = useRef<any | null>(null)
 
+    const [showProductModal, setShowProductModal] = useState(false)
+
     // Check if we're on HTTPS or localhost
     const isSecureContext = useMemo(() => {
         if (typeof window === 'undefined') return false
@@ -216,6 +218,7 @@ export function BarcodeProductScanner({ className }: Props) {
         }
 
         setLoading(true)
+        setShowProductModal(false)
         try {
             const [ws, p] = await Promise.all([
                 api.warehouses.list(),
@@ -226,6 +229,7 @@ export function BarcodeProductScanner({ className }: Props) {
 
             const s = await api.inventory.stock({ productId: p.id })
             setStockRows(s)
+            setShowProductModal(true)
         } catch (e: any) {
             setProduct(null)
             setStockRows([])
@@ -263,69 +267,118 @@ export function BarcodeProductScanner({ className }: Props) {
                             />
                         </div>
                         <div className="flex gap-2">
-                            <Button className="h-11 flex-1" onClick={() => fetchByBarcode()} disabled={loading || scanning}>
+                            <Button className="h-11 flex-1" onClick={() => fetchByBarcode()} disabled={loading}>
                                 {loading ? 'Buscando...' : 'Buscar'}
                             </Button>
                             <Button
                                 variant="outline"
                                 className="h-11"
-                                onClick={() => (scanning ? stopScan() : startScan())}
-                                disabled={loading}
+                                onClick={() => startScan()}
+                                disabled={loading || scanning}
                                 title={!hasBarcodeDetector ? 'BarcodeDetector no disponible en este navegador' : undefined}
                             >
-                                {scanning ? 'Detener' : 'Cámara'}
+                                📷 Cámara
                             </Button>
                         </div>
                     </div>
 
-                    {scanning && (
-                        <div className="relative w-full max-w-md mx-auto">
-                            <video
-                                ref={videoRef}
-                                className="w-full rounded-lg border-2 border-[hsl(var(--border))]"
-                                playsInline
-                                muted
-                            />
-                            <div className="absolute top-2 left-2 bg-black/50 text-white px-3 py-1 rounded-md text-sm">
-                                📷 Escaneando...
-                            </div>
-                        </div>
-                    )}
-
                     {cameraError && (
                         <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">{cameraError}</div>
                     )}
+                </CardContent>
+            </Card>
 
-                    {product && (
-                        <Card className="border-[hsl(var(--border))]">
-                            <CardHeader>
-                                <CardTitle className="text-xl" style={{ fontFamily: 'var(--font-display)' }}>{product.name}</CardTitle>
-                                <CardDescription>
-                                    {product.barcode ? `Código: ${product.barcode}` : ''}
-                                    {product.sku ? ` · SKU: ${product.sku}` : ''}
-                                    {` · Total: ${totalStock} unidades`}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    <div className="space-y-1">
-                                        <div className="text-xs text-[hsl(var(--muted))] uppercase tracking-widest">Precio</div>
-                                        <div className="text-2xl font-black">{formatCurrency(product.salePrice)}</div>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <div className="text-xs text-[hsl(var(--muted))] uppercase tracking-widest">Descripción</div>
-                                        <div className="text-sm text-[hsl(var(--foreground))]">
-                                            {product.description || 'Sin descripción'}
-                                        </div>
-                                    </div>
+            {/* Scanner Modal */}
+            {scanning && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
+                    <div className="relative w-full max-w-lg bg-black rounded-3xl overflow-hidden shadow-2xl animate-scale-in">
+                        <div className="absolute top-4 right-4 z-10">
+                            <Button
+                                variant="destructive"
+                                size="icon"
+                                onClick={stopScan}
+                                className="rounded-full h-10 w-10 shadow-lg"
+                            >
+                                ✕
+                            </Button>
+                        </div>
+                        <video
+                            ref={videoRef}
+                            className="w-full aspect-[4/3] object-cover"
+                            playsInline
+                            muted
+                        />
+                        <div className="absolute bottom-6 left-0 right-0 text-center">
+                            <span className="bg-black/60 text-white px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm">
+                                Encuadra el código de barras
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Product Details Modal */}
+            {showProductModal && product && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowProductModal(false)}>
+                    <Card className="w-full max-w-2xl relative z-10 animate-scale-in max-h-[90vh] flex flex-col border-[hsl(var(--border))]" onClick={(e) => e.stopPropagation()}>
+                        <CardHeader className="border-b border-[hsl(var(--border))] flex flex-row items-center justify-between sticky top-0 bg-[hsl(var(--background))] z-10 rounded-t-xl">
+                            <div>
+                                <CardTitle className="text-xl" style={{ fontFamily: 'var(--font-display)' }}>Detalles del Producto</CardTitle>
+                                <CardDescription>Información detallada y existencias</CardDescription>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => setShowProductModal(false)}>✕</Button>
+                        </CardHeader>
+                        <CardContent className="p-6 overflow-y-auto custom-scrollbar space-y-6">
+                            <div className="grid md:grid-cols-2 gap-6">
+                                {/* Image Section */}
+                                <div className="aspect-square rounded-2xl overflow-hidden border border-[hsl(var(--border))] shadow-inner flex items-center justify-center bg-[hsl(var(--muted))/0.1]">
+                                    {product.imageUrl ? (
+                                        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-6xl">📦</span>
+                                    )}
                                 </div>
 
-                                <div className="overflow-x-auto">
+                                {/* Info Section */}
+                                <div className="space-y-4">
+                                    <h3 className="text-2xl font-bold leading-tight">{product.name}</h3>
+                                    <div className="space-y-1">
+                                        <div className="text-xs text-[hsl(var(--muted))] uppercase tracking-widest font-bold">Código / SKU</div>
+                                        <div className="flex gap-2 text-sm">
+                                            {product.barcode && <span className="bg-[hsl(var(--muted))/0.1] px-2 py-1 rounded">{product.barcode}</span>}
+                                            {product.sku && <span className="bg-[hsl(var(--muted))/0.1] px-2 py-1 rounded">{product.sku}</span>}
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <div className="text-xs text-[hsl(var(--muted))] uppercase tracking-widest font-bold">Precio</div>
+                                        <div className="text-3xl font-black text-[hsl(var(--primary))]">{formatCurrency(product.salePrice)}</div>
+                                    </div>
+
+                                    <div className="p-4 bg-[hsl(var(--foreground))] text-[hsl(var(--background))] rounded-xl flex items-center justify-between">
+                                        <span className="text-sm font-medium">Stock Total</span>
+                                        <span className="text-2xl font-black">{totalStock}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {product.description && (
+                                <div className="space-y-2">
+                                    <div className="text-xs text-[hsl(var(--muted))] uppercase tracking-widest font-bold">Descripción</div>
+                                    <div className="text-sm p-3 bg-[hsl(var(--muted))/0.05] rounded-lg">
+                                        {product.description}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="space-y-2">
+                                <div className="text-xs text-[hsl(var(--muted))] uppercase tracking-widest font-bold">Disponibilidad por Almacén</div>
+                                <div className="overflow-x-auto rounded-lg border border-[hsl(var(--border))]">
                                     <table className="w-full">
                                         <thead>
-                                            <tr className="bg-[hsl(var(--background))] border-b border-[hsl(var(--border))]">
+                                            <tr className="bg-[hsl(var(--muted))/0.05] border-b border-[hsl(var(--border))]">
                                                 <th className="px-4 py-3 text-left text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Almacén</th>
-                                                <th className="px-4 py-3 text-right text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Cantidad</th>
+                                                <th className="px-4 py-3 text-right text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Cant.</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-[hsl(var(--border))]">
@@ -345,14 +398,21 @@ export function BarcodeProductScanner({ className }: Props) {
                                                     </td>
                                                 </tr>
                                             ))}
+                                            {stockByWarehouse.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={2} className="px-4 py-6 text-center text-sm text-[hsl(var(--muted))]">
+                                                        No hay información de stock disponible
+                                                    </td>
+                                                </tr>
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
-                            </CardContent>
-                        </Card>
-                    )}
-                </CardContent>
-            </Card>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
         </div>
     )
 }
