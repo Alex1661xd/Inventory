@@ -5,15 +5,13 @@ export class CreateProductDto {
     @MaxLength(200)
     name!: string;
 
-    @IsOptional()
     @IsString()
     @MaxLength(1000)
-    description?: string;
+    description!: string;
 
-    @IsOptional()
     @IsString()
     @MaxLength(100)
-    sku?: string;
+    sku!: string;
 
     @IsOptional()
     @IsString()
@@ -25,23 +23,20 @@ export class CreateProductDto {
     @IsString({ each: true })
     images?: string[];
 
-    @IsOptional()
     @IsNumber()
     @Min(0)
-    costPrice?: number;
+    costPrice!: number;
 
-    @IsOptional()
     @IsNumber()
     @Min(0)
-    salePrice?: number;
+    salePrice!: number;
 
     @IsOptional()
     @IsBoolean()
     isPublic?: boolean;
 
-    @IsOptional()
     @IsUUID()
-    categoryId?: string;
+    categoryId!: string;
 
     @IsOptional()
     @IsInt()

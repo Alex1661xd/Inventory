@@ -62,6 +62,7 @@ export default function ProductsPage() {
     const [selectedFiles, setSelectedFiles] = useState<File[]>([])
     const [imagePreviews, setImagePreviews] = useState<string[]>([])
     const [uploading, setUploading] = useState(false)
+    const [imagesToDelete, setImagesToDelete] = useState<string[]>([])
 
     const isEditing = useMemo(() => Boolean(editingId), [editingId])
 
@@ -205,7 +206,10 @@ export default function ProductsPage() {
         setShowForm(false)
         setShowForm(false)
         setSelectedFiles([])
+        if (showForm) setShowForm(false)
+        setSelectedFiles([])
         setImagePreviews([])
+        setImagesToDelete([])
     }
 
     const startCreate = () => {
@@ -233,7 +237,9 @@ export default function ProductsPage() {
             categoryId: p.categoryId ?? '',
         })
         setImagePreviews(p.images && p.images.length > 0 ? p.images : (p.imageUrl ? [p.imageUrl] : []))
+        setImagePreviews(p.images && p.images.length > 0 ? p.images : (p.imageUrl ? [p.imageUrl] : []))
         setSelectedFiles([])
+        setImagesToDelete([])
         setShowForm(true)
     }
 
@@ -323,17 +329,27 @@ export default function ProductsPage() {
         setImagePreviews(newPreviews)
 
         if (previewToRemove.startsWith('blob:')) {
-            // It's a new file. 
-            // We need to find and remove it from selectedFiles.
-            // Since we pushed them in order, the blobs in imagePreviews match the order in selectedFiles 
-            // BUT interleaved with existing urls? No, usually existing come first?
-            // Let's assume existing come first in previews.
+            // It's a new file.
+            // Find which file generated this blob. 
+            // We assume new files are appended to the end of imagePreviews (after existing URLs)
+            // But if we delete an existing one, the indices shift.
+            // A safer way involves keeping a separate mapping or just filtering carefully.
 
-            // Count how many existing images are before this one
-            const existingCount = imagePreviews.slice(0, index).filter(p => !p.startsWith('blob:')).length
+            // Simplified logic assuming: existing urls first, then new files.
+            // Count how many existing images remaining BEFORE this index
+            const existingCount = newPreviews.filter(p => !p.startsWith('blob:')).length
+            // Wait, we already removed it from newPreviews. So we count in newPreviews?
+            // No, the index 'index' referred to the array BEFORE splicing.
 
-            // The index in selectedFiles is (index - existingCount)
-            const fileIndex = index - existingCount
+            // Re-eval:
+            // Original array: [url1, url2, blob1, blob2]
+            // removing index 2 (blob1).
+            // existing urls before index 2: 2.
+            // so file index = 2 - 2 = 0.
+
+            // Count existing images in original array (before removal)
+            const existingInOriginal = imagePreviews.slice(0, index).filter(p => !p.startsWith('blob:')).length
+            const fileIndex = index - existingInOriginal
 
             if (fileIndex >= 0) {
                 const newFiles = [...selectedFiles]
@@ -341,12 +357,13 @@ export default function ProductsPage() {
                 setSelectedFiles(newFiles)
             }
         } else {
-            // It's an existing image, remove from form.images
-            // We need to update form state
+            // It's an existing image url
+            setImagesToDelete(prev => [...prev, previewToRemove])
+
+            // Update form state directly to reflect removal immediately in UI logic (e.g. validaciones)
             setForm(prev => ({
                 ...prev,
                 images: prev.images.filter(img => img !== previewToRemove),
-                // Also update legacy imageUrl if it was the first one, or empty
                 imageUrl: prev.images.filter(img => img !== previewToRemove)[0] || ''
             }))
         }
@@ -373,10 +390,40 @@ export default function ProductsPage() {
         return data.publicUrl
     }
 
+    const deleteImagesFromStorage = async (urls: string[]) => {
+        if (!urls.length) return
+        const supabase = createClient()
+        const paths = urls
+            .filter(url => url.includes('supabase'))
+            .map(url => {
+                try {
+                    const urlObj = new URL(url)
+                    const parts = urlObj.pathname.split('/product-images/')
+                    if (parts.length > 1) return parts[1]
+                    return null
+                } catch (e) { return null }
+            })
+            .filter(p => p !== null) as string[]
+
+        if (paths.length === 0) return
+
+        const { error } = await supabase.storage.from('product-images').remove(paths)
+        if (error) console.error('Error deleting images:', error)
+    }
+
     const submit = async () => {
-        if (!form.name.trim()) {
-            toast.error('El nombre es obligatorio')
-            return
+        // Validaciones obligatorias
+        if (!form.name.trim()) return toast.error('El nombre es obligatorio')
+        if (!form.categoryId) return toast.error('La categoría es obligatoria')
+        if (!form.sku.trim()) return toast.error('El SKU es obligatorio')
+        if (!form.description.trim()) return toast.error('La descripción es obligatoria')
+        if (Number(form.costPrice) < 0) return toast.error('El precio de costo no es válido')
+        if (Number(form.salePrice) < 0) return toast.error('El precio de venta no es válido')
+
+        // Validar stock inicial si no es edición
+        if (!editingId && form.initialStock !== '' && Number(form.initialStock) > 0 && !form.initialWarehouseId) {
+            // Esto no debería pasar si autoseleccionamos, pero por seguridad
+            return toast.error('Error interno: Almacén no seleccionado')
         }
 
         setSaving(true)
@@ -436,6 +483,11 @@ export default function ProductsPage() {
                 toast.success('Producto creado')
             }
 
+            // Cleanup deleted images from storage
+            if (imagesToDelete.length > 0) {
+                await deleteImagesFromStorage(imagesToDelete)
+            }
+
             resetForm()
             await load()
         } catch (e: any) {
@@ -451,7 +503,17 @@ export default function ProductsPage() {
         if (!ok) return
 
         try {
+            const productToDelete = products.find(p => p.id === id)
             await api.products.remove(id)
+
+            // Delete images
+            if (productToDelete) {
+                const images = productToDelete.images && productToDelete.images.length > 0
+                    ? productToDelete.images
+                    : (productToDelete.imageUrl ? [productToDelete.imageUrl] : [])
+                await deleteImagesFromStorage(images)
+            }
+
             toast.success('Producto eliminado')
             if (editingId === id) resetForm()
             await load()
@@ -819,30 +881,17 @@ export default function ProductsPage() {
                                 </div>
 
                                 {!isEditing && (
-                                    <div className="space-y-2">
+                                    <div className="space-y-2 md:col-span-2">
                                         <Label>Stock Inicial</Label>
                                         <Input
                                             type="number"
                                             value={form.initialStock}
                                             onChange={(e) => setForm((s) => ({ ...s, initialStock: e.target.value }))}
+                                            placeholder="0"
                                         />
-                                    </div>
-                                )}
-
-                                {!isEditing && (
-                                    <div className="space-y-2 md:col-span-2">
-                                        <Label>Almacén Principal</Label>
-                                        <select
-                                            className="flex h-11 w-full rounded-lg border-2 border-[rgb(230,225,220)] bg-white/90 px-4 py-2.5 text-sm font-medium shadow-sm transition-all duration-300 focus:outline-none focus:border-[rgb(25,35,25)]"
-                                            value={form.initialWarehouseId}
-                                            onChange={(e) => setForm((s) => ({ ...s, initialWarehouseId: e.target.value }))}
-                                            style={{ color: form.initialWarehouseId ? 'rgb(25,35,25)' : 'rgb(120,115,110)' }}
-                                        >
-                                            <option value="">Selecciona un almacén...</option>
-                                            {warehouses.map((w) => (
-                                                <option key={w.id} value={w.id}>{w.name}</option>
-                                            ))}
-                                        </select>
+                                        <p className="text-[10px] text-[hsl(var(--muted))]">
+                                            Se añadirá a la Bodega Principal
+                                        </p>
                                     </div>
                                 )}
 
