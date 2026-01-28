@@ -4,20 +4,40 @@ import type { Cache } from 'cache-manager';
 
 @Injectable()
 export class CacheService {
-    constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) { }
+    constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {
+        console.log('🔧 CacheService initialized');
+    }
 
     /**
      * Obtiene un valor del caché
      */
     async get<T>(key: string): Promise<T | undefined> {
-        return await this.cacheManager.get<T>(key);
+        try {
+            console.log(`🔍 [CACHE GET] ${key}`);
+            const value = await this.cacheManager.get<T>(key);
+            console.log(value ? `✅ [CACHE HIT] ${key}` : `❌ [CACHE MISS] ${key}`);
+            return value;
+        } catch (error) {
+            console.error(`🚨 [CACHE GET ERROR] ${key}:`, error.message);
+            return undefined;
+        }
     }
 
     /**
      * Guarda un valor en el caché con TTL personalizado
      */
     async set(key: string, value: any, ttl?: number): Promise<void> {
-        await this.cacheManager.set(key, value, ttl);
+        try {
+            // cache-manager-redis-yet usa milisegundos para TTL v5+
+            // Si no se pasa TTL, usa el default del store
+            const ttlInMs = ttl ? ttl * 1000 : undefined;
+            console.log(`💾 [CACHE SET] ${key} (TTL: ${ttl}s -> ${ttlInMs}ms)`);
+            // Nota: En versiones recientes de cache-manager, el tercer argumento es TTL en ms
+            await this.cacheManager.set(key, value, ttlInMs);
+            console.log(`✅ [CACHE SET SUCCESS] ${key}`);
+        } catch (error) {
+            console.error(`🚨 [CACHE SET ERROR] ${key}:`, error.message);
+        }
     }
 
     /**

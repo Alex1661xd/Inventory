@@ -18,16 +18,16 @@ export declare class InventoryController {
     }>;
     findStock(tenantId: string, query: QueryStockDto): Promise<{
         product: {
-            id: string;
             name: string;
-            barcode: string | null;
+            id: string;
             sku: string | null;
             costPrice: import("@prisma/client/runtime/library").Decimal;
             categoryId: string | null;
+            barcode: string | null;
         };
         warehouse: {
-            id: string;
             name: string;
+            id: string;
         };
         id: string;
         quantity: number;
