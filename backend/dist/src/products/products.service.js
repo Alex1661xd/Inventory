@@ -13,10 +13,13 @@ exports.ProductsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const crypto_1 = require("crypto");
+const cache_service_1 = require("../cache/cache.service");
 let ProductsService = class ProductsService {
     prisma;
-    constructor(prisma) {
+    cacheService;
+    constructor(prisma, cacheService) {
         this.prisma = prisma;
+        this.cacheService = cacheService;
     }
     generateBarcode() {
         return `MUE-${(0, crypto_1.randomBytes)(4).toString('hex').toUpperCase()}`;
@@ -58,7 +61,7 @@ let ProductsService = class ProductsService {
             }
         }
         try {
-            return await this.prisma.$transaction(async (tx) => {
+            const product = await this.prisma.$transaction(async (tx) => {
                 const product = await tx.product.create({
                     data: {
                         tenantId,
@@ -67,6 +70,7 @@ let ProductsService = class ProductsService {
                         barcode,
                         sku: dto.sku,
                         imageUrl: dto.imageUrl,
+                        images: dto.images ?? [],
                         costPrice: dto.costPrice ?? 0,
                         salePrice: dto.salePrice ?? 0,
                         isPublic: dto.isPublic ?? true,
@@ -84,12 +88,19 @@ let ProductsService = class ProductsService {
                 }
                 return product;
             });
+            await this.invalidateProductCache(tenantId);
+            return product;
         }
         catch (error) {
             throw new common_1.BadRequestException(error?.message ?? 'Error creating product');
         }
     }
     async findAllWithTotalStock(tenantId) {
+        const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'list');
+        const cached = await this.cacheService.get(cacheKey);
+        if (cached) {
+            return cached;
+        }
         const stockData = await this.prisma.stock.groupBy({
             by: ['productId'],
             _sum: {
@@ -104,12 +115,19 @@ let ProductsService = class ProductsService {
             where: { tenantId },
             orderBy: { createdAt: 'desc' },
         });
-        return products.map(product => ({
+        const result = products.map(product => ({
             ...product,
             totalStock: stockMap.get(product.id) ?? 0,
         }));
+        await this.cacheService.set(cacheKey, result, 300);
+        return result;
     }
     async findOne(tenantId, id) {
+        const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'detail', id);
+        const cached = await this.cacheService.get(cacheKey);
+        if (cached) {
+            return cached;
+        }
         const product = await this.prisma.product.findFirst({
             where: { id, tenantId },
             include: {
@@ -120,12 +138,19 @@ let ProductsService = class ProductsService {
             throw new common_1.NotFoundException('Product not found');
         const totalStock = product.inventory.reduce((acc, s) => acc + s.quantity, 0);
         const { inventory, ...rest } = product;
-        return { ...rest, totalStock };
+        const result = { ...rest, totalStock };
+        await this.cacheService.set(cacheKey, result, 600);
+        return result;
     }
     async findByBarcode(tenantId, barcode) {
         const normalized = (barcode ?? '').trim();
         if (!normalized)
             throw new common_1.BadRequestException('barcode is required');
+        const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'barcode', normalized);
+        const cached = await this.cacheService.get(cacheKey);
+        if (cached) {
+            return cached;
+        }
         const product = await this.prisma.product.findFirst({
             where: { tenantId, barcode: normalized },
         });
@@ -135,10 +160,12 @@ let ProductsService = class ProductsService {
             where: { productId: product.id },
             _sum: { quantity: true },
         });
-        return {
+        const result = {
             ...product,
             totalStock: stockAggregate._sum.quantity ?? 0,
         };
+        await this.cacheService.set(cacheKey, result, 180);
+        return result;
     }
     async update(tenantId, id, dto) {
         const exists = await this.prisma.product.findFirst({
@@ -148,10 +175,12 @@ let ProductsService = class ProductsService {
         if (!exists)
             throw new common_1.NotFoundException('Product not found');
         try {
-            return await this.prisma.product.update({
+            const result = await this.prisma.product.update({
                 where: { id },
                 data: dto,
             });
+            await this.invalidateProductCache(tenantId, id);
+            return result;
         }
         catch (error) {
             throw new common_1.BadRequestException(error?.message ?? 'Error updating product');
@@ -165,18 +194,29 @@ let ProductsService = class ProductsService {
         if (!exists)
             throw new common_1.NotFoundException('Product not found');
         try {
-            return await this.prisma.product.delete({
+            const result = await this.prisma.product.delete({
                 where: { id },
             });
+            await this.invalidateProductCache(tenantId, id);
+            return result;
         }
         catch (error) {
             throw new common_1.BadRequestException(error?.message ?? 'Error deleting product');
+        }
+    }
+    async invalidateProductCache(tenantId, productId) {
+        const listKey = this.cacheService.generateKey(tenantId, 'products', 'list');
+        await this.cacheService.invalidate(listKey);
+        if (productId) {
+            const detailKey = this.cacheService.generateKey(tenantId, 'products', 'detail', productId);
+            await this.cacheService.invalidate(detailKey);
         }
     }
 };
 exports.ProductsService = ProductsService;
 exports.ProductsService = ProductsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        cache_service_1.CacheService])
 ], ProductsService);
 //# sourceMappingURL=products.service.js.map

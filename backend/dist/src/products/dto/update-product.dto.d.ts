@@ -3,6 +3,7 @@ export declare class UpdateProductDto {
     description?: string;
     sku?: string;
     imageUrl?: string;
+    images?: string[];
     costPrice?: number;
     salePrice?: number;
     isPublic?: boolean;

@@ -3,10 +3,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { randomBytes } from 'crypto';
+import { CacheService } from '../cache/cache.service';
 
 @Injectable()
 export class ProductsService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly cacheService: CacheService
+    ) { }
 
     private generateBarcode() {
         return `MUE-${randomBytes(4).toString('hex').toUpperCase()}`;
@@ -58,7 +62,7 @@ export class ProductsService {
         }
 
         try {
-            return await this.prisma.$transaction(async (tx) => {
+            const product = await this.prisma.$transaction(async (tx) => {
                 const product = await tx.product.create({
                     data: {
                         tenantId,
@@ -87,12 +91,26 @@ export class ProductsService {
 
                 return product;
             });
+
+            // Invalidar caché de productos del tenant
+            await this.invalidateProductCache(tenantId);
+
+            return product;
         } catch (error: any) {
             throw new BadRequestException(error?.message ?? 'Error creating product');
         }
     }
 
     async findAllWithTotalStock(tenantId: string) {
+        // Intentar obtener del caché
+        const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'list');
+        const cached = await this.cacheService.get<any[]>(cacheKey);
+
+        if (cached) {
+            return cached;
+        }
+
+        // Si no está en caché, consultar la DB
         // Optimized query: Get all stock data in a single query
         const stockData = await this.prisma.stock.groupBy({
             by: ['productId'],
@@ -114,13 +132,26 @@ export class ProductsService {
         });
 
         // Combine products with their stock totals using the map
-        return products.map(product => ({
+        const result = products.map(product => ({
             ...product,
             totalStock: stockMap.get(product.id) ?? 0,
         }));
+
+        // Guardar en caché por 5 minutos (300 segundos)
+        await this.cacheService.set(cacheKey, result, 300);
+
+        return result;
     }
 
     async findOne(tenantId: string, id: string) {
+        // Intentar obtener del caché
+        const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'detail', id);
+        const cached = await this.cacheService.get<any>(cacheKey);
+
+        if (cached) {
+            return cached;
+        }
+
         const product = await this.prisma.product.findFirst({
             where: { id, tenantId },
             include: {
@@ -132,12 +163,25 @@ export class ProductsService {
 
         const totalStock = product.inventory.reduce((acc, s) => acc + s.quantity, 0);
         const { inventory, ...rest } = product;
-        return { ...rest, totalStock };
+        const result = { ...rest, totalStock };
+
+        // Guardar en caché por 10 minutos
+        await this.cacheService.set(cacheKey, result, 600);
+
+        return result;
     }
 
     async findByBarcode(tenantId: string, barcode: string) {
         const normalized = (barcode ?? '').trim();
         if (!normalized) throw new BadRequestException('barcode is required');
+
+        // Caché por código de barras (crítico para vendedores)
+        const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'barcode', normalized);
+        const cached = await this.cacheService.get<any>(cacheKey);
+
+        if (cached) {
+            return cached;
+        }
 
         const product = await this.prisma.product.findFirst({
             where: { tenantId, barcode: normalized },
@@ -150,10 +194,15 @@ export class ProductsService {
             _sum: { quantity: true },
         });
 
-        return {
+        const result = {
             ...product,
             totalStock: stockAggregate._sum.quantity ?? 0,
         };
+
+        // Guardar en caché por 3 minutos (búsqueda frecuente)
+        await this.cacheService.set(cacheKey, result, 180);
+
+        return result;
     }
 
     async update(tenantId: string, id: string, dto: UpdateProductDto) {
@@ -165,14 +214,20 @@ export class ProductsService {
         if (!exists) throw new NotFoundException('Product not found');
 
         try {
-            return await this.prisma.product.update({
+            const result = await this.prisma.product.update({
                 where: { id },
                 data: dto,
             });
+
+            // Invalidar caché al actualizar
+            await this.invalidateProductCache(tenantId, id);
+
+            return result;
         } catch (error: any) {
             throw new BadRequestException(error?.message ?? 'Error updating product');
         }
     }
+
 
     async remove(tenantId: string, id: string) {
         const exists = await this.prisma.product.findFirst({
@@ -183,11 +238,33 @@ export class ProductsService {
         if (!exists) throw new NotFoundException('Product not found');
 
         try {
-            return await this.prisma.product.delete({
+            const result = await this.prisma.product.delete({
                 where: { id },
             });
+
+            // Invalidar caché
+            await this.invalidateProductCache(tenantId, id);
+
+            return result;
         } catch (error: any) {
             throw new BadRequestException(error?.message ?? 'Error deleting product');
+        }
+    }
+
+    // ==================== CACHE HELPERS ====================
+
+    /**
+     * Invalida todo el caché de productos de un tenant
+     */
+    private async invalidateProductCache(tenantId: string, productId?: string) {
+        // Invalidar lista general
+        const listKey = this.cacheService.generateKey(tenantId, 'products', 'list');
+        await this.cacheService.invalidate(listKey);
+
+        // Si hay un productId, invalidar ese producto específico
+        if (productId) {
+            const detailKey = this.cacheService.generateKey(tenantId, 'products', 'detail', productId);
+            await this.cacheService.invalidate(detailKey);
         }
     }
 }

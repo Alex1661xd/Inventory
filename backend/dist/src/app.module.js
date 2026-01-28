@@ -17,12 +17,13 @@ const products_module_1 = require("./products/products.module");
 const warehouses_module_1 = require("./warehouses/warehouses.module");
 const inventory_module_1 = require("./inventory/inventory.module");
 const categories_module_1 = require("./categories/categories.module");
+const cache_module_1 = require("./cache/cache.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
-        imports: [prisma_module_1.PrismaModule, supabase_module_1.SupabaseModule, auth_module_1.AuthModule, products_module_1.ProductsModule, warehouses_module_1.WarehousesModule, inventory_module_1.InventoryModule, categories_module_1.CategoriesModule],
+        imports: [cache_module_1.CacheModule, prisma_module_1.PrismaModule, supabase_module_1.SupabaseModule, auth_module_1.AuthModule, products_module_1.ProductsModule, warehouses_module_1.WarehousesModule, inventory_module_1.InventoryModule, categories_module_1.CategoriesModule],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],
     })

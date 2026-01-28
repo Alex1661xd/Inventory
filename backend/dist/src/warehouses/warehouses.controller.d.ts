@@ -10,12 +10,7 @@ export declare class WarehousesController {
         tenantId: string;
         address: string | null;
     }>;
-    findAll(tenantId: string): Promise<{
-        name: string;
-        id: string;
-        tenantId: string;
-        address: string | null;
-    }[]>;
+    findAll(tenantId: string): Promise<any[]>;
     update(tenantId: string, id: string, dto: UpdateWarehouseDto): Promise<{
         name: string;
         id: string;

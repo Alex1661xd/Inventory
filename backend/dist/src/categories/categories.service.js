@@ -12,16 +12,26 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CategoriesService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
+const cache_service_1 = require("../cache/cache.service");
 let CategoriesService = class CategoriesService {
     prisma;
-    constructor(prisma) {
+    cacheService;
+    constructor(prisma, cacheService) {
         this.prisma = prisma;
+        this.cacheService = cacheService;
     }
     async findAll(tenantId) {
-        return this.prisma.category.findMany({
+        const cacheKey = this.cacheService.generateKey(tenantId, 'categories', 'list');
+        const cached = await this.cacheService.get(cacheKey);
+        if (cached) {
+            return cached;
+        }
+        const categories = await this.prisma.category.findMany({
             where: { tenantId },
             orderBy: { name: 'asc' },
         });
+        await this.cacheService.set(cacheKey, categories, 900);
+        return categories;
     }
     async findOne(id, tenantId) {
         const category = await this.prisma.category.findFirst({
@@ -36,19 +46,23 @@ let CategoriesService = class CategoriesService {
         return category;
     }
     async create(data, tenantId) {
-        return this.prisma.category.create({
+        const category = await this.prisma.category.create({
             data: {
                 ...data,
                 tenantId,
             },
         });
+        await this.invalidateCategoryCache(tenantId);
+        return category;
     }
     async update(id, data, tenantId) {
         await this.findOne(id, tenantId);
-        return this.prisma.category.update({
+        const updated = await this.prisma.category.update({
             where: { id },
             data,
         });
+        await this.invalidateCategoryCache(tenantId);
+        return updated;
     }
     async remove(id, tenantId) {
         await this.findOne(id, tenantId);
@@ -61,11 +75,17 @@ let CategoriesService = class CategoriesService {
         await this.prisma.category.delete({
             where: { id },
         });
+        await this.invalidateCategoryCache(tenantId);
+    }
+    async invalidateCategoryCache(tenantId) {
+        const cacheKey = this.cacheService.generateKey(tenantId, 'categories', 'list');
+        await this.cacheService.invalidate(cacheKey);
     }
 };
 exports.CategoriesService = CategoriesService;
 exports.CategoriesService = CategoriesService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        cache_service_1.CacheService])
 ], CategoriesService);
 //# sourceMappingURL=categories.service.js.map
