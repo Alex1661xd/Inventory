@@ -9,12 +9,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/utils/supabase/client'
 
 type FormState = {
     name: string
     description: string
     sku: string
     imageUrl: string
+    images: string[]
     costPrice: string
     salePrice: string
     isPublic: boolean
@@ -28,6 +30,7 @@ const emptyForm: FormState = {
     description: '',
     sku: '',
     imageUrl: '',
+    images: [],
     costPrice: '0',
     salePrice: '0',
     isPublic: true,
@@ -56,6 +59,9 @@ export default function ProductsPage() {
     const [viewModal, setViewModal] = useState<{ product: Product | null; visible: boolean }>({ product: null, visible: false })
     const viewBarcodeSvgRef = useRef<SVGSVGElement | null>(null)
     const [showFilters, setShowFilters] = useState(false)
+    const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+    const [imagePreviews, setImagePreviews] = useState<string[]>([])
+    const [uploading, setUploading] = useState(false)
 
     const isEditing = useMemo(() => Boolean(editingId), [editingId])
 
@@ -197,6 +203,9 @@ export default function ProductsPage() {
         setEditingId(null)
         setForm(emptyForm)
         setShowForm(false)
+        setShowForm(false)
+        setSelectedFiles([])
+        setImagePreviews([])
     }
 
     const startCreate = () => {
@@ -215,6 +224,7 @@ export default function ProductsPage() {
             description: p.description ?? '',
             sku: p.sku ?? '',
             imageUrl: p.imageUrl ?? '',
+            images: p.images ?? (p.imageUrl ? [p.imageUrl] : []),
             costPrice: String(p.costPrice ?? '0'),
             salePrice: String(p.salePrice ?? '0'),
             isPublic: Boolean(p.isPublic),
@@ -222,7 +232,145 @@ export default function ProductsPage() {
             initialWarehouseId: warehouses[0]?.id || '',
             categoryId: p.categoryId ?? '',
         })
+        setImagePreviews(p.images && p.images.length > 0 ? p.images : (p.imageUrl ? [p.imageUrl] : []))
+        setSelectedFiles([])
         setShowForm(true)
+    }
+
+
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const newFiles = Array.from(e.target.files)
+
+            // Check limits
+            const currentCount = imagePreviews.length
+            const navailable = 3 - currentCount
+
+            if (newFiles.length > navailable) {
+                toast.error(`Solo puedes subir hasta 3 imágenes. Puedes añadir ${navailable} más.`)
+                return
+            }
+
+            const validFiles = newFiles.slice(0, navailable)
+
+            setSelectedFiles(prev => [...prev, ...validFiles])
+
+            // Create previews
+            const newPreviews = validFiles.map(file => URL.createObjectURL(file))
+            setImagePreviews(prev => [...prev, ...newPreviews])
+
+            // Clear input value so same files can be selected again if removed
+            e.target.value = ''
+        }
+    }
+
+    const removeImage = (index: number) => {
+        // We need to keep track of which preview corresponds to which file
+        // This is a simplified approach assuming appending order
+        // Ideally we'd separate "existing URLs" from "new Files"
+
+        let newPreviews = [...imagePreviews]
+        const removedPreview = newPreviews[index]
+        newPreviews.splice(index, 1)
+        setImagePreviews(newPreviews)
+
+        // If it was a blob URL, revoke it and remove from selectedFiles
+        if (removedPreview.startsWith('blob:')) {
+            // Find which file generated this blob
+            // This is tricky without a map, but assuming order is maintained for "new" files is standard
+            // Let's refine: filtering selectedFiles is hard without IDs.
+            // Better approach: Separate state for existing vs new.
+
+            // RETHINK: Let's split existing images and new files logic if possible, 
+            // OR just rebuild previews from form.images + selectedFiles.
+
+            // Current simple logic: Re-sync is complex.
+            // Let's just filter selectedFiles if possible? 
+            // Actually, `URL.createObjectURL` returns opaque string.
+
+            // SIMPLIFICATION: Reconstruction
+            // If we remove an image that is NOT a blob, update form.images
+            // If we remove an image that IS a blob, remove from selectedFiles
+
+            if (removedPreview.startsWith('blob:')) {
+                // It's a new file. We need to find its index in selectedFiles
+                // This is hard. Let's restart selectedFiles management to be index-based relative to previews?
+                // Easier: Store everything in one state array: { type: 'url' | 'file', url: string, file?: File }
+            }
+        }
+    }
+
+    // Better state management for images
+    // Instead of separate states, let's derive
+    // But for now, let's just stick to the plan: 
+    // We will just clear the specific item.
+
+    // Correct Implementation for `removeImage`:
+    // It's tricky to map preview index to file index mixed with urls.
+    // Let's change state to:
+    // [ { type: 'existing', url: '...' }, { type: 'new', file: File, preview: 'blob:...' } ]
+
+    // Since I cannot change the state definition easily in one chunk without breaking others, 
+    // I will use a refactored approach in the next steps. For now, let's implement a robust handler.
+
+    const handleRemoveImage = (index: number) => {
+        const previewToRemove = imagePreviews[index]
+
+        // Remove from previews
+        const newPreviews = [...imagePreviews]
+        newPreviews.splice(index, 1)
+        setImagePreviews(newPreviews)
+
+        if (previewToRemove.startsWith('blob:')) {
+            // It's a new file. 
+            // We need to find and remove it from selectedFiles.
+            // Since we pushed them in order, the blobs in imagePreviews match the order in selectedFiles 
+            // BUT interleaved with existing urls? No, usually existing come first?
+            // Let's assume existing come first in previews.
+
+            // Count how many existing images are before this one
+            const existingCount = imagePreviews.slice(0, index).filter(p => !p.startsWith('blob:')).length
+
+            // The index in selectedFiles is (index - existingCount)
+            const fileIndex = index - existingCount
+
+            if (fileIndex >= 0) {
+                const newFiles = [...selectedFiles]
+                newFiles.splice(fileIndex, 1)
+                setSelectedFiles(newFiles)
+            }
+        } else {
+            // It's an existing image, remove from form.images
+            // We need to update form state
+            setForm(prev => ({
+                ...prev,
+                images: prev.images.filter(img => img !== previewToRemove),
+                // Also update legacy imageUrl if it was the first one, or empty
+                imageUrl: prev.images.filter(img => img !== previewToRemove)[0] || ''
+            }))
+        }
+    }
+
+    const uploadImage = async (file: File): Promise<string> => {
+        const supabase = createClient()
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+        const filePath = `${fileName}`
+
+        const { error: uploadError } = await supabase.storage
+            .from('product-images')
+            .upload(filePath, file)
+
+        if (uploadError) {
+            throw new Error(`Error subiendo imagen: ${uploadError.message}`)
+        }
+
+        const { data } = supabase.storage
+            .from('product-images')
+            .getPublicUrl(filePath)
+
+        return data.publicUrl
     }
 
     const submit = async () => {
@@ -232,12 +380,32 @@ export default function ProductsPage() {
         }
 
         setSaving(true)
+        setUploading(true)
         try {
+            let finalImages = [...form.images]
+
+            // Upload new files
+            if (selectedFiles.length > 0) {
+                try {
+                    const uploadPromises = selectedFiles.map(file => uploadImage(file))
+                    const uploadedUrls = await Promise.all(uploadPromises)
+                    finalImages = [...finalImages, ...uploadedUrls]
+                } catch (e: any) {
+                    toast.error(e.message)
+                    setSaving(false)
+                    setUploading(false)
+                    return
+                }
+            }
+            // Limit to 3 just in case
+            finalImages = finalImages.slice(0, 3)
+
             const basePayload = {
                 name: form.name.trim(),
                 description: form.description.trim() || undefined,
                 sku: form.sku.trim() || undefined,
-                imageUrl: form.imageUrl.trim() || undefined,
+                imageUrl: finalImages[0] || undefined, // Maintain compatibility
+                images: finalImages,
                 costPrice: Number(form.costPrice),
                 salePrice: Number(form.salePrice),
                 isPublic: form.isPublic,
@@ -274,6 +442,7 @@ export default function ProductsPage() {
             toast.error(e.message)
         } finally {
             setSaving(false)
+            setUploading(false)
         }
     }
 
@@ -700,9 +869,59 @@ export default function ProductsPage() {
                                     />
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label>URL de la Imagen</Label>
-                                    <Input value={form.imageUrl} onChange={(e) => setForm((s) => ({ ...s, imageUrl: e.target.value }))} placeholder="https://..." />
+                                <div className="space-y-4 row-span-2">
+                                    <Label>Imagen del Producto</Label>
+                                    <div className="border-2 border-dashed border-[rgb(230,225,220)] rounded-xl p-4 flex flex-col items-center justify-center gap-4 bg-[rgb(250,248,245)] hover:bg-[rgb(245,240,235)] transition-colors relative overflow-hidden group min-h-[200px]">
+                                        <div className="grid grid-cols-2 gap-2 w-full">
+                                            {imagePreviews.map((preview, idx) => (
+                                                <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-[rgb(230,225,220)] shadow-sm group/img">
+                                                    <img
+                                                        src={preview}
+                                                        alt={`Preview ${idx + 1}`}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                                                        <Button
+                                                            variant="destructive"
+                                                            size="icon"
+                                                            className="h-8 w-8 rounded-full"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                handleRemoveImage(idx)
+                                                            }}
+                                                        >
+                                                            ✕
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+
+                                            {imagePreviews.length < 3 && (
+                                                <div
+                                                    className="aspect-square rounded-lg border-2 border-dashed border-[rgb(200,195,190)] flex flex-col items-center justify-center cursor-pointer hover:bg-[rgb(240,235,230)] transition-colors"
+                                                    onClick={() => document.getElementById('image-upload')?.click()}
+                                                >
+                                                    <span className="text-2xl mb-1">➕</span>
+                                                    <span className="text-xs text-[rgb(120,115,110)]">Añadir</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {imagePreviews.length === 0 && (
+                                            <div className="text-center p-2">
+                                                <p className="text-sm font-medium text-[rgb(120,115,110)]">Añadir imágenes (Max 3)</p>
+                                                <p className="text-xs text-[rgb(120,115,110)]/70">PNG, JPG, WEBP</p>
+                                            </div>
+                                        )}
+
+                                        <input
+                                            id="image-upload"
+                                            type="file"
+                                            accept="image/png, image/jpeg, image/jpg, image/webp"
+                                            className="hidden"
+                                            onChange={handleFileSelect}
+                                        />
+                                    </div>
                                 </div>
 
                                 <div className="space-y-2">

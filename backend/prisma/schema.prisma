@@ -99,7 +99,8 @@ model Product {
   description String?
   barcode     String?  // Aquí escaneas el código de barras
   sku         String?  // Código interno
-  imageUrl    String?  // Para el catálogo online
+  imageUrl    String?  // Deprecated: Migrating to 'images'
+  images      String[] @default([]) // Array de URLs (Max 3)
   
   // Precios (Usamos Decimal para evitar errores de dinero)
   costPrice   Decimal  @default(0) // Cuanto le costó a tu mamá (Privado)

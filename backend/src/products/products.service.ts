@@ -67,6 +67,7 @@ export class ProductsService {
                         barcode,
                         sku: dto.sku,
                         imageUrl: dto.imageUrl,
+                        images: dto.images ?? [],
                         costPrice: dto.costPrice ?? 0,
                         salePrice: dto.salePrice ?? 0,
                         isPublic: dto.isPublic ?? true,

@@ -63,6 +63,7 @@ export type Product = {
     barcode?: string | null;
     sku?: string | null;
     imageUrl?: string | null;
+    images?: string[];
     costPrice: string;
     salePrice: string;
     isPublic: boolean;

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsBoolean, IsUUID, Min, MaxLength, IsInt } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsBoolean, IsUUID, Min, MaxLength, IsInt, IsArray } from 'class-validator';
 
 export class CreateProductDto {
     @IsString()
@@ -19,6 +19,11 @@ export class CreateProductDto {
     @IsString()
     @MaxLength(500)
     imageUrl?: string;
+
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    images?: string[];
 
     @IsOptional()
     @IsNumber()
