@@ -7,21 +7,21 @@ export declare class WarehousesService {
     private readonly cacheService;
     constructor(prisma: PrismaService, cacheService: CacheService);
     create(tenantId: string, dto: CreateWarehouseDto): Promise<{
-        name: string;
         id: string;
+        name: string;
         tenantId: string;
         address: string | null;
     }>;
     findAll(tenantId: string): Promise<any[]>;
     update(tenantId: string, id: string, dto: UpdateWarehouseDto): Promise<{
-        name: string;
         id: string;
+        name: string;
         tenantId: string;
         address: string | null;
     }>;
     remove(tenantId: string, id: string): Promise<{
-        name: string;
         id: string;
+        name: string;
         tenantId: string;
         address: string | null;
     }>;
