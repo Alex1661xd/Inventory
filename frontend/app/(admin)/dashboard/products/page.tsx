@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 type FormState = {
     name: string
@@ -64,6 +65,7 @@ export default function ProductsPage() {
     const [imagePreviews, setImagePreviews] = useState<string[]>([])
     const [uploading, setUploading] = useState(false)
     const [imagesToDelete, setImagesToDelete] = useState<string[]>([])
+    const [itemToDelete, setItemToDelete] = useState<string | null>(null)
 
     const isEditing = useMemo(() => Boolean(editingId), [editingId])
 
@@ -516,9 +518,13 @@ export default function ProductsPage() {
         }
     }
 
-    const remove = async (id: string) => {
-        const ok = window.confirm('¿Eliminar este producto?')
-        if (!ok) return
+    const remove = (id: string) => {
+        setItemToDelete(id)
+    }
+
+    const confirmDelete = async () => {
+        if (!itemToDelete) return
+        const id = itemToDelete
 
         try {
             const productToDelete = products.find(p => p.id === id)
@@ -537,6 +543,8 @@ export default function ProductsPage() {
             await load()
         } catch (e: any) {
             toast.error(e.message)
+        } finally {
+            setItemToDelete(null)
         }
     }
 
@@ -1143,6 +1151,16 @@ export default function ProductsPage() {
                     </Card>
                 </div>
             )}
+            {/* Modals */}
+            <ConfirmDialog
+                open={!!itemToDelete}
+                onOpenChange={(open) => !open && setItemToDelete(null)}
+                onConfirm={confirmDelete}
+                title="¿Estás seguro?"
+                description="Esta acción no se puede deshacer. El producto será eliminado permanentemente de tu inventario."
+                confirmText="Sí, eliminar"
+                variant="destructive"
+            />
         </div>
     )
 }

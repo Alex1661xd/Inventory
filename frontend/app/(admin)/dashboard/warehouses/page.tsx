@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 export default function WarehousesPage() {
     const [warehouses, setWarehouses] = useState<Warehouse[]>([])
@@ -17,6 +18,7 @@ export default function WarehousesPage() {
     const [search, setSearch] = useState('')
     const [editingId, setEditingId] = useState<string | null>(null)
     const [viewModal, setViewModal] = useState<{ warehouse: Warehouse | null; visible: boolean }>({ warehouse: null, visible: false })
+    const [itemToDelete, setItemToDelete] = useState<string | null>(null)
 
     const [name, setName] = useState('')
     const [address, setAddress] = useState('')
@@ -90,9 +92,13 @@ export default function WarehousesPage() {
         }
     }
 
-    const remove = async (id: string) => {
-        const ok = window.confirm('¿Eliminar este almacén?')
-        if (!ok) return
+    const remove = (id: string) => {
+        setItemToDelete(id)
+    }
+
+    const confirmDelete = async () => {
+        if (!itemToDelete) return
+        const id = itemToDelete
 
         try {
             await api.warehouses.remove(id)
@@ -102,6 +108,8 @@ export default function WarehousesPage() {
             await load()
         } catch (e: any) {
             toast.error(e.message)
+        } finally {
+            setItemToDelete(null)
         }
     }
 
@@ -292,6 +300,16 @@ export default function WarehousesPage() {
                     </Card>
                 </div>
             )}
+            {/* Confirmation Dialog */}
+            <ConfirmDialog
+                open={!!itemToDelete}
+                onOpenChange={(open) => !open && setItemToDelete(null)}
+                onConfirm={confirmDelete}
+                title="¿Eliminar almacén?"
+                description="Esto eliminará el almacén. Ten cuidado si tienes productos asignados a este almacén."
+                confirmText="Sí, eliminar"
+                variant="destructive"
+            />
         </div>
     )
 }

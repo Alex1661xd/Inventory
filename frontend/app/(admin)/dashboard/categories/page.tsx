@@ -8,10 +8,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 export default function CategoriesPage() {
     const [categories, setCategories] = useState<Category[]>([])
     const [loading, setLoading] = useState(false)
+    const [itemToDelete, setItemToDelete] = useState<string | null>(null)
     const [saving, setSaving] = useState(false)
     const [editingId, setEditingId] = useState<string | null>(null)
     const [form, setForm] = useState({ name: '', description: '' })
@@ -86,9 +88,13 @@ export default function CategoriesPage() {
         }
     }
 
-    const remove = async (id: string) => {
-        const ok = window.confirm('¿Eliminar esta categoría?')
-        if (!ok) return
+    const remove = (id: string) => {
+        setItemToDelete(id)
+    }
+
+    const confirmDelete = async () => {
+        if (!itemToDelete) return
+        const id = itemToDelete
 
         try {
             await api.categories.remove(id)
@@ -97,6 +103,8 @@ export default function CategoriesPage() {
             await load()
         } catch (e: any) {
             toast.error(e.message)
+        } finally {
+            setItemToDelete(null)
         }
     }
 
@@ -167,7 +175,7 @@ export default function CategoriesPage() {
                         </CardContent>
                     </Card>
                 ))}
-                
+
                 {categories.length === 0 && !loading && (
                     <div className="col-span-full text-center py-12">
                         <div className="text-6xl mb-4">📁</div>
@@ -230,6 +238,16 @@ export default function CategoriesPage() {
                     </Card>
                 </div>
             )}
+            {/* Confirmation Dialog */}
+            <ConfirmDialog
+                open={!!itemToDelete}
+                onOpenChange={(open) => !open && setItemToDelete(null)}
+                onConfirm={confirmDelete}
+                title="¿Eliminar categoría?"
+                description="Se eliminará la categoría. Los productos asociados no se eliminarán, pero perderán esta categorización."
+                confirmText="Sí, eliminar"
+                variant="destructive"
+            />
         </div>
     )
 }
