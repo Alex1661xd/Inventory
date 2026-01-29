@@ -31,6 +31,17 @@ export class ProductsService {
     }
 
     async create(tenantId: string, dto: CreateProductDto) {
+        // 1. Validar límite de productos (Plan Básico: 500 productos)
+        const currentProductsCount = await this.prisma.product.count({
+            where: { tenantId }
+        });
+
+        if (currentProductsCount >= 500) {
+            throw new BadRequestException(
+                'Has alcanzado el límite máximo de 500 productos permitido en tu plan. Por favor, actualiza tu plan para agregar más inventario.'
+            );
+        }
+
         const barcode = await this.generateUniqueBarcode(tenantId);
 
         const initialStock = dto.initialStock ?? 0;

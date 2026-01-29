@@ -1,7 +1,7 @@
 export declare class CreateProductDto {
     name: string;
-    description: string;
-    sku: string;
+    description?: string;
+    sku?: string;
     imageUrl?: string;
     images?: string[];
     costPrice: number;

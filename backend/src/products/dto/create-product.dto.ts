@@ -5,13 +5,15 @@ export class CreateProductDto {
     @MaxLength(200)
     name!: string;
 
+    @IsOptional()
     @IsString()
     @MaxLength(1000)
-    description!: string;
+    description?: string;
 
+    @IsOptional()
     @IsString()
     @MaxLength(100)
-    sku!: string;
+    sku?: string;
 
     @IsOptional()
     @IsString()

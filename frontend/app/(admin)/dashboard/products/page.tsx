@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import JsBarcode from 'jsbarcode'
+import imageCompression from 'browser-image-compression'
 import { api, type Product, type Warehouse, type Category } from '@/lib/backend'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -370,14 +371,33 @@ export default function ProductsPage() {
     }
 
     const uploadImage = async (file: File): Promise<string> => {
+        // Compresión automática de imágenes
+        const options = {
+            maxSizeMB: 0.5,           // Límite 500KB
+            maxWidthOrHeight: 1200,   // Full HD max
+            useWebWorker: true,
+            fileType: 'image/webp',
+            initialQuality: 0.8,
+        }
+
+        let fileToUpload = file
+        try {
+            console.log(`🖼️ Original: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`)
+            const compressed = await imageCompression(file, options)
+            console.log(`✅ Comprimido: (${(compressed.size / 1024 / 1024).toFixed(2)} MB)`)
+            fileToUpload = compressed
+        } catch (error) {
+            console.warn('⚠️ Falló la compresión, subiendo original:', error)
+        }
+
         const supabase = createClient()
-        const fileExt = file.name.split('.').pop()
+        const fileExt = fileToUpload.type === 'image/webp' ? 'webp' : file.name.split('.').pop()
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
         const filePath = `${fileName}`
 
         const { error: uploadError } = await supabase.storage
             .from('product-images')
-            .upload(filePath, file)
+            .upload(filePath, fileToUpload)
 
         if (uploadError) {
             throw new Error(`Error subiendo imagen: ${uploadError.message}`)
@@ -570,8 +590,37 @@ export default function ProductsPage() {
                     <p className="text-[hsl(var(--muted))] text-lg">
                         Gestiona tu catálogo y consulta el stock total en tiempo real.
                     </p>
+
+                    {/* Indicador de Límite de Productos */}
+                    <div className="mt-4 flex flex-col gap-1.5 max-w-xs">
+                        <div className="flex justify-between items-end text-sm">
+                            <span className="font-medium text-[hsl(var(--muted))]">Uso de Inventario</span>
+                            <span className={cn(
+                                "font-bold",
+                                products.length >= 480 ? "text-red-500" :
+                                    products.length >= 400 ? "text-orange-500" : "text-[rgb(25,35,25)]"
+                            )}>
+                                {products.length} / 500
+                            </span>
+                        </div>
+                        <div className="h-2 w-full bg-[rgb(230,225,220)] rounded-full overflow-hidden shadow-inner">
+                            <div
+                                className={cn(
+                                    "h-full transition-all duration-1000 ease-out rounded-full",
+                                    products.length >= 480 ? "bg-red-500" :
+                                        products.length >= 400 ? "bg-orange-500" : "bg-[rgb(180,100,50)]"
+                                )}
+                                style={{ width: `${Math.min((products.length / 500) * 100, 100)}%` }}
+                            />
+                        </div>
+                        {products.length >= 450 && (
+                            <p className="text-[10px] font-bold text-orange-600 animate-pulse">
+                                ⚠️ Estás cerca del límite de tu plan
+                            </p>
+                        )}
+                    </div>
                 </div>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center self-end">
                     <Button variant="outline" onClick={load} disabled={loading} className="group">
                         <span className={loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}>
                             {loading ? '⚙️' : '🔄'}
