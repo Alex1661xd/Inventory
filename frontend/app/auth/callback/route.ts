@@ -9,8 +9,10 @@ export async function GET(request: NextRequest) {
     const next = searchParams.get('next') ?? '/dashboard'
     const code = searchParams.get('code') // A veces Supabase manda 'code' en lugar de token_hash para PKCE
 
-    const redirectTo = request.nextUrl.clone()
-    redirectTo.pathname = next
+    // Determinar el origen correcto (Producción vs Local)
+    const origin = process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin
+
+    const redirectTo = new URL(next, origin)
     redirectTo.searchParams.delete('token_hash')
     redirectTo.searchParams.delete('type')
     redirectTo.searchParams.delete('code')
