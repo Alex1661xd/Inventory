@@ -12,7 +12,7 @@ function loadEnv() {
             if (matches) {
                 let val = (matches[2] || '').trim();
                 val = val.replace(/^['"]|['"]$/g, '');
-                process.env[matches[1]] = value;
+                process.env[matches[1]] = val;
             }
         });
     }
@@ -67,15 +67,16 @@ async function deleteTestData(prisma, tenantId) {
     console.log(`✅ Se eliminaron ${result.count} productos de prueba.`);
 }
 
-async function createTestData(prisma, tenantId, categoryId) {
-    console.log(`🚀 Iniciando seeding de 1000 productos para el Tenant: ${tenantId}...`);
+async function createTestData(prisma, tenantId, categoryId, total = 100) {
+    console.log(`🚀 Iniciando seeding de ${total} productos para el Tenant: ${tenantId}...`);
 
-    const total = 1000;
-    const batchSize = 100;
+    const batchSize = Math.min(100, total);
 
     for (let i = 0; i < total; i += batchSize) {
         const products = [];
-        for (let j = 0; j < batchSize; j++) {
+        const currentBatchSize = Math.min(batchSize, total - i);
+
+        for (let j = 0; j < currentBatchSize; j++) {
             const n = i + j + 1;
             const unique = Math.random().toString(36).substring(7).toUpperCase();
 
@@ -98,9 +99,9 @@ async function createTestData(prisma, tenantId, categoryId) {
             data: products,
             skipDuplicates: true
         });
-        console.log(`✅ ${i + batchSize} / ${total} productos creados.`);
+        console.log(`✅ ${i + currentBatchSize} / ${total} productos creados.`);
     }
-    console.log('✨ ¡Seeding masivo finalizado!');
+    console.log('✨ ¡Seeding finalizado!');
 }
 
 async function main() {
@@ -113,7 +114,8 @@ async function main() {
         if (command === 'delete') {
             await deleteTestData(prisma, tenantId);
         } else {
-            await createTestData(prisma, tenantId, categoryId);
+            const count = parseInt(command) || 100; // Por defecto 100 si no se especifica
+            await createTestData(prisma, tenantId, categoryId, count);
         }
     } finally {
         await prisma.$disconnect();
