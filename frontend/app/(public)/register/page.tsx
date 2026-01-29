@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { api } from '@/lib/backend'
 
 const registerSchema = z.object({
     userName: z.string().min(2, 'Nombre muy corto'),
@@ -31,19 +32,7 @@ export default function RegisterPage() {
     const onSubmit = async (data: RegisterFormValues) => {
         setLoading(true)
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/register-business`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data),
-            })
-
-            const result = await response.json()
-
-            if (!response.ok) {
-                throw new Error(result.message || 'Error al registrar')
-            }
+            await api.auth.registerBusiness(data)
 
             toast.success('¡Registro exitoso! Revisa tu email para confirmar (si aplica) o inicia sesión.')
             router.push('/login')

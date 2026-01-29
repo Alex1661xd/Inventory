@@ -158,4 +158,8 @@ export const api = {
             return backendFetch<StockRow[]>(`/inventory/stock${q ? `?${q}` : ''}`);
         },
     },
+    auth: {
+        registerBusiness: (payload: any) =>
+            backendFetch<any>('/auth/register-business', { method: 'POST', json: payload }),
+    },
 };
