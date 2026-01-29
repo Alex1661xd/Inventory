@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { api } from '@/lib/backend'
+import { Eye, EyeOff } from 'lucide-react'
 
 const registerSchema = z.object({
     userName: z.string().min(2, 'Nombre muy corto'),
@@ -24,6 +25,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>
 export default function RegisterPage() {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
+    const [showPassword, setShowPassword] = useState(false)
 
     const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormValues>({
         resolver: zodResolver(registerSchema)
@@ -144,13 +146,22 @@ export default function RegisterPage() {
 
                                 <div className="space-y-2">
                                     <Label htmlFor="password">Contraseña</Label>
-                                    <Input
-                                        id="password"
-                                        type="password"
-                                        placeholder="••••••••"
-                                        {...register('password')}
-                                        className={errors.password ? 'border-red-500' : ''}
-                                    />
+                                    <div className="relative">
+                                        <Input
+                                            id="password"
+                                            type={showPassword ? 'text' : 'password'}
+                                            placeholder="••••••••"
+                                            {...register('password')}
+                                            className={errors.password ? 'border-red-500 pr-10' : 'pr-10'}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[rgb(120,115,110)] hover:text-[rgb(25,35,25)] transition-colors"
+                                        >
+                                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        </button>
+                                    </div>
                                     {errors.password && <p className="text-red-600 text-xs font-medium mt-1">{errors.password.message}</p>}
                                 </div>
 
