@@ -12,7 +12,7 @@ function loadEnv() {
             if (matches) {
                 let val = (matches[2] || '').trim();
                 val = val.replace(/^['"]|['"]$/g, '');
-                process.env[matches[1]] = val;
+                process.env[matches[1]] = value;
             }
         });
     }
@@ -21,49 +21,57 @@ loadEnv();
 
 // --- LÓGICA DE CONEXIÓN ROBUSTA ---
 async function getWorkingPrismaClient() {
-    // 1. Intentar conexión DIRECTA (Mejor para scripts)
     const directUrl = process.env.DIRECT_URL;
+    const poolerUrl = process.env.DATABASE_URL;
+
+    // Intentar conexión directa primero
     if (directUrl) {
-        console.log('📡 Intentando conectar vía DIRECT_URL (Puerto 5432)...');
         const prisma = new PrismaClient({ datasources: { db: { url: directUrl } } });
         try {
             await prisma.$connect();
-            console.log('✅ Conectado exitosamente al puerto 5432.');
             return prisma;
         } catch (e) {
-            console.warn(`⚠️ Falló conexión directa: ${e.message.split('\n')[0]}`);
             await prisma.$disconnect();
         }
     }
 
-    // 2. Intentar conexión POOLER (Fallback)
-    const poolerUrl = process.env.DATABASE_URL;
+    // Fallback al pooler
     if (poolerUrl) {
-        console.log('📡 Intentando conectar vía DATABASE_URL (Puerto 6543)...');
         const prisma = new PrismaClient({ datasources: { db: { url: poolerUrl } } });
         try {
             await prisma.$connect();
-            console.log('✅ Conectado exitosamente al puerto 6543.');
             return prisma;
         } catch (e) {
-            console.error(`❌ También falló conexión al pooler: ${e.message.split('\n')[0]}`);
             await prisma.$disconnect();
         }
     }
 
-    throw new Error('No se pudo conectar a la base de datos por ningún método.');
+    throw new Error('No se pudo conectar a la base de datos.');
 }
 
-async function main() {
-    const prisma = await getWorkingPrismaClient();
+async function deleteTestData(prisma, tenantId) {
+    console.log(`🧹 Eliminando productos de prueba para el tenant ${tenantId}...`);
 
-    const tenantId = '4c557dcf-3667-4e90-b319-096d0afc0b77';
-    const categoryId = 'cdb13367-dc46-4ed7-9846-e87bbd984665';
+    const result = await prisma.product.deleteMany({
+        where: {
+            tenantId,
+            OR: [
+                { name: { startsWith: 'Producto Demo' } },
+                { name: { startsWith: 'Producto Ligero' } },
+                { barcode: { startsWith: 'MUE-LITE' } },
+                { barcode: { startsWith: 'MUE-SEED' } }
+            ]
+        }
+    });
 
-    console.log('\n🚀 Iniciando seeding de 1000 productos (SIN IMÁGENES)...');
+    console.log(`✅ Se eliminaron ${result.count} productos de prueba.`);
+}
+
+async function createTestData(prisma, tenantId, categoryId) {
+    console.log(`🚀 Iniciando seeding de 1000 productos para el Tenant: ${tenantId}...`);
 
     const total = 1000;
-    const batchSize = 50; // Bajamos el batch size para asegurar estabilidad
+    const batchSize = 100;
 
     for (let i = 0; i < total; i += batchSize) {
         const products = [];
@@ -73,15 +81,11 @@ async function main() {
 
             products.push({
                 name: `Producto Demo ${n}`,
-                // Descripción opcional
-                description: `Ref-${n}`,
+                description: `Mueble de prueba #${n}`,
                 sku: `SKU-${n}-${unique.substring(0, 3)}`,
                 barcode: `MUE-LITE-${n}-${unique}`,
-
-                // SIN IMÁGENES
                 imageUrl: null,
                 images: [],
-
                 costPrice: 100000.0,
                 salePrice: 150000.0,
                 isPublic: true,
@@ -90,19 +94,30 @@ async function main() {
             });
         }
 
-        try {
-            await prisma.product.createMany({
-                data: products,
-                skipDuplicates: true
-            });
-            console.log(`✅ ${Math.min(i + batchSize, total)} / ${total} productos creados.`);
-        } catch (e) {
-            console.error(`❌ Error en batch ${i}:`, e.message);
-        }
+        await prisma.product.createMany({
+            data: products,
+            skipDuplicates: true
+        });
+        console.log(`✅ ${i + batchSize} / ${total} productos creados.`);
     }
+    console.log('✨ ¡Seeding masivo finalizado!');
+}
 
-    console.log('✨ ¡Seeding finalizado!');
-    await prisma.$disconnect();
+async function main() {
+    const prisma = await getWorkingPrismaClient();
+    const command = process.argv[2]; // Capturamos el argumento de consola
+    const tenantId = '4c557dcf-3667-4e90-b319-096d0afc0b77';
+    const categoryId = 'cdb13367-dc46-4ed7-9846-e87bbd984665';
+
+    try {
+        if (command === 'delete') {
+            await deleteTestData(prisma, tenantId);
+        } else {
+            await createTestData(prisma, tenantId, categoryId);
+        }
+    } finally {
+        await prisma.$disconnect();
+    }
 }
 
 main().catch(e => {

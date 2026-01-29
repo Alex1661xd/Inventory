@@ -435,8 +435,6 @@ export default function ProductsPage() {
         // Validaciones obligatorias
         if (!form.name.trim()) return toast.error('El nombre es obligatorio')
         if (!form.categoryId) return toast.error('La categoría es obligatoria')
-        if (!form.sku.trim()) return toast.error('El SKU es obligatorio')
-        if (!form.description.trim()) return toast.error('La descripción es obligatoria')
         if (Number(form.costPrice) < 0) return toast.error('El precio de costo no es válido')
         if (Number(form.salePrice) < 0) return toast.error('El precio de venta no es válido')
 
