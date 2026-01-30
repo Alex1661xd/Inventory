@@ -11,6 +11,7 @@ interface ConfirmDialogProps {
     confirmText?: string
     cancelText?: string
     variant?: 'default' | 'destructive'
+    children?: React.ReactNode
 }
 
 export function ConfirmDialog({
@@ -21,7 +22,8 @@ export function ConfirmDialog({
     description,
     confirmText = "Continuar",
     cancelText = "Cancelar",
-    variant = 'default'
+    variant = 'default',
+    children
 }: ConfirmDialogProps) {
     if (!open) return null
 
@@ -31,6 +33,7 @@ export function ConfirmDialog({
                 <div className="mb-6">
                     <h3 className="text-xl font-bold text-gray-900 leading-none mb-2">{title}</h3>
                     <p className="text-sm text-gray-500 leading-relaxed">{description}</p>
+                    {children && <div className="mt-4">{children}</div>}
                 </div>
                 <div className="flex justify-end gap-3 pt-2">
                     <Button

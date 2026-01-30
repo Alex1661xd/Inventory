@@ -33,9 +33,27 @@ export default function LoginPage() {
             return
         }
 
-        toast.success('Bienvenido de nuevo')
-        router.refresh()
-        router.push('/dashboard')
+        // Consultar Rol del usuario para redirección inteligente
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+            const { data: userData } = await supabase
+                .from('User')
+                .select('role')
+                .eq('id', user.id)
+                .single()
+
+            toast.success('Bienvenido de nuevo')
+            router.refresh()
+
+            if (userData?.role === 'SELLER') {
+                router.push('/pos')
+            } else {
+                router.push('/dashboard')
+            }
+        } else {
+            // Fallback
+            router.push('/dashboard')
+        }
     }
 
     return (

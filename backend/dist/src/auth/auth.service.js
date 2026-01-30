@@ -55,7 +55,7 @@ let AuthService = class AuthService {
                         email: dto.email,
                         name: dto.userName,
                         password: 'MANAGED_BY_SUPABASE',
-                        role: 'SUPER_ADMIN',
+                        role: 'ADMIN',
                         tenantId: tenant.id,
                     },
                 });

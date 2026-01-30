@@ -5,22 +5,19 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
 const links = [
-    { href: '/dashboard', label: 'Dashboard', icon: '📊' },
-    { href: '/dashboard/products', label: 'Productos', icon: '📦' },
-    { href: '/dashboard/inventory', label: 'Inventario', icon: '📋' },
-    { href: '/dashboard/warehouses', label: 'Almacenes', icon: '🏢' },
-    { href: '/dashboard/categories', label: 'Categorías', icon: '📁' },
-    { href: '/dashboard/transfers', label: 'Traslados', icon: '🚚' },
-    { href: '/dashboard/sellers', label: 'Vendedores', icon: '👥' },
+    { href: '/pos', label: 'Punto de Venta', icon: '🛒' },
+    { href: '/sales', label: 'Historial Ventas', icon: '📄' },
+    { href: '/customers', label: 'Clientes', icon: '👥' },
+    { href: '/products', label: 'Productos', icon: '📦' },
 ]
 
-export function AdminNav() {
+export function SellerNav() {
     const pathname = usePathname()
 
     return (
         <nav className="flex flex-col gap-2">
             {links.map((l) => {
-                const active = pathname === l.href
+                const active = pathname === l.href || pathname.startsWith(l.href + '/')
                 return (
                     <Link
                         key={l.href}

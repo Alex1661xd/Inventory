@@ -18,9 +18,10 @@ type StockByWarehouseRow = {
 
 type Props = {
     className?: string
+    onScan?: (code: string) => void
 }
 
-export function BarcodeProductScanner({ className }: Props) {
+export function BarcodeProductScanner({ className, onScan }: Props) {
     const [barcode, setBarcode] = useState('')
     const [loading, setLoading] = useState(false)
     const [product, setProduct] = useState<Product | null>(null)
@@ -165,7 +166,11 @@ export function BarcodeProductScanner({ className }: Props) {
                         const code = result.getText()
                         setBarcode(code)
                         stopScan()
-                        fetchByBarcode(code)
+                        if (onScan) {
+                            onScan(code)
+                        } else {
+                            fetchByBarcode(code)
+                        }
                     }
                     // Ignore NotFoundException - it just means no barcode was found in this frame
                     if (error && !(error instanceof NotFoundException)) {
@@ -262,12 +267,18 @@ export function BarcodeProductScanner({ className }: Props) {
                                 placeholder="Escanea o escribe..."
                                 className="h-11"
                                 onKeyDown={(e) => {
-                                    if (e.key === 'Enter') fetchByBarcode()
+                                    if (e.key === 'Enter') {
+                                        if (onScan) {
+                                            onScan(barcode)
+                                        } else {
+                                            fetchByBarcode()
+                                        }
+                                    }
                                 }}
                             />
                         </div>
                         <div className="flex gap-2">
-                            <Button className="h-11 flex-1" onClick={() => fetchByBarcode()} disabled={loading}>
+                            <Button className="h-11 flex-1" onClick={() => onScan ? onScan(barcode) : fetchByBarcode()} disabled={loading}>
                                 {loading ? 'Buscando...' : 'Buscar'}
                             </Button>
                             <Button

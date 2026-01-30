@@ -162,4 +162,22 @@ export const api = {
         registerBusiness: (payload: any) =>
             backendFetch<any>('/auth/register-business', { method: 'POST', json: payload }),
     },
+    sellers: {
+        list: () => backendFetch<any[]>('/users'),
+        create: (payload: any) => backendFetch<any>('/users', { method: 'POST', json: payload }),
+        update: (id: string, payload: any) => backendFetch<any>(`/users/${id}`, { method: 'PATCH', json: payload }),
+        remove: (id: string) => backendFetch<any>(`/users/${id}`, { method: 'DELETE' }),
+    },
+    customers: {
+        list: () => backendFetch<any[]>('/customers'),
+        create: (payload: any) => backendFetch<any>('/customers', { method: 'POST', json: payload }),
+        update: (id: string, payload: any) => backendFetch<any>(`/customers/${id}`, { method: 'PATCH', json: payload }),
+        remove: (id: string) => backendFetch<any>(`/customers/${id}`, { method: 'DELETE' }),
+    },
+    invoices: {
+        create: (payload: any) => backendFetch<any>('/invoices', { method: 'POST', json: payload }),
+        list: () => backendFetch<any[]>('/invoices'),
+        get: (id: string) => backendFetch<any>(`/invoices/${id}`),
+        cancel: (id: string) => backendFetch<any>(`/invoices/${id}/cancel`, { method: 'POST' }),
+    },
 };
