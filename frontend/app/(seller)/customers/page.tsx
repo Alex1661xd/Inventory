@@ -80,7 +80,7 @@ export default function CustomersPage() {
     const handleDelete = async (id: string) => {
         if (!confirm('¿Eliminar este cliente?')) return
         try {
-            await api.customers.delete(id)
+            await api.customers.remove(id)
             toast.success('Cliente eliminado')
             loadCustomers()
         } catch (e: any) {
