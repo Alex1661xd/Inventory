@@ -313,6 +313,7 @@ function POSMobileView(props: {
     onCreateNewCustomer: () => void;
     mobilePage: number;
     setMobilePage: (n: number) => void;
+    onReset: () => void;
 }) {
     const {
         mobileStep,
@@ -338,6 +339,7 @@ function POSMobileView(props: {
         onCreateNewCustomer,
         mobilePage,
         setMobilePage,
+        onReset,
     } = props;
 
     return (
@@ -566,10 +568,19 @@ function POSMobileView(props: {
                 {mobileStep === 3 && (
                     <div className="space-y-4">
                         <Card>
-                            <CardHeader>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0">
                                 <CardTitle>Resumen de Venta</CardTitle>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={pauseSale}
+                                    disabled={processing}
+                                >
+                                    <Pause className="h-4 w-4 mr-1" />
+                                    Pausar
+                                </Button>
                             </CardHeader>
-                            <CardContent className="space-y-4">
+                            <CardContent className="space-y-4 pt-4">
                                 {/* Customer */}
                                 <div className="p-3 bg-gray-50 rounded">
                                     <div className="text-xs text-gray-500 mb-1">Cliente</div>
@@ -643,14 +654,26 @@ function POSMobileView(props: {
                         </Button>
                     )}
 
+                    {!processing && (
+                        <Button
+                            variant="outline"
+                            size="lg"
+                            className="flex-shrink-0 text-red-500 border-red-200 hover:bg-red-50"
+                            onClick={onReset}
+                            disabled={cart.length === 0 && !selectedCustomer}
+                        >
+                            <Trash2 className="h-5 w-5" />
+                        </Button>
+                    )}
+
                     {mobileStep === 3 ? (
                         <Button
                             size="lg"
-                            className="flex-1 h-12 text-base font-bold"
+                            className="flex-1 h-12 text-sm font-bold uppercase tracking-wide"
                             onClick={handleCheckout}
                             disabled={processing}
                         >
-                            {processing ? 'Procesando...' : 'CONFIRMAR VENTA'}
+                            {processing ? 'Procesando...' : 'FINALIZAR'}
                         </Button>
                     ) : (
                         <Button
@@ -687,6 +710,7 @@ function POSDesktopView(props: {
     selectedCustomer: Customer | null;
     setSelectedCustomer: (c: Customer | null) => void;
     pauseSale: () => void;
+    onReset: () => void;
     processing: boolean;
     setIsCheckoutOpen: (b: boolean) => void;
 }) {
@@ -705,6 +729,7 @@ function POSDesktopView(props: {
         selectedCustomer,
         setSelectedCustomer,
         pauseSale,
+        onReset,
         processing,
         setIsCheckoutOpen,
     } = props;
@@ -888,16 +913,26 @@ function POSDesktopView(props: {
                     >
                         COBRAR
                     </Button>
-                    {cart.length > 0 && (
+                    <Button
+                        variant="secondary"
+                        size="lg"
+                        className="w-full"
+                        onClick={pauseSale}
+                        disabled={processing}
+                    >
+                        <Pause className="mr-2 h-5 w-5" />
+                        Pausar Venta
+                    </Button>
+                    {(cart.length > 0 || selectedCustomer) && (
                         <Button
-                            variant="secondary"
+                            variant="ghost"
                             size="lg"
-                            className="w-full"
-                            onClick={pauseSale}
+                            className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={onReset}
                             disabled={processing}
                         >
-                            <Pause className="mr-2 h-5 w-5" />
-                            Pausar Venta
+                            <Trash2 className="mr-2 h-5 w-5" />
+                            Cancelar Venta
                         </Button>
                     )}
                 </div>
@@ -922,6 +957,7 @@ export default function POSPage() {
     const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'TRANSFER' | 'OTHER'>('CASH')
     const [warehouseId, setWarehouseId] = useState<string>('')
     const [showScanner, setShowScanner] = useState(false)
+    const [showResetConfirm, setShowResetConfirm] = useState(false)
 
     // Mobile stepper state
     const [mobileStep, setMobileStep] = useState(1) // 1: Cliente, 2: Productos, 3: Pago
@@ -1100,6 +1136,17 @@ export default function POSPage() {
         }
     }
 
+    const resetSale = () => {
+        setCart([])
+        setSelectedCustomer(null)
+        setResumedSaleId(null)
+        setMobileStep(1)
+        setMobilePage(1)
+        setSearch('')
+        setShowResetConfirm(false)
+        toast.info('Venta cancelada')
+    }
+
     const handleCheckout = async () => {
         if (!selectedCustomer) {
             toast.error('Debes seleccionar un cliente')
@@ -1203,6 +1250,7 @@ export default function POSPage() {
                     onCreateNewCustomer={() => setShowCreateCustomer(true)}
                     mobilePage={mobilePage}
                     setMobilePage={setMobilePage}
+                    onReset={() => setShowResetConfirm(true)}
                 />
             ) : (
                 <POSDesktopView
@@ -1220,10 +1268,21 @@ export default function POSPage() {
                     selectedCustomer={selectedCustomer}
                     setSelectedCustomer={setSelectedCustomer}
                     pauseSale={pauseSale}
+                    onReset={() => setShowResetConfirm(true)}
                     processing={processing}
                     setIsCheckoutOpen={setIsCheckoutOpen}
                 />
             )}
+
+            <ConfirmDialog
+                open={showResetConfirm}
+                onOpenChange={setShowResetConfirm}
+                onConfirm={resetSale}
+                title="¿Cancelar venta actual?"
+                description="Se borrarán todos los productos del carrito y el cliente seleccionado. Esta acción no se puede deshacer."
+                confirmText="Sí, cancelar"
+                cancelText="No, continuar"
+            />
 
             {/* Scanner Modal with Camera */}
             {showScanner && (

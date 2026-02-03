@@ -103,7 +103,11 @@ export class InvoicesService {
 
         const result = await this.prisma.invoice.findMany({
             where: { tenantId },
-            include: { customer: true, seller: true },
+            include: {
+                customer: true,
+                seller: true,
+                items: true // Added to fix "0 productos" in sales history
+            },
             orderBy: { createdAt: 'desc' }
         });
 
