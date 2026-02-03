@@ -10,9 +10,16 @@ export class InvoicesService {
         private readonly cacheService: CacheService,
     ) { }
 
-    private async invalidateInvoicesCache(tenantId: string, invoiceId?: string) {
-        const listKey = this.cacheService.generateKey(tenantId, 'invoices', 'list');
-        await this.cacheService.invalidate(listKey);
+    private async invalidateInvoicesCache(tenantId: string, invoiceId?: string, sellerId?: string) {
+        // Invalidate "all" list
+        const allListKey = this.cacheService.generateKey(tenantId, 'invoices', 'list', 'all');
+        await this.cacheService.invalidate(allListKey);
+
+        // Invalidate specific seller list if provided
+        if (sellerId) {
+            const sellerListKey = this.cacheService.generateKey(tenantId, 'invoices', 'list', sellerId);
+            await this.cacheService.invalidate(sellerListKey);
+        }
 
         if (invoiceId) {
             const detailKey = this.cacheService.generateKey(tenantId, 'invoices', 'detail', invoiceId);
@@ -91,38 +98,47 @@ export class InvoicesService {
             return invoice;
         });
 
-        await this.invalidateInvoicesCache(tenantId, result.id);
+        await this.invalidateInvoicesCache(tenantId, result.id, sellerId);
 
         return result;
     }
 
-    async findAll(tenantId: string) {
-        const cacheKey = this.cacheService.generateKey(tenantId, 'invoices', 'list');
+    async findAll(tenantId: string, sellerId?: string) {
+        const cacheKey = this.cacheService.generateKey(tenantId, 'invoices', 'list', sellerId || 'all');
         const cached = await this.cacheService.get<any[]>(cacheKey);
         if (cached) return cached;
 
         const result = await this.prisma.invoice.findMany({
-            where: { tenantId },
+            where: {
+                tenantId,
+                ...(sellerId && { sellerId })
+            },
             include: {
                 customer: true,
                 seller: true,
-                items: true // Added to fix "0 productos" in sales history
+                items: true
             },
             orderBy: { createdAt: 'desc' }
         });
 
-        await this.cacheService.set(cacheKey, result, 120);
+        await this.cacheService.set(cacheKey, result, 60); // Reduced to 60s for better real-time feel
 
         return result;
     }
 
-    async findOne(tenantId: string, id: string) {
+    async findOne(tenantId: string, id: string, sellerId?: string) {
         const cacheKey = this.cacheService.generateKey(tenantId, 'invoices', 'detail', id);
         const cached = await this.cacheService.get<any>(cacheKey);
-        if (cached) return cached;
+
+        // Even if cached, if we have a sellerId filter, we must ensure it matches
+        if (cached && (!sellerId || cached.sellerId === sellerId)) return cached;
 
         const invoice = await this.prisma.invoice.findFirst({
-            where: { id, tenantId },
+            where: {
+                id,
+                tenantId,
+                ...(sellerId && { sellerId })
+            },
             include: { items: { include: { product: true } }, customer: true },
         });
 
@@ -133,10 +149,14 @@ export class InvoicesService {
         return invoice;
     }
 
-    async cancel(tenantId: string, id: string) {
+    async cancel(tenantId: string, id: string, sellerId?: string) {
         const exists = await this.prisma.invoice.findFirst({
-            where: { id, tenantId },
-            select: { id: true },
+            where: {
+                id,
+                tenantId,
+                ...(sellerId && { sellerId })
+            },
+            select: { id: true, sellerId: true },
         });
 
         if (!exists) throw new NotFoundException('Invoice not found');
@@ -146,7 +166,8 @@ export class InvoicesService {
             data: { status: 'CANCELLED' },
         });
 
-        await this.invalidateInvoicesCache(tenantId, id);
+        // Invalidate list cache for "all" and specifically for this seller
+        await this.invalidateInvoicesCache(tenantId, id, exists.sellerId);
 
         return result;
     }

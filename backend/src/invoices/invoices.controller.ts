@@ -15,17 +15,23 @@ export class InvoicesController {
     }
 
     @Get()
-    findAll(@GetTenantId() tenantId: string) {
-        return this.invoicesService.findAll(tenantId);
+    findAll(@GetTenantId() tenantId: string, @Request() req: any) {
+        const user = req.user;
+        const sellerId = user.role === 'SELLER' ? user.id : undefined;
+        return this.invoicesService.findAll(tenantId, sellerId);
     }
 
     @Get(':id')
-    findOne(@GetTenantId() tenantId: string, @Param('id') id: string) {
-        return this.invoicesService.findOne(tenantId, id);
+    findOne(@GetTenantId() tenantId: string, @Param('id') id: string, @Request() req: any) {
+        const user = req.user;
+        const sellerId = user.role === 'SELLER' ? user.id : undefined;
+        return this.invoicesService.findOne(tenantId, id, sellerId);
     }
 
     @Post(':id/cancel')
-    cancel(@GetTenantId() tenantId: string, @Param('id') id: string) {
-        return this.invoicesService.cancel(tenantId, id);
+    cancel(@GetTenantId() tenantId: string, @Param('id') id: string, @Request() req: any) {
+        const user = req.user;
+        const sellerId = user.role === 'SELLER' ? user.id : undefined;
+        return this.invoicesService.cancel(tenantId, id, sellerId);
     }
 }

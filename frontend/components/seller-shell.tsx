@@ -41,10 +41,10 @@ export function SellerShell({
     }, [open])
 
     return (
-        <div className="min-h-screen bg-[hsl(var(--background))]">
-            <div className="flex min-h-screen">
-                <aside className="hidden w-72 flex-shrink-0 border-r border-[hsl(var(--border))] bg-gradient-to-b from-[hsl(var(--foreground))] to-[hsl(var(--foreground))] md:block shadow-2xl">
-                    <div className="flex h-20 items-center justify-between px-6 border-b border-white/10">
+        <div className="h-screen overflow-hidden bg-[hsl(var(--background))]">
+            <div className="flex h-full">
+                <aside className="hidden w-72 flex-shrink-0 border-r border-[hsl(var(--border))] bg-gradient-to-b from-[hsl(var(--foreground))] to-[hsl(var(--foreground))] md:flex md:flex-col shadow-2xl">
+                    <div className="flex h-20 items-center justify-between px-6 border-b border-white/10 flex-shrink-0">
                         <h1 className="font-bold text-xl text-white" style={{ fontFamily: 'var(--font-display)' }}>
                             <Link href="/pos" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                                 <span className="text-3xl">🛒</span>
@@ -52,10 +52,10 @@ export function SellerShell({
                             </Link>
                         </h1>
                     </div>
-                    <div className="px-4 pb-4 pt-6">
+                    <div className="px-4 pb-4 pt-6 overflow-y-auto flex-1 custom-scrollbar">
                         <SellerNav />
                     </div>
-                    <div className="mt-auto border-t border-white/10 px-6 py-4 text-xs text-white/70 backdrop-blur-sm space-y-3">
+                    <div className="mt-auto border-t border-white/10 px-6 py-4 text-xs text-white/70 backdrop-blur-sm space-y-3 flex-shrink-0">
                         <div className="flex items-center gap-2">
                             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-semibold">
                                 {userLabel.charAt(0).toUpperCase()}
@@ -75,7 +75,7 @@ export function SellerShell({
                     </div>
                 </aside>
 
-                <div className="flex min-w-0 flex-1 flex-col">
+                <div className="flex min-w-0 flex-1 flex-col h-full">
                     <header className="fixed top-0 left-0 right-0 z-20 border-b border-white/10 bg-gradient-to-b from-[hsl(var(--foreground)/0.98)] to-[hsl(var(--foreground)/0.92)] px-6 py-4 shadow-2xl backdrop-blur-md md:hidden">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
@@ -108,8 +108,8 @@ export function SellerShell({
                     {open && (
                         <div className="fixed inset-0 z-30 md:hidden">
                             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)} />
-                            <div className="absolute left-0 top-0 h-full w-80 border-r border-[hsl(var(--border))] bg-gradient-to-b from-[hsl(var(--foreground))] to-[hsl(var(--foreground))] shadow-2xl">
-                                <div className="flex h-20 items-center justify-between px-6 border-b border-white/10">
+                            <div className="absolute left-0 top-0 h-full w-80 border-r border-[hsl(var(--border))] bg-gradient-to-b from-[hsl(var(--foreground))] to-[hsl(var(--foreground))] shadow-2xl flex flex-col">
+                                <div className="flex h-20 items-center justify-between px-6 border-b border-white/10 flex-shrink-0">
                                     <h1 className="font-bold text-xl text-white" style={{ fontFamily: 'var(--font-display)' }}>
                                         <Link href="/pos" onClick={() => setOpen(false)} className="flex items-center gap-3">
                                             <span className="text-3xl">🛒</span>
@@ -120,10 +120,10 @@ export function SellerShell({
                                         <span className="text-xl">✕</span>
                                     </Button>
                                 </div>
-                                <div className="px-4 pb-4 pt-6" onClick={() => setOpen(false)}>
+                                <div className="px-4 pb-4 pt-6 overflow-y-auto flex-1" onClick={() => setOpen(false)}>
                                     <SellerNav />
                                 </div>
-                                <div className="mt-auto border-t border-white/10 px-6 py-4 text-xs text-white/70 space-y-3">
+                                <div className="mt-auto border-t border-white/10 px-6 py-4 text-xs text-white/70 space-y-3 flex-shrink-0">
                                     <div className="flex items-center gap-2">
                                         <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-semibold">
                                             {userLabel.charAt(0).toUpperCase()}
@@ -145,8 +145,10 @@ export function SellerShell({
                         </div>
                     )}
 
-                    <main className="mx-auto w-full max-w-7xl px-6 py-8 mt-24 md:mt-0 md:px-8 md:py-12 animate-fade-in">
-                        {children}
+                    <main className="flex-1 overflow-y-auto px-6 py-8 mt-20 md:mt-0 md:px-8 md:py-12 animate-fade-in custom-scrollbar">
+                        <div className="mx-auto w-full max-w-7xl">
+                            {children}
+                        </div>
                     </main>
                 </div>
             </div>

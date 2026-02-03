@@ -1136,7 +1136,16 @@ export default function POSPage() {
         }
     }
 
-    const resetSale = () => {
+    const resetSale = async () => {
+        if (resumedSaleId) {
+            try {
+                await api.invoices.cancel(resumedSaleId)
+                toast.success('Venta pendiente eliminada de la base de datos')
+            } catch (e) {
+                console.error('Error cancelling resumed sale:', e)
+            }
+        }
+
         setCart([])
         setSelectedCustomer(null)
         setResumedSaleId(null)
@@ -1144,7 +1153,7 @@ export default function POSPage() {
         setMobilePage(1)
         setSearch('')
         setShowResetConfirm(false)
-        toast.info('Venta cancelada')
+        toast.info('Venta local cancelada')
     }
 
     const handleCheckout = async () => {
