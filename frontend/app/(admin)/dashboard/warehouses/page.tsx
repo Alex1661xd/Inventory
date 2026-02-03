@@ -195,14 +195,16 @@ export default function WarehousesPage() {
                             >
                                 Editar
                             </Button>
-                            <Button
-                                variant="destructive"
-                                size="sm"
-                                className="col-span-2 h-9 font-bold"
-                                onClick={() => remove(w.id)}
-                            >
-                                Eliminar
-                            </Button>
+                            {!w.isDefault && (
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    className="col-span-2 h-9 font-bold"
+                                    onClick={() => remove(w.id)}
+                                >
+                                    Eliminar
+                                </Button>
+                            )}
                         </div>
                     </div>
                 ))}
@@ -288,13 +290,15 @@ export default function WarehousesPage() {
                                 >
                                     Editar Almacén
                                 </Button>
-                                <Button
-                                    variant="destructive"
-                                    onClick={() => remove(viewModal.warehouse!.id)}
-                                    className="h-11 font-bold"
-                                >
-                                    Eliminar
-                                </Button>
+                                {!viewModal.warehouse.isDefault && (
+                                    <Button
+                                        variant="destructive"
+                                        onClick={() => remove(viewModal.warehouse!.id)}
+                                        className="h-11 font-bold"
+                                    >
+                                        Eliminar
+                                    </Button>
+                                )}
                             </div>
                         </CardContent>
                     </Card>

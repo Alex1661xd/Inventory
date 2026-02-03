@@ -9,20 +9,21 @@ export declare class AuthController {
         name: any;
         role: any;
         tenantId: any;
+        warehouseId: any;
     };
     register(dto: RegisterBusinessDto): Promise<{
         user: {
+            id: string;
             email: string;
             password: string;
             name: string;
-            id: string;
             role: import("@prisma/client").$Enums.Role;
             tenantId: string;
             warehouseId: string | null;
         };
         tenant: {
-            name: string;
             id: string;
+            name: string;
             slug: string;
             createdAt: Date;
             updatedAt: Date;

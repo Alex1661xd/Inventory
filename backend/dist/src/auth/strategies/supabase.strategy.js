@@ -36,6 +36,7 @@ let SupabaseStrategy = class SupabaseStrategy extends (0, passport_1.PassportStr
                 name: true,
                 role: true,
                 tenantId: true,
+                warehouseId: true,
             },
         });
         if (!user) {

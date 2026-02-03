@@ -145,6 +145,8 @@ model Warehouse {
   // Usuarios asignados a este almacén
   users     User[]
 
+  isDefault Boolean  @default(false)
+
   @@index([tenantId])
 }
 

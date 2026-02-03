@@ -65,6 +65,7 @@ export class AuthService {
                     data: {
                         name: 'Bodega Principal',
                         tenantId: tenant.id,
+                        isDefault: true,
                     },
                 });
 

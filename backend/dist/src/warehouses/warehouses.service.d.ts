@@ -11,6 +11,7 @@ export declare class WarehousesService {
         id: string;
         tenantId: string;
         address: string | null;
+        isDefault: boolean;
     }>;
     findAll(tenantId: string): Promise<any[]>;
     update(tenantId: string, id: string, dto: UpdateWarehouseDto): Promise<{
@@ -18,12 +19,14 @@ export declare class WarehousesService {
         id: string;
         tenantId: string;
         address: string | null;
+        isDefault: boolean;
     }>;
     remove(tenantId: string, id: string): Promise<{
         name: string;
         id: string;
         tenantId: string;
         address: string | null;
+        isDefault: boolean;
     }>;
     private invalidateWarehouseCache;
 }

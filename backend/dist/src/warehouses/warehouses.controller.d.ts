@@ -9,6 +9,7 @@ export declare class WarehousesController {
         id: string;
         tenantId: string;
         address: string | null;
+        isDefault: boolean;
     }>;
     findAll(tenantId: string): Promise<any[]>;
     update(tenantId: string, id: string, dto: UpdateWarehouseDto): Promise<{
@@ -16,11 +17,13 @@ export declare class WarehousesController {
         id: string;
         tenantId: string;
         address: string | null;
+        isDefault: boolean;
     }>;
     remove(tenantId: string, id: string): Promise<{
         name: string;
         id: string;
         tenantId: string;
         address: string | null;
+        isDefault: boolean;
     }>;
 }

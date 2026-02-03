@@ -63,6 +63,7 @@ let AuthService = class AuthService {
                     data: {
                         name: 'Bodega Principal',
                         tenantId: tenant.id,
+                        isDefault: true,
                     },
                 });
                 return { user, tenant };

@@ -79,6 +79,7 @@ export type Warehouse = {
     name: string;
     address?: string | null;
     tenantId: string;
+    isDefault: boolean;
 };
 
 export type StockRow = {
@@ -159,6 +160,7 @@ export const api = {
         },
     },
     auth: {
+        me: () => backendFetch<any>('/auth/me'),
         registerBusiness: (payload: any) =>
             backendFetch<any>('/auth/register-business', { method: 'POST', json: payload }),
     },

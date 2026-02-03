@@ -41,22 +41,35 @@ export default function DashboardPage() {
         },
     ])
 
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat('es-CO', {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).format(value)
+    }
+
     const loadStats = async () => {
         setLoading(true)
         try {
-            const [products, warehouses, stock] = await Promise.all([
+            const [products, warehouses, stock, invoices] = await Promise.all([
                 api.products.list(),
                 api.warehouses.list(),
-                api.inventory.stock({})
+                api.inventory.stock({}),
+                api.invoices.list()
             ])
 
             const totalInventoryUnits = stock.reduce((acc, item) => acc + item.quantity, 0)
-            
+            const totalSales = invoices
+                .filter(inv => inv.status === 'PAID')
+                .reduce((acc, inv) => acc + Number(inv.total), 0)
+
             setStats([
                 {
                     title: "Ventas Totales",
-                    value: "$0.00",
-                    change: "Módulo no desarrollado",
+                    value: formatCurrency(totalSales),
+                    change: `${invoices.filter(inv => inv.status === 'PAID').length} Ventas realizadas`,
                     icon: "💰",
                     gradient: "from-emerald-500 to-teal-600"
                 },
@@ -144,7 +157,7 @@ export default function DashboardPage() {
 
             {/* Quick Actions */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 animate-fade-in" style={{ animationDelay: '0.4s' }}>
-                <Card 
+                <Card
                     className="hover:shadow-2xl transition-shadow duration-300 cursor-pointer"
                     onClick={() => router.push('/dashboard/products')}
                 >
@@ -161,7 +174,7 @@ export default function DashboardPage() {
                     </CardContent>
                 </Card>
 
-                <Card 
+                <Card
                     className="hover:shadow-2xl transition-shadow duration-300 cursor-pointer"
                     onClick={() => router.push('/dashboard/inventory')}
                 >
@@ -178,7 +191,7 @@ export default function DashboardPage() {
                     </CardContent>
                 </Card>
 
-                <Card 
+                <Card
                     className="hover:shadow-2xl transition-shadow duration-300 cursor-pointer"
                     onClick={() => router.push('/dashboard/scanner')}
                 >

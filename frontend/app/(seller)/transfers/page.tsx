@@ -2,6 +2,6 @@
 
 import { TransfersManager } from '@/components/transfers-manager'
 
-export default function TransfersPage() {
+export default function SellerTransfersPage() {
     return <TransfersManager />
 }

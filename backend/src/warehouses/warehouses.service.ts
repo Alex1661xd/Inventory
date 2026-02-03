@@ -81,11 +81,15 @@ export class WarehousesService {
     async remove(tenantId: string, id: string) {
         const exists = await this.prisma.warehouse.findFirst({
             where: { id, tenantId },
-            select: { id: true },
+            select: { id: true, isDefault: true },
         });
 
         if (!exists) {
             throw new NotFoundException('Warehouse not found');
+        }
+
+        if (exists.isDefault) {
+            throw new BadRequestException('No se puede eliminar el almacén principal por defecto.');
         }
 
         try {

@@ -33,6 +33,7 @@ export class SupabaseStrategy extends PassportStrategy(Strategy, 'jwt') {
                 name: true,
                 role: true,
                 tenantId: true,
+                warehouseId: true,
             },
         });
 

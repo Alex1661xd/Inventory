@@ -9,6 +9,8 @@ const links = [
     { href: '/sales', label: 'Historial Ventas', icon: '📄' },
     { href: '/customers', label: 'Clientes', icon: '👥' },
     { href: '/products', label: 'Productos', icon: '📦' },
+    { href: '/transfers', label: 'Traslados', icon: '🚚' },
+    { href: '/warehouse', label: 'Mi Sede', icon: '📍' },
 ]
 
 export function SellerNav() {

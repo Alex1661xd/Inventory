@@ -31,6 +31,7 @@ let AuthController = class AuthController {
             name: user?.name,
             role: user?.role,
             tenantId: user?.tenantId,
+            warehouseId: user?.warehouseId,
         };
     }
     register(dto) {
