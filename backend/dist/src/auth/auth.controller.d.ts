@@ -13,17 +13,17 @@ export declare class AuthController {
     };
     register(dto: RegisterBusinessDto): Promise<{
         user: {
-            id: string;
             email: string;
             password: string;
             name: string;
+            id: string;
             role: import("@prisma/client").$Enums.Role;
             tenantId: string;
             warehouseId: string | null;
         };
         tenant: {
-            id: string;
             name: string;
+            id: string;
             slug: string;
             createdAt: Date;
             updatedAt: Date;
