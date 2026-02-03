@@ -75,10 +75,15 @@ model User {
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
   
+  // Asignación de almacén (Opcional, principalmente para SELLER)
+  warehouseId String?
+  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
+
   // Relaciones
   sales     Invoice[] // Las ventas que ha hecho este usuario
 
   @@index([tenantId])
+  @@index([warehouseId])
 }
 
 // --------------------------------------
@@ -136,6 +141,9 @@ model Warehouse {
   
   // Inventario en este almacén específico
   stocks    Stock[]
+
+  // Usuarios asignados a este almacén
+  users     User[]
 
   @@index([tenantId])
 }

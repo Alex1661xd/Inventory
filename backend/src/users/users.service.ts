@@ -42,6 +42,7 @@ export class UsersService {
                     password: 'MANAGED_BY_SUPABASE',
                     role: dto.role,
                     tenantId,
+                    warehouseId: dto.warehouseId,
                 },
             });
         } catch (error: any) {
@@ -54,6 +55,9 @@ export class UsersService {
     async findAll(tenantId: string) {
         return this.prisma.user.findMany({
             where: { tenantId },
+            include: {
+                warehouse: true, // Incluimos info del almacén
+            },
             orderBy: { name: 'asc' },
         });
     }
@@ -61,6 +65,9 @@ export class UsersService {
     async findOne(tenantId: string, id: string) {
         const user = await this.prisma.user.findFirst({
             where: { id, tenantId },
+            include: {
+                warehouse: true,
+            },
         });
 
         if (!user) throw new NotFoundException('User not found');

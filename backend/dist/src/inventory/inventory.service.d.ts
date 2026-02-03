@@ -11,9 +11,9 @@ export declare class InventoryService {
     }>;
     updateStock(tenantId: string, dto: UpdateStockDto): Promise<{
         id: string;
+        warehouseId: string;
         quantity: number;
         productId: string;
-        warehouseId: string;
     }>;
     findStock(tenantId: string, query: QueryStockDto): Promise<{
         product: {
@@ -29,8 +29,8 @@ export declare class InventoryService {
             id: string;
         };
         id: string;
+        warehouseId: string;
         quantity: number;
         productId: string;
-        warehouseId: string;
     }[]>;
 }

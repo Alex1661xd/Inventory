@@ -15,13 +15,26 @@ type User = {
     email: string
     role: string
     tenantId: string
+    warehouseId?: string
+    warehouse?: {
+        id: string
+        name: string
+    }
+}
+
+type Warehouse = {
+    id: string
+    name: string
 }
 
 export default function SellersPage() {
     const [sellers, setSellers] = useState<User[]>([])
+    const [warehouses, setWarehouses] = useState<Warehouse[]>([])
     const [loading, setLoading] = useState(false)
     const [saving, setSaving] = useState(false)
     const [showForm, setShowForm] = useState(false)
+    const [showWarehouseModal, setShowWarehouseModal] = useState(false)
+    const [selectedSeller, setSelectedSeller] = useState<User | null>(null)
     const [search, setSearch] = useState('')
     const [editingId, setEditingId] = useState<string | null>(null)
     const [viewModal, setViewModal] = useState<{ seller: User | null; visible: boolean }>({ seller: null, visible: false })
@@ -31,6 +44,7 @@ export default function SellersPage() {
     const [name, setName] = useState('')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
+    const [warehouseId, setWarehouseId] = useState('')
 
     const filteredSellers = useMemo(() => {
         const q = search.trim().toLowerCase()
@@ -45,9 +59,12 @@ export default function SellersPage() {
     const load = async () => {
         setLoading(true)
         try {
-            const data = await api.sellers.list()
-            // Filter only SELLERs if the endpoint returns all users
-            setSellers(data.filter((u: User) => u.role === 'SELLER'))
+            const [usersData, wsData] = await Promise.all([
+                api.sellers.list(),
+                api.warehouses.list()
+            ])
+            setSellers(usersData.filter((u: User) => u.role === 'SELLER'))
+            setWarehouses(wsData)
         } catch (e: any) {
             toast.error(e.message)
         } finally {
@@ -64,6 +81,7 @@ export default function SellersPage() {
         setName('')
         setEmail('')
         setPassword('')
+        setWarehouseId('')
         setShowForm(false)
     }
 
@@ -72,15 +90,42 @@ export default function SellersPage() {
         setName('')
         setEmail('')
         setPassword('')
+        setWarehouseId(warehouses[0]?.id || '')
         setShowForm(true)
     }
 
     const startEdit = (s: User) => {
         setEditingId(s.id)
         setName(s.name)
-        setEmail(s.email) // Email editable? Often restricted, but we'll show it.
-        setPassword('') // Don't show current password
+        setEmail(s.email)
+        setPassword('')
+        setWarehouseId(s.warehouseId || '')
         setShowForm(true)
+    }
+
+    const startChangeWarehouse = (s: User) => {
+        setSelectedSeller(s)
+        setWarehouseId(s.warehouseId || '')
+        setShowWarehouseModal(true)
+    }
+
+    const updateWarehouse = async () => {
+        if (!selectedSeller) return
+        if (!warehouseId) {
+            toast.error('Debes seleccionar una sede')
+            return
+        }
+        setSaving(true)
+        try {
+            await api.sellers.update(selectedSeller.id, { warehouseId })
+            toast.success('Sede actualizada')
+            setShowWarehouseModal(false)
+            await load()
+        } catch (e: any) {
+            toast.error(e.message)
+        } finally {
+            setSaving(false)
+        }
     }
 
     const create = async () => {
@@ -99,12 +144,18 @@ export default function SellersPage() {
             return
         }
 
+        if (!warehouseId) {
+            toast.error('Debes asignar una sede al vendedor')
+            return
+        }
+
         setSaving(true)
         try {
             if (editingId) {
                 // Not sending email update for now as it's complex with Auth
                 const payload: any = { name: name.trim() }
                 if (password.trim()) payload.password = password.trim()
+                if (warehouseId) payload.warehouseId = warehouseId
 
                 await api.sellers.update(editingId, payload)
                 toast.success('Vendedor actualizado')
@@ -113,7 +164,8 @@ export default function SellersPage() {
                     name: name.trim(),
                     email: email.trim(),
                     password: password.trim(),
-                    role: 'SELLER'
+                    role: 'SELLER',
+                    warehouseId: warehouseId || undefined
                 })
                 toast.success('Vendedor creado')
             }
@@ -208,25 +260,38 @@ export default function SellersPage() {
                             <p className="text-sm text-[rgb(120,115,110)]">
                                 {s.email}
                             </p>
+                            <div className="mt-2 text-xs font-semibold px-2 py-1 bg-[hsl(var(--background))] rounded-lg inline-block text-[rgb(120,115,110)]">
+                                📍 {s.warehouse?.name || 'Sin sede asignada'}
+                            </div>
                         </div>
 
-                        <div className="mt-4 pt-4 border-t border-[rgb(230,225,220)] grid grid-cols-2 gap-2">
+                        <div className="mt-4 pt-4 border-t border-[rgb(230,225,220)] grid grid-cols-1 gap-2">
                             <Button
-                                variant="secondary"
+                                variant="outline"
                                 size="sm"
-                                className="h-9 font-bold"
-                                onClick={() => startEdit(s)}
+                                className="h-9 font-bold w-full"
+                                onClick={() => startChangeWarehouse(s)}
                             >
-                                Editar
+                                Cambiar de sede
                             </Button>
-                            <Button
-                                variant="destructive"
-                                size="sm"
-                                className="h-9 font-bold"
-                                onClick={() => remove(s.id)}
-                            >
-                                Eliminar
-                            </Button>
+                            <div className="grid grid-cols-2 gap-2">
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    className="h-9 font-bold"
+                                    onClick={() => startEdit(s)}
+                                >
+                                    Editar
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    className="h-9 font-bold"
+                                    onClick={() => remove(s.id)}
+                                >
+                                    Eliminar
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 ))}
@@ -267,6 +332,18 @@ export default function SellersPage() {
                                 {editingId && <p className="text-xs text-[hsl(var(--muted))]">El email no se puede cambiar directamente.</p>}
                             </div>
                             <div className="space-y-2">
+                                <Label>Asignar Sede (Almacén)</Label>
+                                <select
+                                    className="flex h-11 w-full rounded-lg border border-[rgb(230,225,220)] bg-white/90 px-3 py-2 text-sm focus:outline-none focus:border-[rgb(25,35,25)]"
+                                    value={warehouseId}
+                                    onChange={(e) => setWarehouseId(e.target.value)}
+                                >
+                                    {warehouses.map((w) => (
+                                        <option key={w.id} value={w.id}>{w.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="space-y-2">
                                 <Label>{editingId ? 'Cambiar Contraseña (Opcional)' : 'Contraseña'}</Label>
                                 <Input
                                     value={password}
@@ -281,6 +358,40 @@ export default function SellersPage() {
                                 {saving ? '⚙️ Guardando...' : editingId ? 'Guardar Cambios' : 'Crear Vendedor'}
                             </Button>
                             <Button variant="outline" onClick={resetForm} className="h-12" disabled={saving}>
+                                Cancelar
+                            </Button>
+                        </div>
+                    </Card>
+                </div>
+            )}
+
+            {/* Simple Warehouse Modal for quick change */}
+            {showWarehouseModal && selectedSeller && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
+                    <div className="absolute inset-0 bg-[rgb(25,35,25)]/40 backdrop-blur-sm" onClick={() => setShowWarehouseModal(false)} />
+                    <Card className="w-full max-w-md relative z-10 animate-scale-in">
+                        <CardHeader className="border-b border-[rgb(230,225,220)]">
+                            <CardTitle className="text-xl">Cambiar sede de {selectedSeller.name}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6 space-y-4">
+                            <div className="space-y-2">
+                                <Label>Seleccionar nueva sede</Label>
+                                <select
+                                    className="flex h-11 w-full rounded-lg border border-[rgb(230,225,220)] bg-white/90 px-3 py-2 text-sm focus:outline-none focus:border-[rgb(25,35,25)]"
+                                    value={warehouseId}
+                                    onChange={(e) => setWarehouseId(e.target.value)}
+                                >
+                                    {warehouses.map((w) => (
+                                        <option key={w.id} value={w.id}>{w.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </CardContent>
+                        <div className="p-6 border-t border-[rgb(230,225,220)] flex gap-3">
+                            <Button onClick={updateWarehouse} className="flex-1 h-12" disabled={saving}>
+                                {saving ? 'Cambiando...' : 'Cambiar Sede'}
+                            </Button>
+                            <Button variant="outline" onClick={() => setShowWarehouseModal(false)} className="h-12" disabled={saving}>
                                 Cancelar
                             </Button>
                         </div>

@@ -7,9 +7,9 @@ export declare class InventoryController {
     constructor(inventoryService: InventoryService);
     updateStock(tenantId: string, dto: UpdateStockDto): Promise<{
         id: string;
+        warehouseId: string;
         quantity: number;
         productId: string;
-        warehouseId: string;
     }>;
     transferStock(tenantId: string, dto: TransferStockDto): Promise<{
         success: boolean;
@@ -29,8 +29,8 @@ export declare class InventoryController {
             id: string;
         };
         id: string;
+        warehouseId: string;
         quantity: number;
         productId: string;
-        warehouseId: string;
     }[]>;
 }

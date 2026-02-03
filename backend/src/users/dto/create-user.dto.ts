@@ -17,4 +17,8 @@ export class CreateUserDto {
     @IsEnum(Role)
     @IsOptional()
     role?: Role = Role.SELLER;
+
+    @IsString()
+    @IsOptional()
+    warehouseId?: string;
 }
