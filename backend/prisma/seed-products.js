@@ -2,6 +2,18 @@ const { PrismaClient } = require('@prisma/client');
 const fs = require('fs');
 const path = require('path');
 
+/**
+ * MODO DE USO:
+ * 
+ * 1. Desde la carpeta 'backend', ejecutar:
+ *    node prisma/seed-products.js <cantidad_o_comando>
+ * 
+ * EJEMPLOS:
+ *    node prisma/seed-products.js 20      -> Crea 20 productos de prueba
+ *    node prisma/seed-products.js delete  -> Borra los productos de prueba creados
+ *    node prisma/seed-products.js         -> Crea 100 productos (valor por defecto)
+ */
+
 // --- CARGA DE VARIABLES DE ENTORNO ---
 function loadEnv() {
     const envPath = path.resolve(__dirname, '..', '.env');

@@ -280,11 +280,8 @@ body {
   transform: translateY(-2px);
 }
 
-/* Focus Styles */
-*:focus-visible {
-  outline: 2px solid hsl(var(--primary));
-  outline-offset: 2px;
-}
+/* Focus Styles - Removed global intrusive outline to avoid "blue box" effect */
+/* Components should handle their own focus states using Tailwind's focus-visible classes */
 
 /* Selection */
 ::selection {

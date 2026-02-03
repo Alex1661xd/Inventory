@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { toast } from 'sonner'
 import { CustomerSelector } from '@/components/customer-selector'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { Scan, X, Plus, Minus, Trash2, ChevronLeft, ChevronRight, Pause, Play, UserPlus, Camera } from 'lucide-react'
+import { Scan, X, Plus, Minus, Trash2, ChevronLeft, ChevronRight, Pause, Play, UserPlus, Camera, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { BrowserMultiFormatReader } from '@zxing/browser'
 import { NotFoundException } from '@zxing/library'
@@ -311,6 +311,8 @@ function POSMobileView(props: {
     paymentMethod: 'CASH' | 'CARD' | 'TRANSFER' | 'OTHER';
     setPaymentMethod: (m: 'CASH' | 'CARD' | 'TRANSFER' | 'OTHER') => void;
     onCreateNewCustomer: () => void;
+    mobilePage: number;
+    setMobilePage: (n: number) => void;
 }) {
     const {
         mobileStep,
@@ -334,6 +336,8 @@ function POSMobileView(props: {
         paymentMethod,
         setPaymentMethod,
         onCreateNewCustomer,
+        mobilePage,
+        setMobilePage,
     } = props;
 
     return (
@@ -454,76 +458,107 @@ function POSMobileView(props: {
                             </Card>
                         )}
 
-                        {/* Products List */}
-                        <div className="space-y-2">
-                            {filteredProducts.map(product => (
-                                <Card key={product.id} className="overflow-hidden">
-                                    <CardContent className="p-3">
-                                        <div className="flex gap-3">
-                                            <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
-                                                {product.images?.[0] ? (
-                                                    <img src={product.images[0]} alt="" className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <span className="text-2xl">📦</span>
-                                                )}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="font-medium text-sm">{product.name}</div>
-                                                <div className="text-xs text-gray-500">{product.barcode}</div>
-                                                <div className="font-bold text-primary mt-1">
-                                                    ${Number(product.salePrice).toLocaleString()}
+                        {/* Products List & Pagination */}
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                {filteredProducts.slice((mobilePage - 1) * 3, mobilePage * 3).map(product => (
+                                    <Card key={product.id} className="overflow-hidden">
+                                        <CardContent className="p-3">
+                                            <div className="flex gap-3">
+                                                <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                                    {product.images?.[0] ? (
+                                                        <img src={product.images[0]} alt="" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <span className="text-2xl">📦</span>
+                                                    )}
                                                 </div>
-                                            </div>
-                                            <Button
-                                                size="sm"
-                                                onClick={() => addToCart(product)}
-                                                className="self-center"
-                                            >
-                                                <Plus className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                        {cart.find(item => item.id === product.id) && (
-                                            <div className="mt-3 pt-3 border-t flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => {
-                                                            const item = cart.find(i => i.id === product.id)
-                                                            if (item) updateQuantity(product.id, item.quantity - 1)
-                                                        }}
-                                                        className="h-8 w-8 p-0"
-                                                    >
-                                                        <Minus className="h-3 w-3" />
-                                                    </Button>
-                                                    <span className="w-12 text-center font-semibold">
-                                                        {cart.find(item => item.id === product.id)?.quantity}
-                                                    </span>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => {
-                                                            const item = cart.find(i => i.id === product.id)
-                                                            if (item) updateQuantity(product.id, item.quantity + 1)
-                                                        }}
-                                                        className="h-8 w-8 p-0"
-                                                    >
-                                                        <Plus className="h-3 w-3" />
-                                                    </Button>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-medium text-sm">{product.name}</div>
+                                                    <div className="text-xs text-gray-500">{product.barcode}</div>
+                                                    <div className="font-bold text-primary mt-1">
+                                                        ${Number(product.salePrice).toLocaleString()}
+                                                    </div>
                                                 </div>
                                                 <Button
-                                                    variant="ghost"
                                                     size="sm"
-                                                    onClick={() => removeFromCart(product.id)}
-                                                    className="text-red-600"
+                                                    onClick={() => addToCart(product)}
+                                                    className="self-center"
                                                 >
-                                                    <Trash2 className="h-4 w-4" />
+                                                    <Plus className="h-4 w-4" />
                                                 </Button>
                                             </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            ))}
+                                            {cart.find(item => item.id === product.id) && (
+                                                <div className="mt-3 pt-3 border-t flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                const item = cart.find(i => i.id === product.id)
+                                                                if (item) updateQuantity(product.id, item.quantity - 1)
+                                                            }}
+                                                            className="h-8 w-8 p-0"
+                                                        >
+                                                            <Minus className="h-3 w-3" />
+                                                        </Button>
+                                                        <span className="w-12 text-center font-semibold">
+                                                            {cart.find(item => item.id === product.id)?.quantity}
+                                                        </span>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                const item = cart.find(i => i.id === product.id)
+                                                                if (item) updateQuantity(product.id, item.quantity + 1)
+                                                            }}
+                                                            className="h-8 w-8 p-0"
+                                                        >
+                                                            <Plus className="h-3 w-3" />
+                                                        </Button>
+                                                    </div>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => removeFromCart(product.id)}
+                                                        className="text-red-600"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+
+                            {/* Pagination Controls */}
+                            {filteredProducts.length > 3 && (
+                                <div className="flex items-center justify-between bg-white p-3 rounded-lg border shadow-sm sticky bottom-0 z-10">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setMobilePage(Math.max(1, mobilePage - 1))}
+                                        disabled={mobilePage === 1}
+                                    >
+                                        <ChevronLeft className="h-4 w-4 mr-1" />
+                                        Anterior
+                                    </Button>
+
+                                    <span className="text-sm font-medium text-gray-600">
+                                        Página {mobilePage} de {Math.ceil(filteredProducts.length / 3)}
+                                    </span>
+
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setMobilePage(mobilePage + 1)}
+                                        disabled={mobilePage * 3 >= filteredProducts.length}
+                                    >
+                                        Siguiente
+                                        <ChevronRight className="h-4 w-4 ml-1" />
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -779,7 +814,7 @@ function POSDesktopView(props: {
                 {/* Cart Header */}
                 <div className="p-4 border-b bg-gray-50">
                     <h2 className="font-bold text-lg mb-3">Venta Actual</h2>
-                    <CustomerSelector onSelect={setSelectedCustomer} />
+                    <CustomerSelector onSelect={setSelectedCustomer} selectedCustomer={selectedCustomer} />
                 </div>
 
                 {/* Cart Items */}
@@ -890,9 +925,12 @@ export default function POSPage() {
 
     // Mobile stepper state
     const [mobileStep, setMobileStep] = useState(1) // 1: Cliente, 2: Productos, 3: Pago
+    const [mobilePage, setMobilePage] = useState(1)
 
     // Resume sale state
+    // Resume sale state
     const [resumedSaleId, setResumedSaleId] = useState<string | null>(null)
+    const [isResuming, setIsResuming] = useState(false)
 
     const [isMobile, setIsMobile] = useState<boolean | null>(null)
 
@@ -924,6 +962,7 @@ export default function POSPage() {
 
     useEffect(() => {
         if (resumeId) {
+            setIsResuming(true)
             loadResumedSale(resumeId)
         }
     }, [resumeId])
@@ -967,7 +1006,9 @@ export default function POSPage() {
             }
         } catch (e) {
             console.error(e)
-            toast.error('Error cargando la venta pendiente')
+            toast.error('Error al reanudar la venta')
+        } finally {
+            setIsResuming(false)
         }
     }
 
@@ -1109,6 +1150,11 @@ export default function POSPage() {
         p.sku?.toLowerCase().includes(search.toLowerCase())
     )
 
+    // Reset mobile pagination when search changes
+    useEffect(() => {
+        setMobilePage(1)
+    }, [search])
+
     const canProceedToStep2 = selectedCustomer !== null
     const canProceedToStep3 = cart.length > 0
 
@@ -1118,6 +1164,20 @@ export default function POSPage() {
 
     return (
         <>
+            {isResuming && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4">
+                        <div className="w-16 h-16 rounded-full bg-gray-900 flex items-center justify-center animate-spin">
+                            <Loader2 className="h-8 w-8 text-white" />
+                        </div>
+                        <div className="text-center">
+                            <p className="font-semibold text-gray-900 text-lg">Reanudando venta</p>
+                            <p className="text-sm text-gray-500 mt-1">Por favor espera...</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {isMobile ? (
                 <POSMobileView
                     mobileStep={mobileStep}
@@ -1141,6 +1201,8 @@ export default function POSPage() {
                     paymentMethod={paymentMethod}
                     setPaymentMethod={setPaymentMethod}
                     onCreateNewCustomer={() => setShowCreateCustomer(true)}
+                    mobilePage={mobilePage}
+                    setMobilePage={setMobilePage}
                 />
             ) : (
                 <POSDesktopView
@@ -1180,7 +1242,77 @@ export default function POSPage() {
                 />
             )}
 
-            {/* Create New Customer Modal */}
+            {/* Checkout Modal for Desktop */}
+            {isCheckoutOpen && (
+                <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
+                    <Card className="w-full max-w-md animate-scale-in">
+                        <CardHeader className="text-center pb-2">
+                            <CardTitle className="text-xl">Finalizar Venta</CardTitle>
+                            <CardDescription>Selecciona el método de pago</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {/* Order Summary */}
+                            <div className="p-4 bg-gray-50 rounded-xl space-y-3">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Cliente</span>
+                                    <span className="font-medium">{selectedCustomer?.name}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Productos</span>
+                                    <span className="font-medium">{cart.length} items</span>
+                                </div>
+                                <div className="pt-2 border-t flex justify-between">
+                                    <span className="text-lg font-semibold">Total</span>
+                                    <span className="text-2xl font-bold text-primary">${grandTotal.toLocaleString()}</span>
+                                </div>
+                            </div>
+
+                            {/* Payment Methods */}
+                            <div>
+                                <Label className="text-sm font-medium mb-3 block">Método de Pago</Label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { value: 'CASH', label: 'Efectivo', icon: '💵' },
+                                        { value: 'CARD', label: 'Tarjeta', icon: '💳' },
+                                        { value: 'TRANSFER', label: 'Transferencia', icon: '📱' },
+                                        { value: 'OTHER', label: 'Otro', icon: '📝' }
+                                    ].map(method => (
+                                        <Button
+                                            key={method.value}
+                                            variant={paymentMethod === method.value ? 'default' : 'outline'}
+                                            onClick={() => setPaymentMethod(method.value as any)}
+                                            className="h-16 flex flex-col gap-1"
+                                        >
+                                            <span className="text-2xl">{method.icon}</span>
+                                            <span className="text-xs">{method.label}</span>
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-2 pt-2">
+                                <Button
+                                    variant="outline"
+                                    className="flex-1"
+                                    onClick={() => setIsCheckoutOpen(false)}
+                                    disabled={processing}
+                                >
+                                    Cancelar
+                                </Button>
+                                <Button
+                                    className="flex-1 h-12 text-base font-bold"
+                                    onClick={handleCheckout}
+                                    disabled={processing}
+                                >
+                                    {processing ? 'Procesando...' : '✓ Confirmar Venta'}
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+
             {showCreateCustomer && (
                 <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
                     <Card className="w-full max-w-md">

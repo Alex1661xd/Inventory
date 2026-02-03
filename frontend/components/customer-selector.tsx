@@ -29,9 +29,11 @@ interface Customer {
 }
 
 export function CustomerSelector({
-    onSelect
+    onSelect,
+    selectedCustomer: externalSelectedCustomer
 }: {
     onSelect: (customer: Customer | null) => void
+    selectedCustomer?: Customer | null
 }) {
     const [open, setOpen] = useState(false)
     const [value, setValue] = useState("")
@@ -45,6 +47,15 @@ export function CustomerSelector({
     useEffect(() => {
         loadCustomers()
     }, [])
+
+    // Sync external selected customer with internal state
+    useEffect(() => {
+        if (externalSelectedCustomer) {
+            setValue(externalSelectedCustomer.id)
+        } else {
+            setValue("")
+        }
+    }, [externalSelectedCustomer])
 
     const loadCustomers = async () => {
         setLoading(true)
