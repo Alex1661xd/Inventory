@@ -66,11 +66,21 @@
 }
 
 @theme inline {
-  --color-background: rgb(var(--background));
-  --color-foreground: rgb(var(--foreground));
-  --color-primary: rgb(var(--primary));
-  --color-secondary: rgb(var(--secondary));
-  --color-accent: rgb(var(--accent));
+  --color-background: hsl(220 20% 98%);
+  --color-foreground: hsl(220 15% 15%);
+  --color-primary: hsl(220 90% 56%);
+  --color-secondary: hsl(270 70% 60%);
+  --color-accent: hsl(220 15% 95%);
+  --color-accent-foreground: hsl(220 15% 25%);
+  --color-muted: hsl(220 10% 95%);
+  --color-muted-foreground: hsl(220 10% 45%);
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(220 15% 15%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(220 15% 15%);
+  --color-border: hsl(220 15% 90%);
+  --color-input: hsl(220 15% 90%);
+  --color-ring: hsl(220 90% 56%);
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-display: 'Outfit', 'Inter', sans-serif;
 }
@@ -80,9 +90,9 @@
 }
 
 body {
-  background: rgb(var(--background));
+  background: hsl(var(--background));
   background-image: var(--gradient-mesh);
-  color: rgb(var(--foreground));
+  color: hsl(var(--foreground));
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -213,6 +223,7 @@ body {
     transform: translateY(100%);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -278,10 +289,11 @@ body {
 /* Selection */
 ::selection {
   background: hsl(var(--primary) / 0.2);
-  color: rgb(var(--foreground));
+  color: hsl(var(--foreground));
 }
 
 /* Fix specifically for select text color */
-select, select option {
+select,
+select option {
   color: inherit !important;
 }

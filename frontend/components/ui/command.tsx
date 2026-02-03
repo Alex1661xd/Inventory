@@ -29,7 +29,7 @@ const CommandDialog = ({ children, ...props }: CommandDialogProps) => {
     return (
         <Dialog {...props}>
             <DialogContent className="overflow-hidden p-0 shadow-lg">
-                <Command className="[&_[universal-command-group-heading]]:px-2 [&_[universal-command-group-heading]]:font-medium [&_[universal-command-group-heading]]:text-muted-foreground [&_[universal-command-group]]:px-2 [&_[universal-command-input-wrapper]_svg]:h-5 [&_[universal-command-input-wrapper]_svg]:w-5 [&_[universal-command-input]]:h-12 [&_[universal-command-item]]:px-2 [&_[universal-command-item]]:py-3 [&_[universal-command-item]_svg]:h-5 [&_[universal-command-item]_svg]:w-5">
+                <Command className="[&_[universal-command-group-heading]]:px-2 [&_[universal-command-group-heading]]:font-medium [&_[universal-command-group-heading]]:text-gray-500 [&_[universal-command-group]]:px-2 [&_[universal-command-input-wrapper]_svg]:h-5 [&_[universal-command-input-wrapper]_svg]:w-5 [&_[universal-command-input]]:h-12 [&_[universal-command-item]]:px-2 [&_[universal-command-item]]:py-3 [&_[universal-command-item]_svg]:h-5 [&_[universal-command-item]_svg]:w-5">
                     {children}
                 </Command>
             </DialogContent>
@@ -46,7 +46,7 @@ const CommandInput = React.forwardRef<
         <CommandPrimitive.Input
             ref={ref}
             className={cn(
-                "flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
+                "flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-gray-500 disabled:cursor-not-allowed disabled:opacity-50",
                 className
             )}
             {...props}
@@ -89,7 +89,7 @@ const CommandGroup = React.forwardRef<
     <CommandPrimitive.Group
         ref={ref}
         className={cn(
-            "overflow-hidden p-1 text-foreground [&_[universal-command-group-heading]]:px-2 [&_[universal-command-group-heading]]:py-1.5 [&_[universal-command-group-heading]]:text-xs [&_[universal-command-group-heading]]:font-medium [&_[universal-command-group-heading]]:text-muted-foreground",
+            "overflow-hidden p-1 text-foreground [&_[universal-command-group-heading]]:px-2 [&_[universal-command-group-heading]]:py-1.5 [&_[universal-command-group-heading]]:text-xs [&_[universal-command-group-heading]]:font-medium [&_[universal-command-group-heading]]:text-gray-500",
             className
         )}
         {...props}
@@ -117,7 +117,7 @@ const CommandItem = React.forwardRef<
     <CommandPrimitive.Item
         ref={ref}
         className={cn(
-            "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none data-[disabled=true]:pointer-events-none data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[disabled=true]:opacity-50",
+            "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none data-[disabled=true]:pointer-events-none data-[selected=true]:bg-gray-100 data-[selected=true]:text-gray-900 data-[disabled=true]:opacity-50",
             className
         )}
         {...props}
@@ -133,7 +133,7 @@ const CommandShortcut = ({
     return (
         <span
             className={cn(
-                "ml-auto text-xs tracking-widest text-muted-foreground",
+                "ml-auto text-xs tracking-widest text-gray-500",
                 className
             )}
             {...props}

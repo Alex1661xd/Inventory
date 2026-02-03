@@ -1,30 +1,31 @@
 import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
-import { AuthGuard } from '@nestjs/passport';
+import { GetTenantGuard } from '../auth/guards/get-tenant.guard';
+import { GetTenantId } from '../auth/decorators/get-tenant-id.decorator';
 
 @Controller('invoices')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(GetTenantGuard)
 export class InvoicesController {
     constructor(private readonly invoicesService: InvoicesService) { }
 
     @Post()
-    create(@Request() req, @Body() createInvoiceDto: CreateInvoiceDto) {
-        return this.invoicesService.create(req.user.tenantId, req.user.id, createInvoiceDto);
+    create(@GetTenantId() tenantId: string, @Request() req, @Body() createInvoiceDto: CreateInvoiceDto) {
+        return this.invoicesService.create(tenantId, req.user.id, createInvoiceDto);
     }
 
     @Get()
-    findAll(@Request() req) {
-        return this.invoicesService.findAll(req.user.tenantId);
+    findAll(@GetTenantId() tenantId: string) {
+        return this.invoicesService.findAll(tenantId);
     }
 
     @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.invoicesService.findOne(id);
+    findOne(@GetTenantId() tenantId: string, @Param('id') id: string) {
+        return this.invoicesService.findOne(tenantId, id);
     }
 
     @Post(':id/cancel')
-    cancel(@Request() req, @Param('id') id: string) {
-        return this.invoicesService.cancel(req.user.tenantId, id);
+    cancel(@GetTenantId() tenantId: string, @Param('id') id: string) {
+        return this.invoicesService.cancel(tenantId, id);
     }
 }

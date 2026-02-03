@@ -11,6 +11,7 @@ import {
 import { CategoriesService } from './categories.service';
 import { GetTenantGuard } from '../auth/guards/get-tenant.guard';
 import { GetTenantId } from '../auth/decorators/get-tenant-id.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @UseGuards(GetTenantGuard)
 @Controller('categories')
@@ -28,11 +29,13 @@ export class CategoriesController {
   }
 
   @Post()
+  @Roles('ADMIN', 'SUPER_ADMIN')
   create(@GetTenantId() tenantId: string, @Body() createCategoryDto: { name: string; description?: string }) {
     return this.categoriesService.create(createCategoryDto, tenantId);
   }
 
   @Patch(':id')
+  @Roles('ADMIN', 'SUPER_ADMIN')
   update(
     @GetTenantId() tenantId: string,
     @Param('id') id: string, 
@@ -42,6 +45,7 @@ export class CategoriesController {
   }
 
   @Delete(':id')
+  @Roles('ADMIN', 'SUPER_ADMIN')
   remove(@GetTenantId() tenantId: string, @Param('id') id: string) {
     return this.categoriesService.remove(id, tenantId);
   }

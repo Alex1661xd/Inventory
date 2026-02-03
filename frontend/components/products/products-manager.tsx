@@ -446,10 +446,10 @@ export function ProductsManager({
             {/* Header Section */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h2 className="text-3xl md:text-4xl font-bold text-[hsl(var(--foreground))]" style={{ fontFamily: 'var(--font-display)' }}>
+                    <h2 className="text-3xl md:text-4xl font-bold text-gray-900" style={{ fontFamily: 'var(--font-display)' }}>
                         Productos
                     </h2>
-                    <p className="text-[hsl(var(--muted))] text-sm md:text-lg">
+                    <p className="text-gray-500 text-sm md:text-lg">
                         {readOnly
                             ? "Consulta el catálogo y stock disponible."
                             : "Gestiona tu catálogo y consulta el stock total en tiempo real."}
@@ -458,7 +458,7 @@ export function ProductsManager({
                     {!readOnly && (
                         <div className="mt-4 flex flex-col gap-1.5 max-w-xs">
                             <div className="flex justify-between items-end text-sm">
-                                <span className="font-medium text-[hsl(var(--muted))]">Uso de Inventario</span>
+                                <span className="font-medium text-gray-500">Uso de Inventario</span>
                                 <span className={cn(
                                     "font-bold",
                                     products.length >= 480 ? "text-red-500" :
@@ -500,7 +500,7 @@ export function ProductsManager({
             <div className="bg-white/50 backdrop-blur-sm p-4 rounded-2xl border border-[rgb(230,225,220)]">
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                     <div className="space-y-2 lg:col-span-1 md:col-span-2">
-                        <Label className="text-xs font-medium text-[hsl(var(--muted))]">Búsqueda</Label>
+                        <Label className="text-xs font-medium text-gray-500">Búsqueda</Label>
                         <div className="flex gap-2">
                             <div className="relative flex-1">
                                 <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
@@ -577,7 +577,7 @@ export function ProductsManager({
                                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                                 />
                             ) : (
-                                <div className="flex h-full w-full items-center justify-center text-[hsl(var(--muted))]/30 text-6xl">
+                                <div className="flex h-full w-full items-center justify-center text-gray-300 text-6xl">
                                     📦
                                 </div>
                             )}
@@ -720,7 +720,7 @@ export function ProductsManager({
                                             onChange={(e) => setForm((s) => ({ ...s, initialStock: e.target.value }))}
                                             placeholder="0"
                                         />
-                                        <p className="text-[10px] text-[hsl(var(--muted))]">
+                                        <p className="text-[10px] text-gray-500">
                                             Se añadirá a la Bodega Principal
                                         </p>
                                     </div>

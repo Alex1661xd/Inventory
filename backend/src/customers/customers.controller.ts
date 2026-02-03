@@ -1,36 +1,37 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { CustomersService } from './customers.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
-import { AuthGuard } from '@nestjs/passport';
+import { GetTenantGuard } from '../auth/guards/get-tenant.guard';
+import { GetTenantId } from '../auth/decorators/get-tenant-id.decorator';
 
 @Controller('customers')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(GetTenantGuard)
 export class CustomersController {
     constructor(private readonly customersService: CustomersService) { }
 
     @Post()
-    create(@Request() req, @Body() createCustomerDto: CreateCustomerDto) {
-        return this.customersService.create(req.user.tenantId, createCustomerDto);
+    create(@GetTenantId() tenantId: string, @Body() createCustomerDto: CreateCustomerDto) {
+        return this.customersService.create(tenantId, createCustomerDto);
     }
 
     @Get()
-    findAll(@Request() req) {
-        return this.customersService.findAll(req.user.tenantId);
+    findAll(@GetTenantId() tenantId: string) {
+        return this.customersService.findAll(tenantId);
     }
 
     @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.customersService.findOne(id);
+    findOne(@GetTenantId() tenantId: string, @Param('id') id: string) {
+        return this.customersService.findOne(tenantId, id);
     }
 
     @Patch(':id')
-    update(@Request() req, @Param('id') id: string, @Body() updateCustomerDto: UpdateCustomerDto) {
-        return this.customersService.update(id, req.user.tenantId, updateCustomerDto);
+    update(@GetTenantId() tenantId: string, @Param('id') id: string, @Body() updateCustomerDto: UpdateCustomerDto) {
+        return this.customersService.update(id, tenantId, updateCustomerDto);
     }
 
     @Delete(':id')
-    remove(@Request() req, @Param('id') id: string) {
-        return this.customersService.remove(id, req.user.tenantId);
+    remove(@GetTenantId() tenantId: string, @Param('id') id: string) {
+        return this.customersService.remove(id, tenantId);
     }
 }

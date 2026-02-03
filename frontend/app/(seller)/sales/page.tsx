@@ -3,20 +3,19 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/lib/backend'
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Play, Trash2, Eye } from 'lucide-react'
+import { Play, Trash2, RefreshCw, ShoppingBag, Clock, CheckCircle2, User } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { cn } from '@/lib/utils'
 
 export default function SalesHistoryPage() {
     const router = useRouter()
     const [loading, setLoading] = useState(true)
-    const [selectedTab, setSelectedTab] = useState('completed')
+    const [activeTab, setActiveTab] = useState<'all' | 'completed' | 'pending'>('all')
 
     // Lists
     const [completedSales, setCompletedSales] = useState<any[]>([])
@@ -49,7 +48,7 @@ export default function SalesHistoryPage() {
         try {
             await api.invoices.cancel(id)
             toast.success('Venta pendiente eliminada')
-            loadInvoices() // Reload list
+            loadInvoices()
         } catch (e) {
             console.error(e)
             toast.error('Error eliminando venta')
@@ -69,166 +68,230 @@ export default function SalesHistoryPage() {
         }).format(value)
     }
 
-    const translatePaymentMethod = (method: string) => {
-        const map: Record<string, string> = {
-            'CASH': 'Efectivo',
-            'CARD': 'Tarjeta',
-            'TRANSFER': 'Transferencia',
-            'OTHER': 'Otro'
-        }
-        return map[method] || method
-    }
-
     const calculatePendingTotal = (sale: any) => {
-        // Backend structure: sale.items[] -> { quantity, unitPrice }
         if (sale.items) {
             return sale.items.reduce((acc: number, item: any) => acc + (Number(item.unitPrice) * item.quantity), 0)
         }
         return 0
     }
 
+    const allSales = [
+        ...pendingSales.map(s => ({ ...s, type: 'pending' })),
+        ...completedSales.map(s => ({ ...s, type: 'completed' }))
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+    const filteredSales = activeTab === 'all'
+        ? allSales
+        : activeTab === 'completed'
+            ? allSales.filter(s => s.type === 'completed')
+            : allSales.filter(s => s.type === 'pending')
+
     return (
-        <div className="space-y-6 pb-20 md:pb-0">
-            <div className="flex items-center justify-between">
+        <div className="space-y-4 pb-20 md:pb-0">
+            {/* Header */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-[hsl(var(--foreground))]" style={{ fontFamily: 'var(--font-display)' }}>
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900" style={{ fontFamily: 'var(--font-display)' }}>
                         Historial de Ventas
                     </h1>
-                    <p className="text-[hsl(var(--muted))]">Registro de todas las transacciones realizadas</p>
+                    <p className="text-gray-500 text-sm md:text-base">Registro de todas las transacciones realizadas</p>
                 </div>
+                <Button variant="outline" onClick={loadInvoices} disabled={loading} className="self-start sm:self-auto">
+                    <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
+                    Actualizar
+                </Button>
             </div>
 
-            {/* Mobile View: Tabs */}
-            <div className="md:hidden">
-                <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="completed">Finalizadas ({completedSales.length})</TabsTrigger>
-                        <TabsTrigger value="pending">Pendientes ({pendingSales.length})</TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="completed" className="mt-4">
-                        <CompletedSalesList invoices={completedSales} loading={loading} formatCurrency={formatCurrency} translatePaymentMethod={translatePaymentMethod} />
-                    </TabsContent>
-
-                    <TabsContent value="pending" className="mt-4">
-                        <PendingSalesList pendingSales={pendingSales} calculatePendingTotal={calculatePendingTotal} formatCurrency={formatCurrency} resumeSale={resumeSale} deletePendingSale={deletePendingSale} />
-                    </TabsContent>
-                </Tabs>
-            </div>
-
-            {/* Desktop View: Two Columns */}
-            <div className="hidden md:grid md:grid-cols-2 gap-6 items-start">
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between px-2">
-                        <h2 className="text-xl font-bold flex items-center gap-2">
-                            ✅ Finalizadas
-                            <Badge variant="secondary">{completedSales.length}</Badge>
-                        </h2>
-                    </div>
-                    <CompletedSalesList invoices={completedSales} loading={loading} formatCurrency={formatCurrency} translatePaymentMethod={translatePaymentMethod} />
-                </div>
-
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between px-2">
-                        <h2 className="text-xl font-bold flex items-center gap-2">
-                            ⏸️ Pendientes
-                            <Badge variant="destructive">{pendingSales.length}</Badge>
-                        </h2>
-                    </div>
-                    <PendingSalesList pendingSales={pendingSales} calculatePendingTotal={calculatePendingTotal} formatCurrency={formatCurrency} resumeSale={resumeSale} deletePendingSale={deletePendingSale} />
-                </div>
-            </div>
-        </div>
-    )
-}
-
-function CompletedSalesList({ invoices, loading, formatCurrency, translatePaymentMethod }: any) {
-    if (loading) return <Card className="p-10 text-center">Cargando ventas...</Card>
-    if (invoices.length === 0) return <Card className="p-10 text-center text-muted-foreground">No hay ventas registradas.</Card>
-
-    return (
-        <Card className="overflow-hidden">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Fecha</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {invoices.map((invoice: any) => (
-                        <TableRow key={invoice.id}>
-                            <TableCell className="text-xs">
-                                {format(new Date(invoice.createdAt), "d MMM, HH:mm", { locale: es })}
-                            </TableCell>
-                            <TableCell>
-                                <div className="font-medium truncate max-w-[120px]">
-                                    {invoice.customer?.name || 'Cliente Ocasional'}
-                                </div>
-                            </TableCell>
-                            <TableCell className="text-right font-bold">
-                                {formatCurrency(invoice.total)}
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </Card>
-    )
-}
-
-function PendingSalesList({ pendingSales, calculatePendingTotal, formatCurrency, resumeSale, deletePendingSale }: any) {
-    if (pendingSales.length === 0) return (
-        <Card className="p-10 text-center text-muted-foreground bg-gray-50/50 border-dashed border-2">
-            No hay ventas pendientes.
-        </Card>
-    )
-
-    return (
-        <div className="space-y-4">
-            {pendingSales.map((sale: any) => (
-                <Card key={sale.id} className="p-4 bg-amber-50 border-amber-200 hover:border-amber-300 transition-all shadow-sm">
-                    <div className="flex justify-between items-start mb-3">
-                        <div>
-                            <div className="font-bold text-lg">{sale.customer?.name || 'Venta sin cliente'}</div>
-                            <div className="text-xs text-muted-foreground">
-                                {format(new Date(sale.createdAt), "d MMM, HH:mm", { locale: es })}
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-emerald-200">
+                    <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
+                                <CheckCircle2 className="h-5 w-5 text-white" />
+                            </div>
+                            <div>
+                                <div className="text-2xl font-bold text-emerald-700">{completedSales.length}</div>
+                                <div className="text-xs text-emerald-600 font-medium">Completadas</div>
                             </div>
                         </div>
-                        <div className="text-right">
-                            <div className="text-xl font-bold text-primary">
-                                {formatCurrency(calculatePendingTotal(sale))}
-                            </div>
-                            <div className="text-[10px] uppercase font-bold text-muted-foreground">
-                                {sale.items?.length || 0} items
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button
-                            className="flex-1 bg-emerald-600 hover:bg-emerald-700"
-                            size="sm"
-                            onClick={() => resumeSale(sale)}
-                        >
-                            <Play className="h-4 w-4 mr-2" />
-                            Reanudar
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            size="icon"
-                            className="h-9 w-9"
-                            onClick={() => {
-                                if (confirm('¿Eliminar esta venta pendiente?')) {
-                                    deletePendingSale(sale.id)
-                                }
-                            }}
-                        >
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
-                    </div>
+                    </CardContent>
                 </Card>
-            ))}
+
+                <Card className="bg-gradient-to-br from-amber-50 to-amber-100/50 border-amber-200">
+                    <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center">
+                                <Clock className="h-5 w-5 text-white" />
+                            </div>
+                            <div>
+                                <div className="text-2xl font-bold text-amber-700">{pendingSales.length}</div>
+                                <div className="text-xs text-amber-600 font-medium">Pendientes</div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200 col-span-2 md:col-span-1">
+                    <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
+                                <ShoppingBag className="h-5 w-5 text-white" />
+                            </div>
+                            <div>
+                                <div className="text-lg font-bold text-blue-700">
+                                    {formatCurrency(completedSales.reduce((acc, s) => acc + Number(s.total || 0), 0))}
+                                </div>
+                                <div className="text-xs text-blue-600 font-medium">Total Vendido</div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Filter Tabs */}
+            <div className="flex gap-2 border-b border-gray-200 pb-2">
+                {[
+                    { key: 'all', label: 'Todas', count: allSales.length },
+                    { key: 'completed', label: 'Completadas', count: completedSales.length },
+                    { key: 'pending', label: 'Pendientes', count: pendingSales.length },
+                ].map((tab) => (
+                    <button
+                        key={tab.key}
+                        onClick={() => setActiveTab(tab.key as any)}
+                        className={cn(
+                            "px-4 py-2 text-sm font-medium rounded-lg transition-all",
+                            activeTab === tab.key
+                                ? "bg-primary text-white shadow-md"
+                                : "text-gray-600 hover:bg-gray-100"
+                        )}
+                    >
+                        {tab.label}
+                        <Badge
+                            variant={activeTab === tab.key ? "secondary" : "outline"}
+                            className="ml-2 text-xs"
+                        >
+                            {tab.count}
+                        </Badge>
+                    </button>
+                ))}
+            </div>
+
+            {/* Sales List */}
+            <div className="space-y-3">
+                {loading ? (
+                    <Card className="p-10 text-center">
+                        <RefreshCw className="h-6 w-6 animate-spin mx-auto text-gray-400 mb-2" />
+                        <p className="text-gray-500">Cargando ventas...</p>
+                    </Card>
+                ) : filteredSales.length === 0 ? (
+                    <Card className="p-10 text-center border-dashed border-2">
+                        <ShoppingBag className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                        <p className="text-gray-500 font-medium">No hay ventas para mostrar</p>
+                        <p className="text-sm text-gray-400 mt-1">Las ventas aparecerán aquí</p>
+                    </Card>
+                ) : (
+                    filteredSales.map((sale) => (
+                        <SaleCard
+                            key={sale.id}
+                            sale={sale}
+                            formatCurrency={formatCurrency}
+                            calculatePendingTotal={calculatePendingTotal}
+                            onResume={resumeSale}
+                            onDelete={deletePendingSale}
+                        />
+                    ))
+                )}
+            </div>
         </div>
+    )
+}
+
+function SaleCard({ sale, formatCurrency, calculatePendingTotal, onResume, onDelete }: any) {
+    const isPending = sale.type === 'pending'
+    const total = isPending ? calculatePendingTotal(sale) : sale.total
+    const itemCount = sale.items?.length || 0
+
+    return (
+        <Card className={cn(
+            "overflow-hidden transition-all hover:shadow-md",
+            isPending ? "border-l-4 border-l-amber-500" : "border-l-4 border-l-emerald-500"
+        )}>
+            <CardContent className="p-0">
+                <div className="flex items-center justify-between gap-4 p-5 sm:p-6">
+                    {/* Left side: Icon + Info */}
+                    <div className="flex items-center gap-4 min-w-0">
+                        {/* Status Icon */}
+                        <div className={cn(
+                            "w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm",
+                            isPending ? "bg-amber-100" : "bg-emerald-100"
+                        )}>
+                            {isPending ? (
+                                <Clock className="h-6 w-6 text-amber-600" />
+                            ) : (
+                                <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                            )}
+                        </div>
+
+                        {/* Info */}
+                        <div className="min-w-0 flex flex-col justify-center">
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <span className="font-bold text-gray-900 text-base truncate">
+                                    {sale.customer?.name || 'Cliente Ocasional'}
+                                </span>
+                                <Badge
+                                    variant={isPending ? "outline" : "secondary"}
+                                    className={cn(
+                                        "px-2.5 py-0.5 h-6 text-xs font-medium",
+                                        isPending ? "border-amber-300 text-amber-700 bg-amber-50" : "bg-emerald-100 text-emerald-700"
+                                    )}
+                                >
+                                    {isPending ? 'Pendiente' : 'Completada'}
+                                </Badge>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                                <span className="font-medium">{format(new Date(sale.createdAt), "d MMM, HH:mm", { locale: es })}</span>
+                                <span className="text-gray-300">•</span>
+                                <span>{itemCount} {itemCount === 1 ? 'producto' : 'productos'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right side: Total & Actions */}
+                    <div className="flex items-center gap-4 flex-shrink-0">
+                        <div className={cn(
+                            "text-xl font-bold",
+                            isPending ? "text-amber-600" : "text-emerald-700"
+                        )}>
+                            {formatCurrency(total)}
+                        </div>
+                        {isPending && (
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    size="sm"
+                                    className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 font-medium shadow-sm transition-all hover:scale-105"
+                                    onClick={() => onResume(sale)}
+                                >
+                                    <Play className="h-3.5 w-3.5 mr-2 fill-current" />
+                                    Reanudar
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-9 w-9 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                    onClick={() => {
+                                        if (confirm('¿Eliminar esta venta pendiente?')) {
+                                            onDelete(sale.id)
+                                        }
+                                    }}
+                                >
+                                    <Trash2 className="h-4.5 w-4.5" />
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
     )
 }

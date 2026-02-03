@@ -13,6 +13,7 @@ exports.AppController = void 0;
 const common_1 = require("@nestjs/common");
 const app_service_1 = require("./app.service");
 const cache_service_1 = require("./cache/cache.service");
+const public_decorator_1 = require("./auth/decorators/public.decorator");
 let AppController = class AppController {
     appService;
     cacheService;
@@ -76,6 +77,7 @@ __decorate([
 ], AppController.prototype, "testCache", null);
 exports.AppController = AppController = __decorate([
     (0, common_1.Controller)(),
+    (0, public_decorator_1.Public)(),
     __metadata("design:paramtypes", [app_service_1.AppService,
         cache_service_1.CacheService])
 ], AppController);

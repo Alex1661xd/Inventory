@@ -5,21 +5,21 @@ export declare class WarehousesController {
     private readonly warehousesService;
     constructor(warehousesService: WarehousesService);
     create(tenantId: string, dto: CreateWarehouseDto): Promise<{
-        id: string;
         name: string;
+        id: string;
         tenantId: string;
         address: string | null;
     }>;
     findAll(tenantId: string): Promise<any[]>;
     update(tenantId: string, id: string, dto: UpdateWarehouseDto): Promise<{
-        id: string;
         name: string;
+        id: string;
         tenantId: string;
         address: string | null;
     }>;
     remove(tenantId: string, id: string): Promise<{
-        id: string;
         name: string;
+        id: string;
         tenantId: string;
         address: string | null;
     }>;

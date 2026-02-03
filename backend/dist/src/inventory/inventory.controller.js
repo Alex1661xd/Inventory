@@ -20,25 +20,16 @@ const inventory_service_1 = require("./inventory.service");
 const update_stock_dto_1 = require("./dto/update-stock.dto");
 const transfer_stock_dto_1 = require("./dto/transfer-stock.dto");
 const query_stock_dto_1 = require("./dto/query-stock.dto");
+const roles_decorator_1 = require("../auth/decorators/roles.decorator");
 let InventoryController = class InventoryController {
     inventoryService;
     constructor(inventoryService) {
         this.inventoryService = inventoryService;
     }
-    updateStock(tenantId, dto, req) {
-        const user = req.user;
-        const role = user?.role;
-        if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
-            throw new common_1.ForbiddenException('Only admins can update stock');
-        }
+    updateStock(tenantId, dto) {
         return this.inventoryService.updateStock(tenantId, dto);
     }
-    transferStock(tenantId, dto, req) {
-        const user = req.user;
-        const role = user?.role;
-        if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
-            throw new common_1.ForbiddenException('Only admins can transfer stock');
-        }
+    transferStock(tenantId, dto) {
         return this.inventoryService.transferStock(tenantId, dto);
     }
     findStock(tenantId, query) {
@@ -48,20 +39,20 @@ let InventoryController = class InventoryController {
 exports.InventoryController = InventoryController;
 __decorate([
     (0, common_1.Patch)('update-stock'),
+    (0, roles_decorator_1.Roles)('ADMIN', 'SUPER_ADMIN'),
     __param(0, (0, get_tenant_id_decorator_1.GetTenantId)()),
     __param(1, (0, common_1.Body)()),
-    __param(2, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, update_stock_dto_1.UpdateStockDto, Object]),
+    __metadata("design:paramtypes", [String, update_stock_dto_1.UpdateStockDto]),
     __metadata("design:returntype", void 0)
 ], InventoryController.prototype, "updateStock", null);
 __decorate([
     (0, common_1.Patch)('transfer'),
+    (0, roles_decorator_1.Roles)('ADMIN', 'SUPER_ADMIN'),
     __param(0, (0, get_tenant_id_decorator_1.GetTenantId)()),
     __param(1, (0, common_1.Body)()),
-    __param(2, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, transfer_stock_dto_1.TransferStockDto, Object]),
+    __metadata("design:paramtypes", [String, transfer_stock_dto_1.TransferStockDto]),
     __metadata("design:returntype", void 0)
 ], InventoryController.prototype, "transferStock", null);
 __decorate([

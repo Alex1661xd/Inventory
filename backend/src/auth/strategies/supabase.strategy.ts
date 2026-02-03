@@ -27,7 +27,13 @@ export class SupabaseStrategy extends PassportStrategy(Strategy, 'jwt') {
         // Buscar usuario en nuestra BD local para tener el tenantId
         const user = await this.prisma.user.findUnique({
             where: { id: supabaseUser.id },
-            include: { tenant: true },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                tenantId: true,
+            },
         });
 
         if (!user) {

@@ -16,6 +16,7 @@ exports.WarehousesController = void 0;
 const common_1 = require("@nestjs/common");
 const get_tenant_guard_1 = require("../auth/guards/get-tenant.guard");
 const get_tenant_id_decorator_1 = require("../auth/decorators/get-tenant-id.decorator");
+const roles_decorator_1 = require("../auth/decorators/roles.decorator");
 const create_warehouse_dto_1 = require("./dto/create-warehouse.dto");
 const update_warehouse_dto_1 = require("./dto/update-warehouse.dto");
 const warehouses_service_1 = require("./warehouses.service");
@@ -40,6 +41,7 @@ let WarehousesController = class WarehousesController {
 exports.WarehousesController = WarehousesController;
 __decorate([
     (0, common_1.Post)(),
+    (0, roles_decorator_1.Roles)('ADMIN', 'SUPER_ADMIN'),
     __param(0, (0, get_tenant_id_decorator_1.GetTenantId)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -55,6 +57,7 @@ __decorate([
 ], WarehousesController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Patch)(':id'),
+    (0, roles_decorator_1.Roles)('ADMIN', 'SUPER_ADMIN'),
     __param(0, (0, get_tenant_id_decorator_1.GetTenantId)()),
     __param(1, (0, common_1.Param)('id')),
     __param(2, (0, common_1.Body)()),
@@ -64,6 +67,7 @@ __decorate([
 ], WarehousesController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
+    (0, roles_decorator_1.Roles)('ADMIN', 'SUPER_ADMIN'),
     __param(0, (0, get_tenant_id_decorator_1.GetTenantId)()),
     __param(1, (0, common_1.Param)('id')),
     __metadata("design:type", Function),

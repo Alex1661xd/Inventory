@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { GetTenantGuard } from '../auth/guards/get-tenant.guard';
 import { GetTenantId } from '../auth/decorators/get-tenant-id.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { CreateWarehouseDto } from './dto/create-warehouse.dto';
 import { UpdateWarehouseDto } from './dto/update-warehouse.dto';
 import { WarehousesService } from './warehouses.service';
@@ -11,6 +12,7 @@ export class WarehousesController {
     constructor(private readonly warehousesService: WarehousesService) { }
 
     @Post()
+    @Roles('ADMIN', 'SUPER_ADMIN')
     create(@GetTenantId() tenantId: string, @Body() dto: CreateWarehouseDto) {
         return this.warehousesService.create(tenantId, dto);
     }
@@ -21,11 +23,13 @@ export class WarehousesController {
     }
 
     @Patch(':id')
+    @Roles('ADMIN', 'SUPER_ADMIN')
     update(@GetTenantId() tenantId: string, @Param('id') id: string, @Body() dto: UpdateWarehouseDto) {
         return this.warehousesService.update(tenantId, id, dto);
     }
 
     @Delete(':id')
+    @Roles('ADMIN', 'SUPER_ADMIN')
     remove(@GetTenantId() tenantId: string, @Param('id') id: string) {
         return this.warehousesService.remove(tenantId, id);
     }

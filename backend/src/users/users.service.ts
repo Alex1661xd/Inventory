@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -58,13 +58,24 @@ export class UsersService {
         });
     }
 
-    async findOne(id: string) {
-        return this.prisma.user.findUniqueOrThrow({
-            where: { id },
+    async findOne(tenantId: string, id: string) {
+        const user = await this.prisma.user.findFirst({
+            where: { id, tenantId },
         });
+
+        if (!user) throw new NotFoundException('User not found');
+
+        return user;
     }
 
-    async update(id: string, dto: UpdateUserDto) {
+    async update(tenantId: string, id: string, dto: UpdateUserDto) {
+        const exists = await this.prisma.user.findFirst({
+            where: { id, tenantId },
+            select: { id: true },
+        });
+
+        if (!exists) throw new NotFoundException('User not found');
+
         // Check if password update is needed
         if (dto.password) {
             const { error } = await this.supabase.getClient().auth.admin.updateUserById(id, {
@@ -93,7 +104,14 @@ export class UsersService {
         });
     }
 
-    async remove(id: string) {
+    async remove(tenantId: string, id: string) {
+        const exists = await this.prisma.user.findFirst({
+            where: { id, tenantId },
+            select: { id: true },
+        });
+
+        if (!exists) throw new NotFoundException('User not found');
+
         // Delete in Supabase (Prisma user might be deleted via Cascade if we had that, but here we do manual)
         // Actually, deleting in Supabase first is safer.
 

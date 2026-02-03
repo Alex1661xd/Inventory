@@ -1,13 +1,27 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../cache/cache.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 
 @Injectable()
 export class InvoicesService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly cacheService: CacheService,
+    ) { }
+
+    private async invalidateInvoicesCache(tenantId: string, invoiceId?: string) {
+        const listKey = this.cacheService.generateKey(tenantId, 'invoices', 'list');
+        await this.cacheService.invalidate(listKey);
+
+        if (invoiceId) {
+            const detailKey = this.cacheService.generateKey(tenantId, 'invoices', 'detail', invoiceId);
+            await this.cacheService.invalidate(detailKey);
+        }
+    }
 
     async create(tenantId: string, sellerId: string, dto: CreateInvoiceDto) {
-        return this.prisma.$transaction(async (tx) => {
+        const result = await this.prisma.$transaction(async (tx) => {
             // 1. Validate stock availability BEFORE creating invoice
             if (dto.status === 'PAID') {
                 for (const item of dto.items) {
@@ -76,27 +90,60 @@ export class InvoicesService {
 
             return invoice;
         });
+
+        await this.invalidateInvoicesCache(tenantId, result.id);
+
+        return result;
     }
 
     async findAll(tenantId: string) {
-        return this.prisma.invoice.findMany({
+        const cacheKey = this.cacheService.generateKey(tenantId, 'invoices', 'list');
+        const cached = await this.cacheService.get<any[]>(cacheKey);
+        if (cached) return cached;
+
+        const result = await this.prisma.invoice.findMany({
             where: { tenantId },
             include: { customer: true, seller: true },
             orderBy: { createdAt: 'desc' }
         });
+
+        await this.cacheService.set(cacheKey, result, 120);
+
+        return result;
     }
 
-    async findOne(id: string) {
-        return this.prisma.invoice.findUniqueOrThrow({
-            where: { id },
-            include: { items: { include: { product: true } }, customer: true }
+    async findOne(tenantId: string, id: string) {
+        const cacheKey = this.cacheService.generateKey(tenantId, 'invoices', 'detail', id);
+        const cached = await this.cacheService.get<any>(cacheKey);
+        if (cached) return cached;
+
+        const invoice = await this.prisma.invoice.findFirst({
+            where: { id, tenantId },
+            include: { items: { include: { product: true } }, customer: true },
         });
+
+        if (!invoice) throw new NotFoundException('Invoice not found');
+
+        await this.cacheService.set(cacheKey, invoice, 300);
+
+        return invoice;
     }
 
     async cancel(tenantId: string, id: string) {
-        return this.prisma.invoice.update({
+        const exists = await this.prisma.invoice.findFirst({
             where: { id, tenantId },
-            data: { status: 'CANCELLED' }
+            select: { id: true },
         });
+
+        if (!exists) throw new NotFoundException('Invoice not found');
+
+        const result = await this.prisma.invoice.update({
+            where: { id },
+            data: { status: 'CANCELLED' },
+        });
+
+        await this.invalidateInvoicesCache(tenantId, id);
+
+        return result;
     }
 }

@@ -30,7 +30,13 @@ let SupabaseStrategy = class SupabaseStrategy extends (0, passport_1.PassportStr
         }
         const user = await this.prisma.user.findUnique({
             where: { id: supabaseUser.id },
-            include: { tenant: true },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                tenantId: true,
+            },
         });
         if (!user) {
             throw new common_1.UnauthorizedException('User not found in local database');

@@ -1,8 +1,10 @@
 import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
 import { CacheService } from './cache/cache.service';
+import { Public } from './auth/decorators/public.decorator';
 
 @Controller()
+@Public()
 export class AppController {
   constructor(
     private readonly appService: AppService,

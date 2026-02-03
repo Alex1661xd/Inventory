@@ -106,7 +106,7 @@ export default function CustomersPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold">Clientes</h1>
-                    <p className="text-muted-foreground">Gestiona tu base de clientes</p>
+                    <p className="text-gray-500">Gestiona tu base de clientes</p>
                 </div>
                 <Button onClick={() => setShowForm(true)}>
                     <Plus className="h-4 w-4 mr-2" />
@@ -172,7 +172,7 @@ export default function CustomersPage() {
             <Card>
                 <CardHeader>
                     <div className="flex items-center gap-2">
-                        <Search className="h-5 w-5 text-muted-foreground" />
+                        <Search className="h-5 w-5 text-gray-400" />
                         <Input
                             placeholder="Buscar clientes..."
                             value={search}
@@ -183,9 +183,9 @@ export default function CustomersPage() {
                 </CardHeader>
                 <CardContent>
                     {loading ? (
-                        <div className="text-center py-8 text-muted-foreground">Cargando...</div>
+                        <div className="text-center py-8 text-gray-500">Cargando...</div>
                     ) : filteredCustomers.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
+                        <div className="text-center py-8 text-gray-500">
                             No se encontraron clientes
                         </div>
                     ) : (
@@ -205,7 +205,7 @@ export default function CustomersPage() {
                                         <tr key={customer.id} className="border-b hover:bg-gray-50">
                                             <td className="p-3">
                                                 <div className="font-medium">{customer.name}</div>
-                                                <div className="text-xs text-muted-foreground md:hidden">
+                                                <div className="text-xs text-gray-500 md:hidden">
                                                     {customer.docNumber || customer.phone}
                                                 </div>
                                             </td>

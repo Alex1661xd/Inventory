@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { GetTenantGuard } from '../auth/guards/get-tenant.guard';
 import { GetTenantId } from '../auth/decorators/get-tenant-id.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
@@ -11,6 +12,7 @@ export class ProductsController {
     constructor(private readonly productsService: ProductsService) { }
 
     @Post()
+    @Roles('ADMIN', 'SUPER_ADMIN')
     create(@GetTenantId() tenantId: string, @Body() dto: CreateProductDto) {
         return this.productsService.create(tenantId, dto);
     }
@@ -31,11 +33,13 @@ export class ProductsController {
     }
 
     @Patch(':id')
+    @Roles('ADMIN', 'SUPER_ADMIN')
     update(@GetTenantId() tenantId: string, @Param('id') id: string, @Body() dto: UpdateProductDto) {
         return this.productsService.update(tenantId, id, dto);
     }
 
     @Delete(':id')
+    @Roles('ADMIN', 'SUPER_ADMIN')
     remove(@GetTenantId() tenantId: string, @Param('id') id: string) {
         return this.productsService.remove(tenantId, id);
     }

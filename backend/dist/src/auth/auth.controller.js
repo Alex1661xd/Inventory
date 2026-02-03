@@ -16,10 +16,22 @@ exports.AuthController = void 0;
 const common_1 = require("@nestjs/common");
 const auth_service_1 = require("./auth.service");
 const register_business_dto_1 = require("./dto/register-business.dto");
+const get_tenant_guard_1 = require("./guards/get-tenant.guard");
+const public_decorator_1 = require("./decorators/public.decorator");
 let AuthController = class AuthController {
     authService;
     constructor(authService) {
         this.authService = authService;
+    }
+    me(req) {
+        const user = req.user;
+        return {
+            id: user?.id,
+            email: user?.email,
+            name: user?.name,
+            role: user?.role,
+            tenantId: user?.tenantId,
+        };
     }
     register(dto) {
         return this.authService.registerBusiness(dto);
@@ -27,7 +39,16 @@ let AuthController = class AuthController {
 };
 exports.AuthController = AuthController;
 __decorate([
+    (0, common_1.Get)('me'),
+    (0, common_1.UseGuards)(get_tenant_guard_1.GetTenantGuard),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "me", null);
+__decorate([
     (0, common_1.Post)('register-business'),
+    (0, public_decorator_1.Public)(),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [register_business_dto_1.RegisterBusinessDto]),

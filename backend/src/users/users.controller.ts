@@ -1,37 +1,39 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { AuthGuard } from '@nestjs/passport';
+import { GetTenantGuard } from '../auth/guards/get-tenant.guard';
+import { GetTenantId } from '../auth/decorators/get-tenant-id.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('users')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(GetTenantGuard)
+@Roles('ADMIN', 'SUPER_ADMIN')
 export class UsersController {
     constructor(private readonly usersService: UsersService) { }
 
     @Post()
-    create(@Request() req, @Body() createUserDto: CreateUserDto) {
-        return this.usersService.create(req.user.tenantId, createUserDto);
+    create(@GetTenantId() tenantId: string, @Body() createUserDto: CreateUserDto) {
+        return this.usersService.create(tenantId, createUserDto);
     }
 
     @Get()
-    findAll(@Request() req) {
-        return this.usersService.findAll(req.user.tenantId);
+    findAll(@GetTenantId() tenantId: string) {
+        return this.usersService.findAll(tenantId);
     }
 
     @Get(':id')
-    findOne(@Param('id') id: string) {
-        // TODO: Add check to ensure user belongs to tenant
-        return this.usersService.findOne(id);
+    findOne(@GetTenantId() tenantId: string, @Param('id') id: string) {
+        return this.usersService.findOne(tenantId, id);
     }
 
     @Patch(':id')
-    update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-        return this.usersService.update(id, updateUserDto);
+    update(@GetTenantId() tenantId: string, @Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+        return this.usersService.update(tenantId, id, updateUserDto);
     }
 
     @Delete(':id')
-    remove(@Param('id') id: string) {
-        return this.usersService.remove(id);
+    remove(@GetTenantId() tenantId: string, @Param('id') id: string) {
+        return this.usersService.remove(tenantId, id);
     }
 }
