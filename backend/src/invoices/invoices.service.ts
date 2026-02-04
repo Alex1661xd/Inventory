@@ -139,7 +139,7 @@ export class InvoicesService {
                 tenantId,
                 ...(sellerId && { sellerId })
             },
-            include: { items: { include: { product: true } }, customer: true },
+            include: { items: { include: { product: true } }, customer: true, seller: true },
         });
 
         if (!invoice) throw new NotFoundException('Invoice not found');

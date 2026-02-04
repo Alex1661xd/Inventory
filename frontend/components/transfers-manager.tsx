@@ -74,8 +74,12 @@ export function TransfersManager() {
 
             toast.success('¡Traslado exitoso!')
 
-            // Reset form partly
+            // Reset form completely
+            setProductId('')
+            setFromWarehouseId('')
+            setToWarehouseId('')
             setQuantity('1')
+
             // Refresh stock
             const s = await api.inventory.stock({})
             setStock(s)

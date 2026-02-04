@@ -10,14 +10,14 @@ export class CreateCustomerDto {
     email?: string;
 
     @IsString()
-    @IsOptional()
-    phone?: string;
+    @IsNotEmpty()
+    phone: string;
 
     @IsString()
     @IsOptional()
     address?: string;
 
     @IsString()
-    @IsOptional()
-    docNumber?: string;
+    @IsNotEmpty()
+    docNumber: string;
 }

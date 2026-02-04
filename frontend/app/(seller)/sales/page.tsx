@@ -77,7 +77,7 @@ function SaleDetailsDialog({ saleId, isOpen, onClose, formatCurrency }: { saleId
                             <div className="flex justify-between items-start mb-4">
                                 <div>
                                     <div className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-1">Factura</div>
-                                    <h2 className="text-2xl font-bold flex items-center gap-2">
+                                    <DialogTitle className="text-2xl font-bold flex items-center gap-2">
                                         #{sale.id.slice(-6).toUpperCase()}
                                         <span className={cn(
                                             "text-xs px-2 py-0.5 rounded-full",
@@ -85,7 +85,7 @@ function SaleDetailsDialog({ saleId, isOpen, onClose, formatCurrency }: { saleId
                                         )}>
                                             {sale.status === 'PAID' ? 'Completada' : 'Pendiente'}
                                         </span>
-                                    </h2>
+                                    </DialogTitle>
                                 </div>
                                 <div className="text-right">
                                     <div className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-1">Total</div>
@@ -321,7 +321,7 @@ export default function SalesHistoryPage() {
                         </h1>
                         <p className="text-gray-500 text-sm md:text-base">Registro de transacciones</p>
                     </div>
-                    <Button variant="outline" onClick={loadInvoices} disabled={loading} className="self-start sm:self-auto">
+                    <Button variant="outline" onClick={loadInvoices} disabled={loading} className="w-full sm:w-auto h-11 sm:h-auto">
                         <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
                         Actualizar
                     </Button>

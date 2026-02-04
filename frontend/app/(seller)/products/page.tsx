@@ -3,5 +3,5 @@
 import { ProductsManager } from '@/components/products/products-manager'
 
 export default function ProductsPage() {
-    return <ProductsManager readOnly={true} />
+    return <ProductsManager readOnly={true} isAdminView={false} />
 }

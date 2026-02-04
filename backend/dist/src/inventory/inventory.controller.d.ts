@@ -7,9 +7,9 @@ export declare class InventoryController {
     constructor(inventoryService: InventoryService);
     updateStock(tenantId: string, dto: UpdateStockDto): Promise<{
         id: string;
-        warehouseId: string;
         quantity: number;
         productId: string;
+        warehouseId: string;
     }>;
     transferStock(tenantId: string, dto: TransferStockDto): Promise<{
         success: boolean;
@@ -19,18 +19,18 @@ export declare class InventoryController {
         product: {
             name: string;
             id: string;
+            barcode: string | null;
             sku: string | null;
             costPrice: import("@prisma/client/runtime/library").Decimal;
             categoryId: string | null;
-            barcode: string | null;
         };
         warehouse: {
             name: string;
             id: string;
         };
         id: string;
-        warehouseId: string;
         quantity: number;
         productId: string;
+        warehouseId: string;
     }[]>;
 }

@@ -48,7 +48,7 @@ __decorate([
 ], InventoryController.prototype, "updateStock", null);
 __decorate([
     (0, common_1.Patch)('transfer'),
-    (0, roles_decorator_1.Roles)('ADMIN', 'SUPER_ADMIN'),
+    (0, roles_decorator_1.Roles)('ADMIN', 'SUPER_ADMIN', 'SELLER'),
     __param(0, (0, get_tenant_id_decorator_1.GetTenantId)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),

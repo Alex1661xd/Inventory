@@ -19,6 +19,9 @@ interface CartItem extends Product {
     quantity: number
 }
 
+// Stock map type: { productId: availableQuantity }
+type StockMap = { [productId: string]: number }
+
 interface Customer {
     id: string
     name: string
@@ -313,6 +316,7 @@ function POSMobileView(props: {
     onCreateNewCustomer: () => void;
     mobilePage: number;
     setMobilePage: (n: number) => void;
+    stockMap: StockMap;
     onReset: () => void;
 }) {
     const {
@@ -340,34 +344,51 @@ function POSMobileView(props: {
         mobilePage,
         setMobilePage,
         onReset,
+        stockMap,
     } = props;
+
+    const stepLabels = [
+        { step: 1, label: 'Cliente', icon: '👤' },
+        { step: 2, label: 'Productos', icon: '📦' },
+        { step: 3, label: 'Pago', icon: '💳' },
+    ]
 
     return (
         <div className="flex flex-col h-[calc(100vh-80px)] bg-gray-50">
-            {/* Progress Steps */}
-            <div className="bg-white border-b px-4 py-3 flex-shrink-0">
-                <div className="flex items-center justify-between mb-2">
-                    {[1, 2, 3].map((step) => (
-                        <div key={step} className="flex items-center flex-1">
-                            <div className={cn(
-                                "w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors",
-                                mobileStep >= step ? "bg-primary text-white" : "bg-gray-200 text-gray-500"
-                            )}>
-                                {step}
-                            </div>
-                            {step < 3 && (
+            {/* Progress Steps - Redesigned */}
+            <div className="bg-white border-b px-3 py-4 flex-shrink-0">
+                <div className="flex items-center justify-center">
+                    {stepLabels.map((item, idx) => (
+                        <div key={item.step} className="flex items-center">
+                            {/* Step Circle + Label */}
+                            <div className="flex flex-col items-center">
                                 <div className={cn(
-                                    "flex-1 h-1 mx-2 rounded transition-colors",
-                                    mobileStep > step ? "bg-primary" : "bg-gray-200"
+                                    "w-10 h-10 rounded-full flex items-center justify-center text-lg transition-all duration-300 shadow-sm",
+                                    mobileStep > item.step
+                                        ? "bg-emerald-500 text-white"
+                                        : mobileStep === item.step
+                                            ? "bg-primary text-white ring-4 ring-primary/20"
+                                            : "bg-gray-100 text-gray-400 border border-gray-200"
+                                )}>
+                                    {mobileStep > item.step ? '✓' : item.icon}
+                                </div>
+                                <span className={cn(
+                                    "text-xs mt-1.5 font-medium transition-colors",
+                                    mobileStep >= item.step ? "text-gray-900" : "text-gray-400"
+                                )}>
+                                    {item.label}
+                                </span>
+                            </div>
+
+                            {/* Connector Line */}
+                            {idx < stepLabels.length - 1 && (
+                                <div className={cn(
+                                    "w-12 sm:w-16 h-0.5 mx-2 mb-5 rounded-full transition-all duration-300",
+                                    mobileStep > item.step ? "bg-emerald-500" : "bg-gray-200"
                                 )} />
                             )}
                         </div>
                     ))}
-                </div>
-                <div className="flex justify-between text-xs text-gray-500">
-                    <span>Cliente</span>
-                    <span>Productos</span>
-                    <span>Pago</span>
                 </div>
             </div>
 
@@ -398,14 +419,24 @@ function POSMobileView(props: {
                         {selectedCustomer && (
                             <Card className="bg-emerald-50 border-emerald-200">
                                 <CardContent className="p-4">
-                                    <div className="flex items-center gap-3 text-emerald-700">
-                                        <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xl">✓</div>
-                                        <div>
-                                            <div className="font-bold">{selectedCustomer.name}</div>
-                                            {selectedCustomer.docNumber && (
-                                                <div className="text-sm opacity-80">{selectedCustomer.docNumber}</div>
-                                            )}
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3 text-emerald-700">
+                                            <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xl">✓</div>
+                                            <div>
+                                                <div className="font-bold">{selectedCustomer.name}</div>
+                                                {selectedCustomer.docNumber && (
+                                                    <div className="text-sm opacity-80">{selectedCustomer.docNumber}</div>
+                                                )}
+                                            </div>
                                         </div>
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => setSelectedCustomer(null)}
+                                            className="text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100 h-8 w-8"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -477,7 +508,10 @@ function POSMobileView(props: {
                                                 <div className="flex-1 min-w-0">
                                                     <div className="font-medium text-sm">{product.name}</div>
                                                     <div className="text-xs text-gray-500">{product.barcode}</div>
-                                                    <div className="font-bold text-primary mt-1">
+                                                    <div className="text-xs text-gray-400 mt-0.5">
+                                                        Stock: {stockMap[product.id] ?? 0}
+                                                    </div>
+                                                    <div className="font-bold text-gray-900 mt-1">
                                                         ${Number(product.salePrice).toLocaleString()}
                                                     </div>
                                                 </div>
@@ -485,6 +519,7 @@ function POSMobileView(props: {
                                                     size="sm"
                                                     onClick={() => addToCart(product)}
                                                     className="self-center"
+                                                    disabled={(stockMap[product.id] ?? 0) <= (cart.find(i => i.id === product.id)?.quantity ?? 0)}
                                                 >
                                                     <Plus className="h-4 w-4" />
                                                 </Button>
@@ -514,6 +549,7 @@ function POSMobileView(props: {
                                                                 if (item) updateQuantity(product.id, item.quantity + 1)
                                                             }}
                                                             className="h-8 w-8 p-0"
+                                                            disabled={(cart.find(i => i.id === product.id)?.quantity ?? 0) >= (stockMap[product.id] ?? 0)}
                                                         >
                                                             <Plus className="h-3 w-3" />
                                                         </Button>
@@ -606,7 +642,7 @@ function POSMobileView(props: {
                                 <div className="pt-3 border-t">
                                     <div className="flex justify-between items-center">
                                         <span className="text-lg font-semibold">TOTAL</span>
-                                        <span className="text-3xl font-bold text-primary">
+                                        <span className="text-3xl font-bold text-gray-900">
                                             ${grandTotal.toLocaleString()}
                                         </span>
                                     </div>
@@ -708,11 +744,13 @@ function POSDesktopView(props: {
     updateQuantity: (id: string, quantity: number) => void;
     grandTotal: number;
     selectedCustomer: Customer | null;
+    stockMap: StockMap;
     setSelectedCustomer: (c: Customer | null) => void;
     pauseSale: () => void;
     onReset: () => void;
     processing: boolean;
     setIsCheckoutOpen: (b: boolean) => void;
+    onCreateNewCustomer: () => void;
 }) {
     const {
         loading,
@@ -732,6 +770,8 @@ function POSDesktopView(props: {
         onReset,
         processing,
         setIsCheckoutOpen,
+        stockMap,
+        onCreateNewCustomer,
     } = props;
 
     return (
@@ -806,6 +846,7 @@ function POSDesktopView(props: {
                                                 <div className="min-w-0">
                                                     <div className="font-medium text-sm">{product.name}</div>
                                                     <div className="text-xs text-gray-500 truncate">{product.barcode}</div>
+                                                    <div className="text-xs text-gray-400">Stock: {stockMap[product.id] ?? 0}</div>
                                                 </div>
                                             </div>
                                         </td>
@@ -822,6 +863,7 @@ function POSDesktopView(props: {
                                                     e.stopPropagation()
                                                     addToCart(product)
                                                 }}
+                                                disabled={(stockMap[product.id] ?? 0) <= (cart.find(i => i.id === product.id)?.quantity ?? 0)}
                                             >
                                                 <Plus className="h-4 w-4" />
                                             </Button>
@@ -839,7 +881,11 @@ function POSDesktopView(props: {
                 {/* Cart Header */}
                 <div className="p-4 border-b bg-gray-50">
                     <h2 className="font-bold text-lg mb-3">Venta Actual</h2>
-                    <CustomerSelector onSelect={setSelectedCustomer} selectedCustomer={selectedCustomer} />
+                    <CustomerSelector
+                        onSelect={setSelectedCustomer}
+                        selectedCustomer={selectedCustomer}
+                        onCreateNew={onCreateNewCustomer}
+                    />
                 </div>
 
                 {/* Cart Items */}
@@ -884,6 +930,7 @@ function POSDesktopView(props: {
                                             size="sm"
                                             onClick={() => updateQuantity(item.id, item.quantity + 1)}
                                             className="h-8 w-8 p-0"
+                                            disabled={item.quantity >= (stockMap[item.id] ?? 0)}
                                         >
                                             <Plus className="h-3 w-3" />
                                         </Button>
@@ -901,7 +948,7 @@ function POSDesktopView(props: {
                 <div className="border-t bg-gray-50 p-4 space-y-3">
                     <div className="flex justify-between items-center">
                         <span className="text-lg font-semibold">TOTAL:</span>
-                        <span className="text-3xl font-bold text-primary">
+                        <span className="text-3xl font-bold text-gray-900">
                             ${grandTotal.toLocaleString()}
                         </span>
                     </div>
@@ -956,6 +1003,7 @@ export default function POSPage() {
     const [processing, setProcessing] = useState(false)
     const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'TRANSFER' | 'OTHER'>('CASH')
     const [warehouseId, setWarehouseId] = useState<string>('')
+    const [stockMap, setStockMap] = useState<StockMap>({})
     const [showScanner, setShowScanner] = useState(false)
     const [showResetConfirm, setShowResetConfirm] = useState(false)
 
@@ -974,6 +1022,7 @@ export default function POSPage() {
     const [showCreateCustomer, setShowCreateCustomer] = useState(false)
     const [newCustomerName, setNewCustomerName] = useState('')
     const [newCustomerDoc, setNewCustomerDoc] = useState('')
+    const [newCustomerPhone, setNewCustomerPhone] = useState('')
     const [creatingCustomer, setCreatingCustomer] = useState(false)
 
     // Camera scanner state
@@ -1006,16 +1055,32 @@ export default function POSPage() {
     const loadData = async () => {
         setLoading(true)
         try {
-            const [prods, warehouses] = await Promise.all([
-                api.products.list(),
-                api.warehouses.list()
-            ])
-            setProducts(prods)
-            if (warehouses.length > 0) {
-                setWarehouseId(warehouses[0].id)
-            } else {
-                toast.error('No hay almacenes registrados')
+            // Get current user's warehouse assignment
+            const me = await api.auth.me()
+            const userWarehouseId = me.warehouseId
+
+            if (!userWarehouseId) {
+                toast.error('No tienes un almacén asignado. Contacta al administrador.')
+                setLoading(false)
+                return
             }
+
+            setWarehouseId(userWarehouseId)
+
+            // Load products and stock for the user's warehouse
+            const [prods, stockData] = await Promise.all([
+                api.products.list(),
+                api.inventory.stock({ warehouseId: userWarehouseId })
+            ])
+
+            setProducts(prods)
+
+            // Build stock map: { productId: quantity }
+            const stockMapData: StockMap = {}
+            stockData.forEach((row) => {
+                stockMapData[row.productId] = row.quantity
+            })
+            setStockMap(stockMapData)
         } catch (e: any) {
             toast.error(e.message)
         } finally {
@@ -1049,6 +1114,19 @@ export default function POSPage() {
     }
 
     const addToCart = (product: Product) => {
+        const availableStock = stockMap[product.id] ?? 0
+        const currentInCart = cart.find(item => item.id === product.id)?.quantity ?? 0
+
+        if (availableStock <= 0) {
+            toast.error(`"${product.name}" no tiene stock disponible en tu almacén`)
+            return
+        }
+
+        if (currentInCart >= availableStock) {
+            toast.error(`Stock máximo alcanzado para "${product.name}" (${availableStock} unidades)`)
+            return
+        }
+
         setCart(prev => {
             const existing = prev.find(item => item.id === product.id)
             if (existing) {
@@ -1071,6 +1149,13 @@ export default function POSPage() {
             removeFromCart(id)
             return
         }
+
+        const availableStock = stockMap[id] ?? 0
+        if (quantity > availableStock) {
+            toast.error(`Stock máximo: ${availableStock} unidades`)
+            return
+        }
+
         setCart(prev => prev.map(item =>
             item.id === id ? { ...item, quantity } : item
         ))
@@ -1080,13 +1165,28 @@ export default function POSPage() {
 
     const handleScan = (code: string) => {
         const found = products.find(p => p.barcode === code)
-        if (found) {
-            addToCart(found)
-            setShowScanner(false)
-            toast.success(`${found.name} agregado`)
-        } else {
+        if (!found) {
             toast.error(`Producto no encontrado: ${code}`)
+            return
         }
+
+        const availableStock = stockMap[found.id] ?? 0
+        if (availableStock <= 0) {
+            toast.error(`"${found.name}" no tiene stock disponible en tu almacén`)
+            setShowScanner(false)
+            return
+        }
+
+        const currentInCart = cart.find(item => item.id === found.id)?.quantity ?? 0
+        if (currentInCart >= availableStock) {
+            toast.error(`Stock máximo alcanzado para "${found.name}" (${availableStock} unidades)`)
+            setShowScanner(false)
+            return
+        }
+
+        addToCart(found)
+        setShowScanner(false)
+        toast.success(`${found.name} agregado (${currentInCart + 1}/${availableStock})`)
     }
 
     const pauseSale = async () => {
@@ -1260,6 +1360,7 @@ export default function POSPage() {
                     mobilePage={mobilePage}
                     setMobilePage={setMobilePage}
                     onReset={() => setShowResetConfirm(true)}
+                    stockMap={stockMap}
                 />
             ) : (
                 <POSDesktopView
@@ -1280,6 +1381,8 @@ export default function POSPage() {
                     onReset={() => setShowResetConfirm(true)}
                     processing={processing}
                     setIsCheckoutOpen={setIsCheckoutOpen}
+                    stockMap={stockMap}
+                    onCreateNewCustomer={() => setShowCreateCustomer(true)}
                 />
             )}
 
@@ -1331,7 +1434,7 @@ export default function POSPage() {
                                 </div>
                                 <div className="pt-2 border-t flex justify-between">
                                     <span className="text-lg font-semibold">Total</span>
-                                    <span className="text-2xl font-bold text-primary">${grandTotal.toLocaleString()}</span>
+                                    <span className="text-2xl font-bold text-gray-900">${grandTotal.toLocaleString()}</span>
                                 </div>
                             </div>
 
@@ -1382,18 +1485,18 @@ export default function POSPage() {
             )}
 
             {showCreateCustomer && (
-                <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-                    <Card className="w-full max-w-md">
+                <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
+                    <Card className="w-full max-w-md animate-scale-in">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <UserPlus className="h-5 w-5" />
                                 Nuevo Cliente
                             </CardTitle>
-                            <CardDescription>Crea un cliente rápidamente para esta venta</CardDescription>
+                            <CardDescription>Todos los campos marcados con * son obligatorios</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Nombre Completo *</label>
+                                <label className="text-sm font-medium">Nombre Completo <span className="text-red-500">*</span></label>
                                 <Input
                                     placeholder="Ej: Juan Pérez"
                                     value={newCustomerName}
@@ -1402,11 +1505,19 @@ export default function POSPage() {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">DNI / CC (Opcional)</label>
+                                <label className="text-sm font-medium">DNI / CC / NIT <span className="text-red-500">*</span></label>
                                 <Input
                                     placeholder="Ej: 1234567890"
                                     value={newCustomerDoc}
                                     onChange={(e) => setNewCustomerDoc(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Teléfono <span className="text-red-500">*</span></label>
+                                <Input
+                                    placeholder="Ej: 3001234567"
+                                    value={newCustomerPhone}
+                                    onChange={(e) => setNewCustomerPhone(e.target.value)}
                                 />
                             </div>
                             <div className="flex gap-2 pt-2">
@@ -1417,6 +1528,7 @@ export default function POSPage() {
                                         setShowCreateCustomer(false)
                                         setNewCustomerName('')
                                         setNewCustomerDoc('')
+                                        setNewCustomerPhone('')
                                     }}
                                 >
                                     Cancelar
@@ -1428,24 +1540,35 @@ export default function POSPage() {
                                             toast.error('El nombre es obligatorio')
                                             return
                                         }
+                                        if (!newCustomerDoc.trim()) {
+                                            toast.error('El documento es obligatorio')
+                                            return
+                                        }
+                                        if (!newCustomerPhone.trim()) {
+                                            toast.error('El teléfono es obligatorio')
+                                            return
+                                        }
+
                                         setCreatingCustomer(true)
                                         try {
                                             const created = await api.customers.create({
                                                 name: newCustomerName.trim(),
-                                                docNumber: newCustomerDoc.trim() || undefined
+                                                docNumber: newCustomerDoc.trim(),
+                                                phone: newCustomerPhone.trim()
                                             })
                                             setSelectedCustomer(created)
                                             setShowCreateCustomer(false)
                                             setNewCustomerName('')
                                             setNewCustomerDoc('')
+                                            setNewCustomerPhone('')
                                             toast.success('Cliente creado exitosamente')
                                         } catch (e: any) {
-                                            toast.error(e.message || 'Error al crear cliente')
+                                            toast.error(e.message || 'Error al crear cliente. Verifica que el documento no esté duplicado.')
                                         } finally {
                                             setCreatingCustomer(false)
                                         }
                                     }}
-                                    disabled={creatingCustomer || !newCustomerName.trim()}
+                                    disabled={creatingCustomer || !newCustomerName.trim() || !newCustomerDoc.trim() || !newCustomerPhone.trim()}
                                 >
                                     {creatingCustomer ? 'Creando...' : 'Crear Cliente'}
                                 </Button>

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../cache/cache.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
@@ -22,6 +22,18 @@ export class CustomersService {
     }
 
     async create(tenantId: string, createCustomerDto: CreateCustomerDto) {
+        // Validate unique docNumber
+        const existing = await this.prisma.customer.findFirst({
+            where: {
+                tenantId,
+                docNumber: createCustomerDto.docNumber
+            }
+        });
+
+        if (existing) {
+            throw new ConflictException('Ya existe un cliente con este número de documento');
+        }
+
         const result = await this.prisma.customer.create({
             data: {
                 ...createCustomerDto,

@@ -30,10 +30,12 @@ interface Customer {
 
 export function CustomerSelector({
     onSelect,
-    selectedCustomer: externalSelectedCustomer
+    selectedCustomer: externalSelectedCustomer,
+    onCreateNew: onSelectNew
 }: {
     onSelect: (customer: Customer | null) => void
     selectedCustomer?: Customer | null
+    onCreateNew?: () => void
 }) {
     const [open, setOpen] = useState(false)
     const [value, setValue] = useState("")
@@ -126,19 +128,25 @@ export function CustomerSelector({
                         <Command>
                             <CommandInput placeholder="Buscar cliente..." />
                             <CommandList>
-                                <CommandEmpty>
-                                    <div className="p-2 text-center text-sm text-muted-foreground">
-                                        No encontrado.
-                                        <Button
-                                            variant="link"
-                                            className="h-auto p-0 ml-1"
-                                            onClick={() => setIsCreating(true)}
-                                        >
-                                            Crear nuevo
-                                        </Button>
-                                    </div>
-                                </CommandEmpty>
+                                <CommandEmpty>No encontrado.</CommandEmpty>
                                 <CommandGroup>
+                                    <CommandItem
+                                        onSelect={() => {
+                                            if (onSelectNew) {
+                                                onSelectNew()
+                                                setOpen(false)
+                                            } else {
+                                                setIsCreating(true)
+                                            }
+                                        }}
+                                        className="text-primary font-medium cursor-pointer bg-primary/5 mb-1"
+                                    >
+                                        <div className="flex items-center">
+                                            <span className="mr-2 text-lg">➕</span>
+                                            Crear Nuevo Cliente
+                                        </div>
+                                    </CommandItem>
+
                                     {customers.map((customer) => (
                                         <CommandItem
                                             key={customer.id}

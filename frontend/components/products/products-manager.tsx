@@ -12,6 +12,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { cn } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import Link from 'next/link'
 
 type FormState = {
     name: string
@@ -42,9 +43,11 @@ const emptyForm: FormState = {
 }
 
 export function ProductsManager({
-    readOnly = false
+    readOnly = false,
+    isAdminView = false
 }: {
     readOnly?: boolean
+    isAdminView?: boolean
 }) {
     const [products, setProducts] = useState<Product[]>([])
     const [warehouses, setWarehouses] = useState<Warehouse[]>([])
@@ -480,15 +483,24 @@ export function ProductsManager({
                         </div>
                     )}
                 </div>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center self-end">
-                    <Button variant="outline" onClick={load} disabled={loading} className="group">
+                <div className="flex flex-col gap-3 w-full sm:w-auto sm:flex-row sm:items-center self-end">
+                    <Link href={isAdminView ? '/dashboard/print-barcodes' : '/print-barcodes'} className="w-full sm:w-auto">
+                        <Button
+                            variant="outline"
+                            className="group w-full"
+                        >
+                            <span className="mr-2">🖨️</span>
+                            Imprimir Códigos
+                        </Button>
+                    </Link>
+                    <Button variant="outline" onClick={load} disabled={loading} className="group w-full sm:w-auto">
                         <span className={loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}>
                             {loading ? '⚙️' : '🔄'}
                         </span>
                         <span>{loading ? 'Actualizando...' : 'Refrescar'}</span>
                     </Button>
                     {!readOnly && (
-                        <Button onClick={startCreate} className="shadow-lg hover:shadow-xl transition-all">
+                        <Button onClick={startCreate} className="shadow-lg hover:shadow-xl transition-all w-full sm:w-auto">
                             <span className="mr-2">➕</span>
                             Crear Nuevo Producto
                         </Button>
@@ -940,6 +952,8 @@ export function ProductsManager({
                     variant="destructive"
                 />
             )}
+
+
         </div>
     )
 }

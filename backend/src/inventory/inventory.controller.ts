@@ -22,7 +22,7 @@ export class InventoryController {
     }
 
     @Patch('transfer')
-    @Roles('ADMIN', 'SUPER_ADMIN')
+    @Roles('ADMIN', 'SUPER_ADMIN', 'SELLER')
     transferStock(
         @GetTenantId() tenantId: string,
         @Body() dto: TransferStockDto,
