@@ -32,8 +32,66 @@ export class CashFlowService {
     async getCurrentShift(tenantId: string, sellerId: string) {
         return this.prisma.cashShift.findFirst({
             where: { tenantId, sellerId, status: 'OPEN' },
-            include: { transactions: true }
+            include: {
+                transactions: true,
+                seller: {
+                    select: {
+                        name: true
+                    }
+                }
+            }
         });
+    }
+
+    async getShiftSummary(tenantId: string, sellerId: string) {
+        const shift = await this.getCurrentShift(tenantId, sellerId);
+        if (!shift) return null;
+
+        // Sumar ventas en efectivo
+        const cashSales = await this.prisma.invoice.aggregate({
+            where: {
+                tenantId,
+                sellerId,
+                paymentMethod: 'CASH',
+                status: 'PAID',
+                createdAt: {
+                    gte: shift.openingTime
+                }
+            },
+            _sum: {
+                total: true
+            }
+        });
+
+        const totalSales = Number(cashSales._sum.total || 0);
+
+        // Agrupar transacciones manuales
+        const transactions = shift.transactions;
+        let deposits = 0;
+        let withdrawals = 0;
+        let expenses = 0;
+
+        for (const tx of transactions) {
+            const amount = Number(tx.amount);
+            if (tx.type === 'DEPOSIT') deposits += amount;
+            else if (tx.type === 'WITHDRAWAL') withdrawals += amount;
+            else if (tx.type === 'EXPENSE') expenses += amount;
+        }
+
+        const initial = Number(shift.initialAmount);
+        const expected = initial + totalSales + deposits - withdrawals - expenses;
+
+        return {
+            shiftId: shift.id,
+            initialAmount: initial,
+            totalSales,
+            deposits,
+            withdrawals,
+            expenses,
+            expected,
+            openingTime: shift.openingTime,
+            sellerName: shift.seller?.name
+        };
     }
 
     async addTransaction(tenantId: string, sellerId: string, dto: CreateTransactionDto) {
@@ -112,7 +170,10 @@ export class CashFlowService {
             where: { tenantId },
             orderBy: { openingTime: 'desc' },
             take: limit,
-            include: { seller: true }
+            include: {
+                seller: true,
+                transactions: true
+            }
         });
     }
 }

@@ -14,7 +14,7 @@ import { cn, formatThousands, parseThousands } from '@/lib/utils';
 import { BrowserMultiFormatReader } from '@zxing/browser'
 import { NotFoundException } from '@zxing/library'
 import { Label } from '@/components/ui/label'
-import { CashOpenDialog, CashCloseDialog } from '@/components/pos/cash-control'
+import { CashOpenDialog, CashCloseDialog, CashTransactionDialog } from '@/components/pos/cash-control'
 
 interface CartItem extends Product {
     quantity: number
@@ -320,6 +320,7 @@ function POSMobileView(props: {
     stockMap: StockMap;
     onReset: () => void;
     onShowCashControl: () => void;
+    onShowCashTransaction: () => void;
     amountReceived: number | string;
     setAmountReceived: (val: number | string) => void;
 }) {
@@ -350,6 +351,7 @@ function POSMobileView(props: {
         onReset,
         stockMap,
         onShowCashControl,
+        onShowCashTransaction,
         amountReceived,
         setAmountReceived,
     } = props;
@@ -403,6 +405,33 @@ function POSMobileView(props: {
             <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-24">
                 {mobileStep === 1 && (
                     <div className="space-y-4">
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 h-14 bg-white border-2 shadow-sm rounded-xl"
+                                onClick={onShowCashTransaction}
+                            >
+                                <Wallet className="h-6 w-6 mr-2 text-primary" />
+                                <div className="flex flex-col items-start leading-tight">
+                                    <span className="text-[10px] text-gray-500 font-normal uppercase">Registrar</span>
+                                    <span className="text-sm font-bold">Movimiento</span>
+                                </div>
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 h-14 bg-white border-2 shadow-sm rounded-xl"
+                                onClick={onShowCashControl}
+                            >
+                                <X className="h-6 w-6 mr-2 text-red-500" />
+                                <div className="flex flex-col items-start leading-tight">
+                                    <span className="text-[10px] text-gray-500 font-normal uppercase">Cerrar turno</span>
+                                    <span className="text-sm font-bold">Caja</span>
+                                </div>
+                            </Button>
+                        </div>
+
                         <Card>
                             <CardHeader className="pb-3">
                                 <CardTitle className="text-lg">Seleccionar Cliente</CardTitle>
@@ -492,14 +521,6 @@ function POSMobileView(props: {
                                         >
                                             <Pause className="h-4 w-4 mr-1" />
                                             Pausar
-                                        </Button>
-                                        <Button
-                                            variant="secondary"
-                                            size="sm"
-                                            onClick={onShowCashControl}
-                                        >
-                                            <Wallet className="h-4 w-4 mr-1" />
-                                            Caja
                                         </Button>
                                     </div>
                                 </CardContent>
@@ -619,17 +640,19 @@ function POSMobileView(props: {
                 {mobileStep === 3 && (
                     <div className="space-y-4">
                         <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                                <CardTitle>Resumen de Venta</CardTitle>
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={pauseSale}
-                                    disabled={processing}
-                                >
-                                    <Pause className="h-4 w-4 mr-1" />
-                                    Pausar
-                                </Button>
+                            <CardHeader className="space-y-3 pb-3">
+                                <div className="flex items-center justify-between">
+                                    <CardTitle>Resumen de Venta</CardTitle>
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={pauseSale}
+                                        disabled={processing}
+                                    >
+                                        <Pause className="h-4 w-4 mr-1" />
+                                        Pausar
+                                    </Button>
+                                </div>
                             </CardHeader>
                             <CardContent className="space-y-4 pt-4">
                                 {/* Customer */}
@@ -789,6 +812,7 @@ function POSDesktopView(props: {
     processing: boolean;
     setIsCheckoutOpen: (b: boolean) => void;
     onShowCashControl: () => void;
+    onShowCashTransaction: () => void;
     onCreateNewCustomer: () => void;
 }) {
     const {
@@ -811,6 +835,7 @@ function POSDesktopView(props: {
         setIsCheckoutOpen,
         stockMap,
         onShowCashControl,
+        onShowCashTransaction,
         onCreateNewCustomer,
     } = props;
 
@@ -847,10 +872,19 @@ function POSDesktopView(props: {
                         <Button
                             variant="outline"
                             size="lg"
-                            onClick={onShowCashControl}
-                            className="px-4 border-2"
+                            onClick={onShowCashTransaction}
+                            className="px-4"
                         >
                             <Wallet className="h-5 w-5 mr-2" />
+                            Movimiento
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="lg"
+                            onClick={onShowCashControl}
+                            className="px-4"
+                        >
+                            <X className="h-5 w-5 mr-2" />
                             Caja
                         </Button>
                     </div>
@@ -1082,6 +1116,7 @@ export default function POSPage() {
     // Cash Flow State
     const [showOpenCash, setShowOpenCash] = useState(false)
     const [showCloseCash, setShowCloseCash] = useState(false)
+    const [showCashTransaction, setShowCashTransaction] = useState(false)
 
     useEffect(() => {
         checkCashStatus()
@@ -1434,6 +1469,7 @@ export default function POSPage() {
                     onReset={() => setShowResetConfirm(true)}
                     stockMap={stockMap}
                     onShowCashControl={() => setShowCloseCash(true)}
+                    onShowCashTransaction={() => setShowCashTransaction(true)}
                     amountReceived={amountReceived}
                     setAmountReceived={setAmountReceived}
                 />
@@ -1455,6 +1491,7 @@ export default function POSPage() {
                     pauseSale={pauseSale}
                     onReset={() => setShowResetConfirm(true)}
                     onShowCashControl={() => setShowCloseCash(true)}
+                    onShowCashTransaction={() => setShowCashTransaction(true)}
                     processing={processing}
                     setIsCheckoutOpen={setIsCheckoutOpen}
                     stockMap={stockMap}
@@ -1470,7 +1507,13 @@ export default function POSPage() {
             <CashCloseDialog
                 isOpen={showCloseCash}
                 onClose={() => setShowCloseCash(false)}
-                onSuccess={() => router.push('/login')}
+                onSuccess={() => { }}
+            />
+
+            <CashTransactionDialog
+                isOpen={showCashTransaction}
+                onClose={() => setShowCashTransaction(false)}
+                onSuccess={checkCashStatus}
             />
 
             <ConfirmDialog

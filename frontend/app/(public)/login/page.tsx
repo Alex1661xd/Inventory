@@ -46,7 +46,7 @@ export default function LoginPage() {
             router.refresh()
 
             if (userData?.role === 'SELLER') {
-                router.push('/pos')
+                router.push('/sales')
             } else {
                 router.push('/dashboard')
             }

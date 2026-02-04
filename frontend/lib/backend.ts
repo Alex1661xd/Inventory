@@ -115,7 +115,8 @@ export type CashShift = {
     difference?: number;
     status: 'OPEN' | 'CLOSED';
     sellerId: string;
-    transactions?: CashTransaction[];
+    seller?: { name: string };
+    transactions: CashTransaction[];
 };
 
 export type CashTransaction = {
@@ -229,6 +230,16 @@ export const api = {
         open: (payload: { initialAmount: number }) => backendFetch<CashShift>('/cash-flow/open', { method: 'POST', json: payload }),
         close: (payload: { finalAmount: number }) => backendFetch<CashShift>('/cash-flow/close', { method: 'POST', json: payload }),
         getCurrent: () => backendFetch<CashShift | null>('/cash-flow/current'),
+        summary: () => backendFetch<{
+            initialAmount: number;
+            totalSales: number;
+            deposits: number;
+            withdrawals: number;
+            expenses: number;
+            expected: number;
+            openingTime: string;
+            sellerName: string;
+        } | null>('/cash-flow/summary'),
         addTransaction: (payload: { amount: number; reason: string; type: 'DEPOSIT' | 'WITHDRAWAL' | 'EXPENSE' }) =>
             backendFetch<CashTransaction>('/cash-flow/transaction', { method: 'POST', json: payload }),
         history: () => backendFetch<CashShift[]>('/cash-flow/history'),

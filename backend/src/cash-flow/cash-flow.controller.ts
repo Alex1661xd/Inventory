@@ -28,6 +28,11 @@ export class CashFlowController {
         return this.cashFlowService.getCurrentShift(tenantId, req.user.id);
     }
 
+    @Get('summary')
+    getSummary(@GetTenantId() tenantId: string, @Request() req) {
+        return this.cashFlowService.getShiftSummary(tenantId, req.user.id);
+    }
+
     @Post('transaction')
     addTransaction(@GetTenantId() tenantId: string, @Request() req, @Body() dto: CreateTransactionDto) {
         return this.cashFlowService.addTransaction(tenantId, req.user.id, dto);
