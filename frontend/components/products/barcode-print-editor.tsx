@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
+import { Printer, Loader2, ShieldAlert, CheckCircle2, Trash2, Info, AlertTriangle } from 'lucide-react'
 
 type BarcodeSize = 'small' | 'medium' | 'large'
 
@@ -25,8 +26,40 @@ const BARCODE_SIZES = {
     large: { width: 3, height: 100, fontSize: 18, label: 'Grande', pdfWidth: 90, pdfHeight: 50 },
 }
 
-// High resolution multiplier for crisp barcodes
+const MAX_BARCODES = 500
 const DPI_MULTIPLIER = 3
+
+function GeneratingModal({ isOpen, total }: { isOpen: boolean; total: number }) {
+    if (!isOpen) return null
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white rounded-3xl p-10 shadow-2xl flex flex-col items-center gap-6 max-w-sm w-full mx-4 animate-in zoom-in-95 duration-300">
+                <div className="relative">
+                    <div className="w-20 h-20 rounded-2xl bg-gray-900 flex items-center justify-center shadow-xl animate-bounce">
+                        <Printer className="h-10 w-10 text-white" />
+                    </div>
+                    <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-emerald-500 border-4 border-white flex items-center justify-center animate-pulse">
+                        <div className="w-2 h-2 rounded-full bg-white" />
+                    </div>
+                </div>
+
+                <div className="text-center space-y-2">
+                    <h3 className="text-2xl font-black text-gray-900">Generando PDF</h3>
+                    <p className="text-gray-500 font-medium font-mono text-sm bg-gray-100 px-3 py-1 rounded-full inline-block">
+                        Procesando {total} etiquetas
+                    </p>
+                </div>
+
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-gray-900 animate-pulse w-full" />
+                </div>
+
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">Casi listo...</p>
+            </div>
+        </div>
+    )
+}
 
 export function BarcodePrintPage() {
     const router = useRouter()
@@ -82,14 +115,13 @@ export function BarcodePrintPage() {
     }
 
     const updateCopies = (productId: string, copies: number) => {
-        if (copies < 1) {
-            removeProduct(productId)
-            return
-        }
+        // Permitir 0 temporalmente para facilitar la edición (borrar el contenido)
+        const safeCopies = isNaN(copies) ? 0 : Math.max(0, copies)
+
         setSelectedItems(prev =>
             prev.map(item =>
                 item.product.id === productId
-                    ? { ...item, copies }
+                    ? { ...item, copies: safeCopies }
                     : item
             )
         )
@@ -133,7 +165,14 @@ export function BarcodePrintPage() {
             return
         }
 
+        if (totalBarcodes > MAX_BARCODES) {
+            toast.error(`Límite excedido. El sistema permite un máximo de ${MAX_BARCODES} códigos por PDF.`)
+            return
+        }
+
         setGenerating(true)
+        // Give UI time to show the modal
+        await new Promise(resolve => setTimeout(resolve, 600))
 
         try {
             const pdf = new jsPDF({
@@ -236,6 +275,7 @@ export function BarcodePrintPage() {
 
     return (
         <div className="space-y-8 animate-fade-in pb-20 md:pb-0">
+            <GeneratingModal isOpen={generating} total={totalBarcodes} />
             {/* Header Section */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
@@ -276,7 +316,7 @@ export function BarcodePrintPage() {
                     <div className="flex-1 overflow-y-auto p-4 space-y-2">
                         {loading ? (
                             <div className="flex items-center justify-center py-10 text-gray-500">
-                                <span className="animate-spin mr-2">⚙️</span> Cargando productos...
+                                <Loader2 className="h-5 w-5 animate-spin mr-2" /> Cargando productos...
                             </div>
                         ) : filteredProducts.length === 0 ? (
                             <div className="text-center py-10 text-gray-500">
@@ -309,8 +349,8 @@ export function BarcodePrintPage() {
                                                 <div className="text-xs text-gray-500 font-mono">{product.barcode}</div>
                                             </div>
                                             {isSelected && (
-                                                <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">
-                                                    ✓
+                                                <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-sm">
+                                                    <CheckCircle2 className="h-4 w-4" />
                                                 </div>
                                             )}
                                         </div>
@@ -362,7 +402,7 @@ export function BarcodePrintPage() {
                                             className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
                                             onClick={() => removeProduct(item.product.id)}
                                         >
-                                            ✕
+                                            <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </div>
 
@@ -382,8 +422,8 @@ export function BarcodePrintPage() {
                                                 </Button>
                                                 <Input
                                                     type="number"
-                                                    value={item.copies}
-                                                    onChange={(e) => updateCopies(item.product.id, parseInt(e.target.value) || 1)}
+                                                    value={item.copies === 0 ? '' : item.copies}
+                                                    onChange={(e) => updateCopies(item.product.id, parseInt(e.target.value))}
                                                     className="w-16 h-8 text-center text-sm font-bold"
                                                     min={1}
                                                 />
@@ -426,23 +466,44 @@ export function BarcodePrintPage() {
 
                     {/* Footer */}
                     <div className="p-4 border-t border-[rgb(230,225,220)] flex-shrink-0 bg-white/80">
-                        <div className="flex justify-between items-center mb-3">
-                            <span className="text-gray-500">Total de códigos a generar:</span>
-                            <span className="text-3xl font-black text-gray-900">{totalBarcodes}</span>
+                        <div className="flex justify-between items-center mb-1">
+                            <span className="text-gray-500 font-medium">Total de códigos:</span>
+                            <span className={cn(
+                                "text-3xl font-black transition-colors",
+                                totalBarcodes > MAX_BARCODES ? "text-red-600 animate-pulse" : "text-gray-900"
+                            )}>
+                                {totalBarcodes}
+                            </span>
                         </div>
+
+                        {totalBarcodes > MAX_BARCODES && (
+                            <div className="flex items-center gap-2 text-red-500 text-[10px] font-bold mb-3 justify-end animate-in fade-in slide-in-from-right-2">
+                                <ShieldAlert className="h-3.5 w-3.5" />
+                                <span>LÍMITE DE {MAX_BARCODES} EXCEDIDO</span>
+                            </div>
+                        )}
+
                         <Button
                             onClick={generatePDF}
-                            disabled={generating || selectedItems.length === 0}
-                            className="w-full h-12 text-lg font-bold shadow-xl hover:shadow-2xl transition-all bg-gray-900 hover:bg-gray-800"
+                            disabled={generating || selectedItems.length === 0 || totalBarcodes > MAX_BARCODES}
+                            className={cn(
+                                "w-full h-12 text-lg font-bold shadow-xl transition-all",
+                                totalBarcodes > MAX_BARCODES
+                                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                    : "bg-gray-900 hover:bg-gray-800 text-white"
+                            )}
                         >
                             {generating ? (
                                 <span className="flex items-center gap-2">
-                                    <span className="animate-spin">⚙️</span>
-                                    Generando PDF...
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                    Generando...
                                 </span>
+                            ) : totalBarcodes > MAX_BARCODES ? (
+                                "Reducir Cantidad"
                             ) : (
                                 <span className="flex items-center gap-2">
-                                    📄 Descargar PDF
+                                    <Printer className="h-5 w-5" />
+                                    Descargar PDF
                                 </span>
                             )}
                         </Button>
@@ -462,6 +523,7 @@ export function BarcodePrintPage() {
                             <li>• Los tamaños son: <strong>P</strong>equeño, <strong>M</strong>ediano y <strong>G</strong>rande</li>
                             <li>• El PDF se generará con una sección por cada producto, con todos sus códigos agrupados</li>
                             <li>• Los códigos se generan en alta resolución para una impresión nítida</li>
+                            <li className="text-amber-600 font-bold">• El límite máximo por PDF es de {MAX_BARCODES} códigos de barras</li>
                         </ul>
                     </div>
                 </div>

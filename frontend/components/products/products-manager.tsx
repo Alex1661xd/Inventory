@@ -484,15 +484,17 @@ export function ProductsManager({
                     )}
                 </div>
                 <div className="flex flex-col gap-3 w-full sm:w-auto sm:flex-row sm:items-center self-end">
-                    <Link href={isAdminView ? '/dashboard/print-barcodes' : '/print-barcodes'} className="w-full sm:w-auto">
-                        <Button
-                            variant="outline"
-                            className="group w-full"
-                        >
-                            <span className="mr-2">🖨️</span>
-                            Imprimir Códigos
-                        </Button>
-                    </Link>
+                    {isAdminView && (
+                        <Link href={isAdminView ? '/dashboard/print-barcodes' : '/print-barcodes'} className="w-full sm:w-auto">
+                            <Button
+                                variant="outline"
+                                className="group w-full"
+                            >
+                                <span className="mr-2">🖨️</span>
+                                Imprimir Códigos
+                            </Button>
+                        </Link>
+                    )}
                     <Button variant="outline" onClick={load} disabled={loading} className="group w-full sm:w-auto">
                         <span className={loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}>
                             {loading ? '⚙️' : '🔄'}
