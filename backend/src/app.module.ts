@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
- import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -13,11 +13,13 @@ import { CacheModule } from './cache/cache.module';
 import { UsersModule } from './users/users.module';
 import { CustomersModule } from './customers/customers.module';
 import { InvoicesModule } from './invoices/invoices.module';
- import { RolesGuard } from './auth/guards/roles.guard';
+import { SuppliersModule } from './suppliers/suppliers.module';
+import { CashFlowModule } from './cash-flow/cash-flow.module';
+import { RolesGuard } from './auth/guards/roles.guard';
 import { GetTenantGuard } from './auth/guards/get-tenant.guard';
 
 @Module({
-  imports: [CacheModule, PrismaModule, SupabaseModule, AuthModule, ProductsModule, WarehousesModule, InventoryModule, CategoriesModule, UsersModule, CustomersModule, InvoicesModule],
+  imports: [CacheModule, PrismaModule, SupabaseModule, AuthModule, ProductsModule, WarehousesModule, InventoryModule, CategoriesModule, UsersModule, CustomersModule, InvoicesModule, SuppliersModule, CashFlowModule],
   controllers: [AppController],
   providers: [
     AppService,

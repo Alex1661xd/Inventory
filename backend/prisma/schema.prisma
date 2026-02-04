@@ -39,6 +39,17 @@ enum InvoiceStatus {
   CANCELLED
 }
 
+enum CashShiftStatus {
+  OPEN
+  CLOSED
+}
+
+enum CashTransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  EXPENSE
+}
+
 // --------------------------------------
 // MODELO SAAS (EL SECRETO PARA VENDER EL SOFTWARE)
 // --------------------------------------
@@ -58,6 +69,8 @@ model Tenant {
   customers   Customer[]
   invoices    Invoice[]
   categories  Category[]
+  suppliers   Supplier[]
+  cashShifts  CashShift[]
 }
 
 // --------------------------------------
@@ -81,6 +94,7 @@ model User {
 
   // Relaciones
   sales     Invoice[] // Las ventas que ha hecho este usuario
+  cashShifts CashShift[]
 
   @@index([tenantId])
   @@index([warehouseId])
@@ -205,6 +219,9 @@ model Invoice {
   sellerId        String
   seller          User          @relation(fields: [sellerId], references: [id]) // Quién vendió
   
+  amountReceived  Decimal?
+  amountReturned  Decimal?
+  
   items           InvoiceItem[]
 }
 
@@ -222,4 +239,71 @@ model InvoiceItem {
   
   productId       String
   product         Product  @relation(fields: [productId], references: [id])
+}
+
+// --------------------------------------
+// COMPRAS Y PROVEEDORES
+// --------------------------------------
+
+model Supplier {
+  id           String   @id @default(uuid())
+  name         String
+  contactName  String?
+  email        String?
+  phone        String?
+  address      String?
+  taxId        String?
+  paymentTerms String?
+
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@index([tenantId])
+}
+
+// --------------------------------------
+// FLUJO DE CAJA (CASH FLOW)
+// --------------------------------------
+
+model CashShift {
+  id            String          @id @default(uuid())
+  openingTime   DateTime        @default(now())
+  closingTime   DateTime?
+  
+  initialAmount Decimal         @default(0) // Base
+  finalAmount   Decimal?        // Lo que cuenta el cajero al final
+  systemAmount  Decimal?        // Calculado por las ventas CASH
+  difference    Decimal?        // final - system
+  
+  status        CashShiftStatus @default(OPEN)
+  
+  // Relaciones
+  sellerId      String
+  seller        User            @relation(fields: [sellerId], references: [id])
+  
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+
+  transactions  CashTransaction[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([sellerId])
+}
+
+model CashTransaction {
+  id          String              @id @default(uuid())
+  amount      Decimal
+  reason      String
+  type        CashTransactionType
+  
+  shiftId     String
+  shift       CashShift           @relation(fields: [shiftId], references: [id])
+  
+  createdAt   DateTime            @default(now())
 }

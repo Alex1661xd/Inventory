@@ -69,6 +69,8 @@ export class InvoicesService {
                     tenantId,
                     sellerId,
                     customerId: dto.customerId,
+                    amountReceived: dto.amountReceived,
+                    amountReturned: dto.amountReturned,
                     items: {
                         create: dto.items.map(item => ({
                             productId: item.productId,

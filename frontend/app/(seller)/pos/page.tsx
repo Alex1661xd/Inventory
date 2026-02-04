@@ -9,11 +9,12 @@ import { Input } from "@/components/ui/input"
 import { toast } from 'sonner'
 import { CustomerSelector } from '@/components/customer-selector'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { Scan, X, Plus, Minus, Trash2, ChevronLeft, ChevronRight, Pause, Play, UserPlus, Camera, Loader2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Scan, X, Plus, Minus, Trash2, ChevronLeft, ChevronRight, Pause, Play, UserPlus, Camera, Loader2, Wallet } from 'lucide-react'
+import { cn, formatThousands, parseThousands } from '@/lib/utils';
 import { BrowserMultiFormatReader } from '@zxing/browser'
 import { NotFoundException } from '@zxing/library'
 import { Label } from '@/components/ui/label'
+import { CashOpenDialog, CashCloseDialog } from '@/components/pos/cash-control'
 
 interface CartItem extends Product {
     quantity: number
@@ -318,6 +319,9 @@ function POSMobileView(props: {
     setMobilePage: (n: number) => void;
     stockMap: StockMap;
     onReset: () => void;
+    onShowCashControl: () => void;
+    amountReceived: number | string;
+    setAmountReceived: (val: number | string) => void;
 }) {
     const {
         mobileStep,
@@ -345,6 +349,9 @@ function POSMobileView(props: {
         setMobilePage,
         onReset,
         stockMap,
+        onShowCashControl,
+        amountReceived,
+        setAmountReceived,
     } = props;
 
     const stepLabels = [
@@ -475,7 +482,7 @@ function POSMobileView(props: {
                                     <div className="flex justify-between items-center">
                                         <div>
                                             <div className="text-sm opacity-90">{cart.length} producto(s)</div>
-                                            <div className="text-2xl font-bold">${grandTotal.toLocaleString()}</div>
+                                            <div className="text-2xl font-bold">${formatThousands(grandTotal)}</div>
                                         </div>
                                         <Button
                                             variant="secondary"
@@ -485,6 +492,14 @@ function POSMobileView(props: {
                                         >
                                             <Pause className="h-4 w-4 mr-1" />
                                             Pausar
+                                        </Button>
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={onShowCashControl}
+                                        >
+                                            <Wallet className="h-4 w-4 mr-1" />
+                                            Caja
                                         </Button>
                                     </div>
                                 </CardContent>
@@ -512,7 +527,7 @@ function POSMobileView(props: {
                                                         Stock: {stockMap[product.id] ?? 0}
                                                     </div>
                                                     <div className="font-bold text-gray-900 mt-1">
-                                                        ${Number(product.salePrice).toLocaleString()}
+                                                        ${formatThousands(Number(product.salePrice))}
                                                     </div>
                                                 </div>
                                                 <Button
@@ -631,7 +646,7 @@ function POSMobileView(props: {
                                             <div key={item.id} className="flex justify-between text-sm">
                                                 <span>{item.quantity}x {item.name}</span>
                                                 <span className="font-semibold">
-                                                    ${(Number(item.salePrice) * item.quantity).toLocaleString()}
+                                                    ${formatThousands(Number(item.salePrice) * item.quantity)}
                                                 </span>
                                             </div>
                                         ))}
@@ -643,7 +658,7 @@ function POSMobileView(props: {
                                     <div className="flex justify-between items-center">
                                         <span className="text-lg font-semibold">TOTAL</span>
                                         <span className="text-3xl font-bold text-gray-900">
-                                            ${grandTotal.toLocaleString()}
+                                            ${formatThousands(grandTotal)}
                                         </span>
                                     </div>
                                 </div>
@@ -652,24 +667,47 @@ function POSMobileView(props: {
                                 <div>
                                     <div className="text-sm font-medium mb-2">Método de Pago</div>
                                     <div className="grid grid-cols-2 gap-2">
-                                        {[
-                                            { value: 'CASH', label: 'Efectivo', icon: '💵' },
-                                            { value: 'CARD', label: 'Tarjeta', icon: '💳' },
-                                            { value: 'TRANSFER', label: 'Transferencia', icon: '📱' },
-                                            { value: 'OTHER', label: 'Otro', icon: '📝' }
-                                        ].map(method => (
+                                        {['CASH', 'CARD', 'TRANSFER', 'OTHER'].map((m) => (
                                             <Button
-                                                key={method.value}
-                                                variant={paymentMethod === method.value ? 'default' : 'outline'}
-                                                onClick={() => setPaymentMethod(method.value as any)}
-                                                className="h-16 flex flex-col gap-1"
+                                                key={m}
+                                                variant={paymentMethod === m ? 'default' : 'outline'}
+                                                onClick={() => setPaymentMethod(m as any)}
+                                                className="h-16"
                                             >
-                                                <span className="text-2xl">{method.icon}</span>
-                                                <span className="text-xs">{method.label}</span>
+                                                {m}
                                             </Button>
                                         ))}
                                     </div>
                                 </div>
+
+                                {/* Cambio / Vuelto (Mobile) */}
+                                {paymentMethod === 'CASH' && (
+                                    <div className="space-y-3 pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <div className="space-y-1">
+                                            <Label className="text-sm text-gray-500 font-medium">Monto Recibido</Label>
+                                            <Input
+                                                type="text"
+                                                inputMode="numeric"
+                                                placeholder="Ej: 50.000"
+                                                value={amountReceived}
+                                                onChange={(e) => setAmountReceived(formatThousands(e.target.value))}
+                                                className="h-12 text-lg font-bold border-2 focus:ring-primary"
+                                                autoFocus
+                                            />
+                                        </div>
+                                        {parseThousands(String(amountReceived)) >= grandTotal && (
+                                            <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex justify-between items-center animate-in zoom-in duration-300">
+                                                <span className="text-emerald-700 font-medium">Cambio a devolver:</span>
+                                                <span className="text-2xl font-black text-emerald-700">
+                                                    ${formatThousands(parseThousands(String(amountReceived)) - grandTotal)}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {amountReceived && parseThousands(String(amountReceived)) < grandTotal && (
+                                            <p className="text-xs text-red-500 font-medium">El monto recibido es menor al total</p>
+                                        )}
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>
@@ -750,6 +788,7 @@ function POSDesktopView(props: {
     onReset: () => void;
     processing: boolean;
     setIsCheckoutOpen: (b: boolean) => void;
+    onShowCashControl: () => void;
     onCreateNewCustomer: () => void;
 }) {
     const {
@@ -771,6 +810,7 @@ function POSDesktopView(props: {
         processing,
         setIsCheckoutOpen,
         stockMap,
+        onShowCashControl,
         onCreateNewCustomer,
     } = props;
 
@@ -803,6 +843,15 @@ function POSDesktopView(props: {
                         >
                             <Play className="h-5 w-5 mr-2" />
                             Pendientes
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="lg"
+                            onClick={onShowCashControl}
+                            className="px-4 border-2"
+                        >
+                            <Wallet className="h-5 w-5 mr-2" />
+                            Caja
                         </Button>
                     </div>
                 </div>
@@ -854,7 +903,7 @@ function POSDesktopView(props: {
                                             {product.sku || '-'}
                                         </td>
                                         <td className="p-3 text-right font-semibold text-sm">
-                                            ${Number(product.salePrice).toLocaleString()}
+                                            ${formatThousands(Number(product.salePrice))}
                                         </td>
                                         <td className="p-3">
                                             <Button
@@ -902,7 +951,7 @@ function POSDesktopView(props: {
                                     <div className="flex-1 min-w-0 pr-2">
                                         <div className="font-medium text-sm">{item.name}</div>
                                         <div className="text-xs text-gray-500">
-                                            ${Number(item.salePrice).toLocaleString()} c/u
+                                            ${formatThousands(Number(item.salePrice))} c/u
                                         </div>
                                     </div>
                                     <Button
@@ -936,7 +985,7 @@ function POSDesktopView(props: {
                                         </Button>
                                     </div>
                                     <div className="font-bold">
-                                        ${(Number(item.salePrice) * item.quantity).toLocaleString()}
+                                        ${formatThousands(Number(item.salePrice) * item.quantity)}
                                     </div>
                                 </div>
                             </div>
@@ -949,7 +998,7 @@ function POSDesktopView(props: {
                     <div className="flex justify-between items-center">
                         <span className="text-lg font-semibold">TOTAL:</span>
                         <span className="text-3xl font-bold text-gray-900">
-                            ${grandTotal.toLocaleString()}
+                            ${formatThousands(grandTotal)}
                         </span>
                     </div>
                     <Button
@@ -1002,6 +1051,7 @@ export default function POSPage() {
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
     const [processing, setProcessing] = useState(false)
     const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'TRANSFER' | 'OTHER'>('CASH')
+    const [amountReceived, setAmountReceived] = useState<number | string>('')
     const [warehouseId, setWarehouseId] = useState<string>('')
     const [stockMap, setStockMap] = useState<StockMap>({})
     const [showScanner, setShowScanner] = useState(false)
@@ -1028,6 +1078,25 @@ export default function POSPage() {
     // Camera scanner state
     const [scanning, setScanning] = useState(false)
     const [cameraError, setCameraError] = useState<string | null>(null)
+
+    // Cash Flow State
+    const [showOpenCash, setShowOpenCash] = useState(false)
+    const [showCloseCash, setShowCloseCash] = useState(false)
+
+    useEffect(() => {
+        checkCashStatus()
+    }, [])
+
+    const checkCashStatus = async () => {
+        try {
+            const shift = await api.cashFlow.getCurrent()
+            if (!shift) {
+                setShowOpenCash(true)
+            }
+        } catch (error) {
+            console.error('Error checking cash status:', error)
+        }
+    }
     const [barcodeInput, setBarcodeInput] = useState('')
     const videoRef = useRef<HTMLVideoElement | null>(null)
     const streamRef = useRef<MediaStream | null>(null)
@@ -1279,7 +1348,9 @@ export default function POSPage() {
                     productId: item.id,
                     quantity: item.quantity,
                     unitPrice: Number(item.salePrice)
-                }))
+                })),
+                amountReceived: paymentMethod === 'CASH' ? parseThousands(String(amountReceived)) : undefined,
+                amountReturned: paymentMethod === 'CASH' ? (parseThousands(String(amountReceived)) - grandTotal) : undefined
             })
 
             // If we resumed a pending sale, cancel the pending one
@@ -1293,6 +1364,7 @@ export default function POSPage() {
             setResumedSaleId(null)
             setIsCheckoutOpen(false)
             setMobileStep(1)
+            setAmountReceived('')
         } catch (e: any) {
             toast.error(e.message)
         } finally {
@@ -1361,6 +1433,9 @@ export default function POSPage() {
                     setMobilePage={setMobilePage}
                     onReset={() => setShowResetConfirm(true)}
                     stockMap={stockMap}
+                    onShowCashControl={() => setShowCloseCash(true)}
+                    amountReceived={amountReceived}
+                    setAmountReceived={setAmountReceived}
                 />
             ) : (
                 <POSDesktopView
@@ -1379,12 +1454,24 @@ export default function POSPage() {
                     setSelectedCustomer={setSelectedCustomer}
                     pauseSale={pauseSale}
                     onReset={() => setShowResetConfirm(true)}
+                    onShowCashControl={() => setShowCloseCash(true)}
                     processing={processing}
                     setIsCheckoutOpen={setIsCheckoutOpen}
                     stockMap={stockMap}
                     onCreateNewCustomer={() => setShowCreateCustomer(true)}
                 />
             )}
+
+            {/* Cash Flow Modals */}
+            <CashOpenDialog
+                isOpen={showOpenCash}
+                onOpenSuccess={() => setShowOpenCash(false)}
+            />
+            <CashCloseDialog
+                isOpen={showCloseCash}
+                onClose={() => setShowCloseCash(false)}
+                onSuccess={() => router.push('/login')}
+            />
 
             <ConfirmDialog
                 open={showResetConfirm}
@@ -1434,7 +1521,7 @@ export default function POSPage() {
                                 </div>
                                 <div className="pt-2 border-t flex justify-between">
                                     <span className="text-lg font-semibold">Total</span>
-                                    <span className="text-2xl font-bold text-gray-900">${grandTotal.toLocaleString()}</span>
+                                    <span className="text-2xl font-bold text-gray-900">${formatThousands(grandTotal)}</span>
                                 </div>
                             </div>
 
@@ -1460,6 +1547,40 @@ export default function POSPage() {
                                     ))}
                                 </div>
                             </div>
+
+                            {/* Cambio / Vuelto (Desktop Modal) */}
+                            {paymentMethod === 'CASH' && (
+                                <div className="space-y-3 pt-2 p-4 bg-gray-50/50 rounded-xl border-dashed border-2 border-gray-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-gray-500 font-bold uppercase tracking-wider">Monto Recibido</Label>
+                                        <Input
+                                            type="text"
+                                            inputMode="numeric"
+                                            placeholder="Ingresa cuánto recibes..."
+                                            value={amountReceived}
+                                            onChange={(e) => setAmountReceived(formatThousands(e.target.value))}
+                                            className="h-12 text-xl font-bold bg-white"
+                                            autoFocus
+                                        />
+                                    </div>
+                                    {parseThousands(String(amountReceived)) >= grandTotal && (
+                                        <div className="p-4 bg-blue-600 text-white rounded-xl flex justify-between items-center shadow-lg animate-in zoom-in duration-300">
+                                            <div className="flex flex-col">
+                                                <span className="text-xs opacity-80 font-bold uppercase">Cambio a devolver</span>
+                                                <span className="text-3xl font-black leading-none">
+                                                    ${formatThousands(parseThousands(String(amountReceived)) - grandTotal)}
+                                                </span>
+                                            </div>
+                                            <div className="text-3xl">🤝</div>
+                                        </div>
+                                    )}
+                                    {amountReceived && parseThousands(String(amountReceived)) < grandTotal && (
+                                        <div className="text-center p-2 bg-red-50 text-red-600 text-xs font-bold rounded-lg border border-red-100">
+                                            Falta ${formatThousands(grandTotal - parseThousands(String(amountReceived)))} para completar el pago
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Actions */}
                             <div className="flex gap-2 pt-2">

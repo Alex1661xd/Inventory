@@ -41,4 +41,12 @@ export class CreateInvoiceDto {
     @ValidateNested({ each: true })
     @Type(() => InvoiceItemDto)
     items: InvoiceItemDto[];
+
+    @IsNumber()
+    @IsOptional()
+    amountReceived?: number;
+
+    @IsNumber()
+    @IsOptional()
+    amountReturned?: number;
 }

@@ -91,6 +91,41 @@ export type StockRow = {
     warehouse: { id: string; name: string };
 };
 
+export type Supplier = {
+    id: string;
+    name: string;
+    contactName?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    taxId?: string | null;
+    paymentTerms?: string | null;
+    tenantId: string;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type CashShift = {
+    id: string;
+    openingTime: string;
+    closingTime?: string;
+    initialAmount: number;
+    finalAmount?: number;
+    systemAmount?: number;
+    difference?: number;
+    status: 'OPEN' | 'CLOSED';
+    sellerId: string;
+    transactions?: CashTransaction[];
+};
+
+export type CashTransaction = {
+    id: string;
+    amount: number;
+    reason: string;
+    type: 'DEPOSIT' | 'WITHDRAWAL' | 'EXPENSE';
+    createdAt: string;
+};
+
 export const api = {
     products: {
         list: () => backendFetch<Product[]>('/products'),
@@ -181,5 +216,21 @@ export const api = {
         list: () => backendFetch<any[]>('/invoices'),
         get: (id: string) => backendFetch<any>(`/invoices/${id}`),
         cancel: (id: string) => backendFetch<any>(`/invoices/${id}/cancel`, { method: 'POST' }),
+    },
+    suppliers: {
+        list: () => backendFetch<Supplier[]>('/suppliers'),
+        create: (payload: { name: string; contactName?: string; email?: string; phone?: string; address?: string; taxId?: string; paymentTerms?: string }) =>
+            backendFetch<Supplier>('/suppliers', { method: 'POST', json: payload }),
+        update: (id: string, payload: Partial<Supplier>) =>
+            backendFetch<Supplier>(`/suppliers/${id}`, { method: 'PATCH', json: payload }),
+        remove: (id: string) => backendFetch<Supplier>(`/suppliers/${id}`, { method: 'DELETE' }),
+    },
+    cashFlow: {
+        open: (payload: { initialAmount: number }) => backendFetch<CashShift>('/cash-flow/open', { method: 'POST', json: payload }),
+        close: (payload: { finalAmount: number }) => backendFetch<CashShift>('/cash-flow/close', { method: 'POST', json: payload }),
+        getCurrent: () => backendFetch<CashShift | null>('/cash-flow/current'),
+        addTransaction: (payload: { amount: number; reason: string; type: 'DEPOSIT' | 'WITHDRAWAL' | 'EXPENSE' }) =>
+            backendFetch<CashTransaction>('/cash-flow/transaction', { method: 'POST', json: payload }),
+        history: () => backendFetch<CashShift[]>('/cash-flow/history'),
     },
 };

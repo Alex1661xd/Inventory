@@ -11,6 +11,8 @@ const links = [
     { href: '/dashboard/warehouses', label: 'Almacenes', icon: '🏢' },
     { href: '/dashboard/categories', label: 'Categorías', icon: '📁' },
     { href: '/dashboard/transfers', label: 'Traslados', icon: '🚚' },
+    { href: '/dashboard/suppliers', label: 'Proveedores', icon: '🏭' },
+    { href: '/dashboard/cash-flow', label: 'Arqueos de Caja', icon: '💰' },
     { href: '/dashboard/sellers', label: 'Vendedores', icon: '👥' },
 ]
 
