@@ -47,4 +47,10 @@ export class InventoryController {
     ) {
         return this.inventoryService.getKardex(tenantId, productId, warehouseId);
     }
+
+    @Get('valuation')
+    @Roles('ADMIN', 'SUPER_ADMIN')
+    getValuation(@GetTenantId() tenantId: string) {
+        return this.inventoryService.getValuation(tenantId);
+    }
 }

@@ -50,7 +50,7 @@ El dashboard ha sido potenciado con trazabilidad profunda.
 *   **Ajustes de Inventario (Mermas/Daños)** (✅): 
     *   **Motivos**: Capacidad de clasificar salidas por Daño, Devolución o Ajuste técnico.
     *   **Inteligencia**: El formulario de actualización filtra motivos según si es entrada o salida.
-*   **Valoración de Inventario** (⏳): ¿Cuánto dinero hay invertido en bodega según el costo de adquisición?
+*   **Valoración de Inventario** (✅): Reporte financiero en tiempo real del capital invertido (Costo vs Valor Venta) con desglose por bodega.
 *   **Alerta de Stock Bajo** (⏳): Sistema de notificaciones cuando un producto baja de cierto umbral.
 *   **Productos Más/Menos Vendidos** (⏳): Análisis de Pareto (80/20) para optimizar compras.
 
@@ -94,4 +94,4 @@ El dashboard ha sido potenciado con trazabilidad profunda.
 
 ---
 
-**🎯 Próxima prioridad sugerida**: Implementar la **Valoración de Inventario** (conocer el capital sentado en bodega) y las **Alertas de Stock Bajo** para automatizar el ciclo de reabastecimiento.
+**🎯 Próxima prioridad sugerida**: Implementar las **Alertas de Stock Bajo** (notificaciones de reabastecimiento) y el **Ranking de Productos** (Pareto) para optimizar el flujo de caja.

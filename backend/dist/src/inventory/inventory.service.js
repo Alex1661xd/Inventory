@@ -217,6 +217,54 @@ let InventoryService = class InventoryService {
             orderBy: { createdAt: 'desc' }
         });
     }
+    async getValuation(tenantId) {
+        const stocks = await this.prisma.stock.findMany({
+            where: {
+                product: { tenantId }
+            },
+            include: {
+                product: {
+                    select: {
+                        costPrice: true,
+                        salePrice: true
+                    }
+                },
+                warehouse: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                }
+            }
+        });
+        let totalCost = 0;
+        let totalValue = 0;
+        let totalItems = 0;
+        const warehouseMap = new Map();
+        stocks.forEach(s => {
+            const cost = s.quantity * Number(s.product.costPrice);
+            const value = s.quantity * Number(s.product.salePrice);
+            totalCost += cost;
+            totalValue += value;
+            totalItems += s.quantity;
+            const wh = warehouseMap.get(s.warehouseId) || { name: s.warehouse.name, cost: 0, value: 0, items: 0 };
+            wh.cost += cost;
+            wh.value += value;
+            wh.items += s.quantity;
+            warehouseMap.set(s.warehouseId, wh);
+        });
+        const warehouseBreakdown = Array.from(warehouseMap.entries()).map(([id, data]) => ({
+            id,
+            ...data
+        }));
+        return {
+            totalCost,
+            totalValue,
+            totalItems,
+            potentialProfit: totalValue - totalCost,
+            warehouseBreakdown
+        };
+    }
 };
 exports.InventoryService = InventoryService;
 exports.InventoryService = InventoryService = __decorate([

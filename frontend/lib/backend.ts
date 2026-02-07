@@ -170,6 +170,20 @@ export type StockMovement = {
     user?: { id: string; name: string };
 };
 
+export type InventoryValuation = {
+    totalCost: number;
+    totalValue: number;
+    totalItems: number;
+    potentialProfit: number;
+    warehouseBreakdown: Array<{
+        id: string;
+        name: string;
+        cost: number;
+        value: number;
+        items: number;
+    }>;
+};
+
 export const api = {
     products: {
         list: () => backendFetch<Product[]>('/products'),
@@ -243,6 +257,7 @@ export const api = {
             if (warehouseId) search.set('warehouseId', warehouseId);
             return backendFetch<StockMovement[]>(`/inventory/kardex?${search.toString()}`);
         },
+        valuation: () => backendFetch<InventoryValuation>('/inventory/valuation'),
     },
     auth: {
         me: () => backendFetch<any>('/auth/me'),

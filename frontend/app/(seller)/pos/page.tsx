@@ -1194,20 +1194,62 @@ export default function POSPage() {
 
     const loadResumedSale = async (id: string) => {
         try {
+            // 1. Obtener la factura pausada
             const invoice = await api.invoices.get(id)
             if (invoice) {
                 setResumedSaleId(invoice.id)
                 if (invoice.customer) setSelectedCustomer(invoice.customer)
 
-                const cartItems = invoice.items.map((item: any) => ({
-                    ...item.product,
-                    quantity: item.quantity,
-                    salePrice: item.unitPrice
-                }))
-                setCart(cartItems)
+                // 2. Obtener el stock fresco de este almacén para validar
+                const me = await api.auth.me()
+                const currentWarehouseId = me.warehouseId
 
-                setMobileStep(2) // Jump to products step
-                toast.success('Venta reanudada desde la base de datos')
+                if (!currentWarehouseId) {
+                    toast.error('No tienes un almacén asignado para validar esta venta.')
+                    return
+                }
+
+                const stockData = await api.inventory.stock({ warehouseId: currentWarehouseId })
+                const currentStockMap: StockMap = {}
+                stockData.forEach((row: any) => {
+                    currentStockMap[row.productId] = row.quantity
+                })
+
+                // 3. Cruzar productos pausados con stock actual
+                let hasAdjustments = false
+                const adjustedItems = invoice.items.map((item: any) => {
+                    const available = currentStockMap[item.productId] ?? 0
+                    let finalQuantity = item.quantity
+
+                    if (item.quantity > available) {
+                        hasAdjustments = true
+                        finalQuantity = Math.max(0, available)
+                    }
+
+                    return {
+                        ...item.product,
+                        quantity: finalQuantity,
+                        salePrice: item.unitPrice
+                    }
+                }).filter((item: any) => {
+                    // Si el stock es 0, lo dejamos en el carrito con cantidad 0 para que el usuario lo vea
+                    // pero no lo eliminamos para que sepa que "debía" estar ahí.
+                    return true
+                })
+
+                setCart(adjustedItems)
+                setStockMap(currentStockMap)
+
+                if (hasAdjustments) {
+                    toast.error('⚠️ ATENCIÓN: Esta venta fue iniciada en otra sede o el stock cambió. Se han ajustado las cantidades según la disponibilidad actual.', {
+                        duration: 8000,
+                        position: 'top-center'
+                    })
+                } else {
+                    toast.success('Venta reanudada con éxito')
+                }
+
+                setMobileStep(2) // Saltar a la pestaña de productos
             }
         } catch (e) {
             console.error(e)

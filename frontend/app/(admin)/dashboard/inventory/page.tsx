@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { KardexModal } from '@/components/inventory/KardexModal'
+import { formatThousands } from '@/lib/utils'
+import type { InventoryValuation } from '@/lib/backend'
 
 interface AggregatedStock {
     productId: string
@@ -53,19 +55,22 @@ export default function InventoryPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [showFilters, setShowFilters] = useState(false)
     const [selectedKardexProduct, setSelectedKardexProduct] = useState<{ id: string, name: string, warehouseId?: string } | null>(null)
+    const [valuation, setValuation] = useState<InventoryValuation | null>(null)
 
     const loadData = async () => {
         setLoading(true)
         try {
-            // Load base data and all stock
-            const [p, w, s] = await Promise.all([
+            // Load base data, all stock and valuation
+            const [p, w, s, v] = await Promise.all([
                 api.products.list(),
                 api.warehouses.list(),
-                api.inventory.stock({}) // Fetch all stock initially
+                api.inventory.stock({}), // Fetch all stock initially
+                api.inventory.valuation()
             ])
             setProducts(p)
             setWarehouses(w)
             setStock(s)
+            setValuation(v)
         } catch (e: any) {
             toast.error(e.message)
         } finally {
@@ -191,14 +196,22 @@ export default function InventoryPage() {
 
     const totalPages = Math.ceil(filteredAggregatedStock.length / itemsPerPage)
 
-    // Calculate totals
-    const totalItems = useMemo(() => filteredAggregatedStock.reduce((acc, curr) => acc + curr.totalQuantity, 0), [filteredAggregatedStock])
-    const totalValue = useMemo(() => {
-        return filteredAggregatedStock.reduce((acc, curr) => {
-            const costPrice = Number(curr.product?.costPrice || 0)
-            return acc + (curr.totalQuantity * costPrice)
-        }, 0)
-    }, [filteredAggregatedStock])
+    const filteredValuation = useMemo(() => {
+        if (!valuation) return null;
+        if (!selectedWarehouse) return valuation;
+
+        const wh = valuation.warehouseBreakdown.find(b => b.id === selectedWarehouse);
+        if (!wh) return { totalCost: 0, totalValue: 0, totalItems: 0, potentialProfit: 0, warehouseBreakdown: [] };
+
+        return {
+            totalCost: wh.cost,
+            totalValue: wh.value,
+            totalItems: wh.items,
+            potentialProfit: wh.value - wh.cost,
+            warehouseBreakdown: [wh]
+        };
+    }, [valuation, selectedWarehouse]);
+
 
     return (
         <div className="space-y-8 animate-fade-in">
@@ -256,21 +269,72 @@ export default function InventoryPage() {
                         </div>
                     </div>
 
-                    {/* Stats Summary - Always visible on mobile, maybe in a row */}
-                    <div className="grid grid-cols-2 gap-2 lg:hidden md:col-span-2">
-                        <div className="bg-[hsl(var(--primary))] text-white shadow-md rounded-xl p-3 flex flex-col items-center justify-center">
-                            <div className="text-[10px] font-medium opacity-80 uppercase">Unidades</div>
-                            <div className="text-xl font-bold">{totalItems}</div>
-                        </div>
-                        <div className="bg-[hsl(var(--secondary))] text-white shadow-md rounded-xl p-3 flex flex-col items-center justify-center">
-                            <div className="text-[10px] font-medium opacity-80 uppercase">Valor Est.</div>
-                            <div className="text-sm font-bold">${totalValue.toLocaleString()}</div>
-                        </div>
+                    {/* Stats Summary - Redesigned with Valuation */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:col-span-2 lg:col-span-4 mb-4">
+                        <Card className="bg-[hsl(var(--surface-elevated))] border-none shadow-sm overflow-hidden">
+                            <CardContent className="px-4 py-6 flex flex-col items-center justify-center min-h-[140px]">
+                                <div className="flex flex-col items-center justify-center h-full w-full">
+                                    <div className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-tighter opacity-70 mb-2 text-center">Inversión (Costo)</div>
+                                    <div className="text-xl md:text-2xl font-black text-[hsl(var(--foreground))] text-center mb-3">
+                                        ${formatThousands(filteredValuation?.totalCost || 0)}
+                                    </div>
+                                    <div className="h-1 w-full max-w-[80px] bg-amber-500/20 rounded-full mb-2 mx-auto">
+                                        <div className="h-1 bg-amber-500 rounded-full" style={{ width: '100%' }}></div>
+                                    </div>
+                                    <div className="text-[9px] font-medium text-[hsl(var(--muted))] opacity-60 text-center">Capital invertido en compras</div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="bg-[hsl(var(--surface-elevated))] border-none shadow-sm overflow-hidden">
+                            <CardContent className="px-4 py-6 flex flex-col items-center justify-center min-h-[140px]">
+                                <div className="flex flex-col items-center justify-center h-full w-full">
+                                    <div className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-tighter opacity-70 mb-2 text-center">Valor Venta Est.</div>
+                                    <div className="text-xl md:text-2xl font-black text-emerald-600 text-center mb-3">
+                                        ${formatThousands(filteredValuation?.totalValue || 0)}
+                                    </div>
+                                    <div className="h-1 w-full max-w-[80px] bg-emerald-500/20 rounded-full mb-2 mx-auto">
+                                        <div className="h-1 bg-emerald-500 rounded-full" style={{ width: '100%' }}></div>
+                                    </div>
+                                    <div className="text-[9px] font-medium text-[hsl(var(--muted))] opacity-60 text-center">Ingreso bruto potencial</div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="bg-[hsl(var(--surface-elevated))] border-none shadow-sm overflow-hidden">
+                            <CardContent className="px-4 py-6 flex flex-col items-center justify-center min-h-[140px]">
+                                <div className="flex flex-col items-center justify-center h-full w-full">
+                                    <div className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-tighter opacity-70 mb-2 text-center">Margen Potencial</div>
+                                    <div className="text-xl md:text-2xl font-black text-blue-600 text-center mb-1">
+                                        ${formatThousands(filteredValuation?.potentialProfit || 0)}
+                                    </div>
+                                    <div className="text-[10px] font-bold text-blue-500 mb-2 text-center">
+                                        {filteredValuation?.totalCost ? ((filteredValuation.potentialProfit / filteredValuation.totalCost) * 100).toFixed(1) : 0}% sobre costo
+                                    </div>
+                                    <div className="text-[9px] font-medium text-[hsl(var(--muted))] opacity-60 text-center">Utilidad bruta esperada</div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="bg-[hsl(var(--primary))] text-white border-none shadow-md overflow-hidden">
+                            <CardContent className="px-4 py-6 flex flex-col items-center justify-center min-h-[140px]">
+                                <div className="flex flex-col items-center justify-center h-full w-full">
+                                    <div className="text-[10px] font-black opacity-80 uppercase tracking-tighter mb-2 text-center">Total Unidades</div>
+                                    <div className="text-xl md:text-2xl font-black text-center mb-2">
+                                        {formatThousands(filteredValuation?.totalItems || 0)}
+                                    </div>
+                                    <div className="text-[10px] font-bold opacity-70 mb-1 text-center">
+                                        {selectedWarehouse ? 'En esta bodega' : `En ${filteredValuation?.warehouseBreakdown?.length || 0} Bodegas`}
+                                    </div>
+                                    <div className="text-[9px] font-medium opacity-50 text-center">Conteo físico de mercancía</div>
+                                </div>
+                            </CardContent>
+                        </Card>
                     </div>
 
                     {/* Secondary Filters - Hidden on mobile unless showFilters is true */}
                     <div className={cn(
-                        "grid gap-4 md:grid-cols-2 lg:grid-cols-3 lg:col-span-3 items-end",
+                        "grid gap-4 md:grid-cols-2 lg:grid-cols-2 lg:col-span-4 items-end",
                         !showFilters && "hidden lg:grid"
                     )}>
                         <div className="space-y-2">
@@ -300,12 +364,6 @@ export default function InventoryPage() {
                                     <option key={w.id} value={w.id}>{w.name}</option>
                                 ))}
                             </select>
-                        </div>
-                        {/* Hidden on mobile, shown on large screens */}
-                        <div className="hidden lg:flex bg-[hsl(var(--primary))] text-white border-none shadow-lg rounded-lg p-4 flex-col items-center justify-center h-full text-center">
-                            <div className="text-sm font-medium opacity-80 mb-1">Total Unidades</div>
-                            <div className="text-3xl font-bold mb-1">{totalItems}</div>
-                            <div className="text-xs opacity-70">${totalValue.toLocaleString()}</div>
                         </div>
                     </div>
                 </div>

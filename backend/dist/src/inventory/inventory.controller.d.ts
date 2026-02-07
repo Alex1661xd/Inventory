@@ -49,4 +49,17 @@ export declare class InventoryController {
         notes: string | null;
         userId: string | null;
     })[]>;
+    getValuation(tenantId: string): Promise<{
+        totalCost: number;
+        totalValue: number;
+        totalItems: number;
+        potentialProfit: number;
+        warehouseBreakdown: {
+            name: string;
+            cost: number;
+            value: number;
+            items: number;
+            id: string;
+        }[];
+    }>;
 }

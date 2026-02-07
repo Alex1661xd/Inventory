@@ -39,6 +39,9 @@ let InventoryController = class InventoryController {
     getKardex(tenantId, productId, warehouseId) {
         return this.inventoryService.getKardex(tenantId, productId, warehouseId);
     }
+    getValuation(tenantId) {
+        return this.inventoryService.getValuation(tenantId);
+    }
 };
 exports.InventoryController = InventoryController;
 __decorate([
@@ -79,6 +82,14 @@ __decorate([
     __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
 ], InventoryController.prototype, "getKardex", null);
+__decorate([
+    (0, common_1.Get)('valuation'),
+    (0, roles_decorator_1.Roles)('ADMIN', 'SUPER_ADMIN'),
+    __param(0, (0, get_tenant_id_decorator_1.GetTenantId)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], InventoryController.prototype, "getValuation", null);
 exports.InventoryController = InventoryController = __decorate([
     (0, common_1.UseGuards)(get_tenant_guard_1.GetTenantGuard),
     (0, common_1.Controller)('inventory'),
