@@ -12,37 +12,37 @@ export declare class InventoryController {
     }>;
     findStock(tenantId: string, query: QueryStockDto): Promise<{
         product: {
-            id: string;
             name: string;
-            barcode: string | null;
+            id: string;
             sku: string | null;
             costPrice: import("@prisma/client/runtime/library").Decimal;
             categoryId: string | null;
+            barcode: string | null;
         };
         warehouse: {
-            id: string;
             name: string;
+            id: string;
         };
         id: string;
+        warehouseId: string;
         quantity: number;
         productId: string;
-        warehouseId: string;
     }[]>;
     getKardex(tenantId: string, productId: string, warehouseId?: string): Promise<({
         user: {
-            id: string;
             name: string;
+            id: string;
         } | null;
         warehouse: {
-            id: string;
             name: string;
+            id: string;
         };
     } & {
         id: string;
+        warehouseId: string;
         createdAt: Date;
         quantity: number;
         productId: string;
-        warehouseId: string;
         balanceAfter: number;
         type: import("@prisma/client").$Enums.StockMovementType;
         reference: string | null;

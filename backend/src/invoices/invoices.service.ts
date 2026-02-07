@@ -26,6 +26,10 @@ export class InvoicesService {
             const detailKey = this.cacheService.generateKey(tenantId, 'invoices', 'detail', invoiceId);
             await this.cacheService.invalidate(detailKey);
         }
+
+        // TAMBIÉN INVALIDAR ANALYTICS Y P&L (Gastos y Utilidad) ya que las facturas afectan estos reportes
+        await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'analytics', '*'));
+        await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'expenses', '*'));
     }
 
     async create(tenantId: string, sellerId: string, dto: CreateInvoiceDto) {

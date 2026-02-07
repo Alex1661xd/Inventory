@@ -1,12 +1,16 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../cache/cache.service';
 import { OpenShiftDto } from './dto/open-shift.dto';
 import { CloseShiftDto } from './dto/close-shift.dto';
 import { CreateTransactionDto, CashTransactionType } from './dto/create-transaction.dto';
 
 @Injectable()
 export class CashFlowService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private cacheService: CacheService
+    ) { }
 
     async openShift(tenantId: string, sellerId: string, dto: OpenShiftDto) {
         // Verificar si ya tiene turno abierto
@@ -152,7 +156,7 @@ export class CashFlowService {
         const finalAmount = dto.finalAmount;
         const difference = finalAmount - systemAmount;
 
-        return this.prisma.cashShift.update({
+        const result = await this.prisma.cashShift.update({
             where: { id: shift.id },
             data: {
                 status: 'CLOSED',
@@ -162,11 +166,20 @@ export class CashFlowService {
                 difference
             }
         });
+
+        // Invalidar caché de historial
+        await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'cash-flow', '*'));
+
+        return result;
     }
 
     // Para Admin
     async getHistory(tenantId: string, limit = 50) {
-        return this.prisma.cashShift.findMany({
+        const cacheKey = this.cacheService.generateKey(tenantId, 'cash-flow', 'history', limit.toString());
+        const cached = await this.cacheService.get<any>(cacheKey);
+        if (cached) return cached;
+
+        const result = await this.prisma.cashShift.findMany({
             where: { tenantId },
             orderBy: { openingTime: 'desc' },
             take: limit,
@@ -175,5 +188,8 @@ export class CashFlowService {
                 transactions: true
             }
         });
+
+        await this.cacheService.set(cacheKey, result, 300); // 5 min
+        return result;
     }
 }

@@ -184,6 +184,25 @@ export type InventoryValuation = {
     }>;
 };
 
+export type AnalyticsDashboard = {
+    period: { start: string; end: string };
+    summary: {
+        totalRevenue: number;
+        totalProfit: number;
+        totalExpenses: number;
+        netProfit: number;
+        salesCount: number;
+        averageTicket: number;
+    };
+    salesOverTime: Array<{ date: string; total: number; profit: number }>;
+    topProducts: Array<{ name: string; quantity: number; revenue: number; profit: number }>;
+    topSellers: Array<{ name: string; total: number; salesCount: number }>;
+    warehouseStats: Array<{ name: string; total: number; salesCount: number }>;
+    categoryStats: Array<{ name: string; total: number }>;
+    paymentMethodStats: Array<{ name: string; total: number }>;
+    deadStock: Array<{ id: string; name: string; sku: string | null; stock: number; value: number }>;
+};
+
 export const api = {
     products: {
         list: () => backendFetch<Product[]>('/products'),
@@ -337,5 +356,14 @@ export const api = {
                 netProfit: number;
                 netMargin: number;
             }>(`/expenses/profit-loss?startDate=${startDate}&endDate=${endDate}`),
+    },
+    analytics: {
+        dashboard: (from?: string, to?: string) => {
+            const params = new URLSearchParams();
+            if (from) params.append('from', from);
+            if (to) params.append('to', to);
+            const query = params.toString();
+            return backendFetch<AnalyticsDashboard>(`/analytics/dashboard${query ? `?${query}` : ''}`);
+        },
     },
 };

@@ -39,8 +39,8 @@ Se implementó el módulo de gastos para que el dueño del negocio conozca su ut
     *   Tabla de gastos con acciones de eliminar.
     *   Formulario modal para registrar nuevos gastos.
 
-## ✅ 4. Reportes Avanzados e Inteligencia de Negocio (**EN PROGRESO**)
-El dashboard ha sido potenciado con trazabilidad profunda.
+## ✅ 4. Reportes Avanzados e Inteligencia de Negocio (**IMPLEMENTADO**)
+El dashboard ha sido potenciado con trazabilidad profunda y analítica visual.
 
 *   **Kardex de Inventario** (✅): 
     *   **Implementación**: Historial completo por producto y por almacén.
@@ -51,8 +51,10 @@ El dashboard ha sido potenciado con trazabilidad profunda.
     *   **Motivos**: Capacidad de clasificar salidas por Daño, Devolución o Ajuste técnico.
     *   **Inteligencia**: El formulario de actualización filtra motivos según si es entrada o salida.
 *   **Valoración de Inventario** (✅): Reporte financiero en tiempo real del capital invertido (Costo vs Valor Venta) con desglose por bodega.
+*   **Ranking de Productos (Análisis de Pareto)** (✅): 
+    *   **Implementación**: Nueva página `/dashboard/reports` con gráficas interactivas.
+    *   **Alcance**: Top de productos por ingresos y por utilidad, tendencia de ventas vs utilidad neta, y desempeño de vendedores.
 *   **Alerta de Stock Bajo** (⏳): Sistema de notificaciones cuando un producto baja de cierto umbral.
-*   **Productos Más/Menos Vendidos** (⏳): Análisis de Pareto (80/20) para optimizar compras.
 
 ## 🔒 5. Auditoría y Seguridad
 *   **Logs de Actividad**: Registro de "quién hizo qué" (ediciones de stock o eliminación de facturas).

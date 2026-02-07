@@ -16,11 +16,12 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { CashFlowModule } from './cash-flow/cash-flow.module';
 import { ExpensesModule } from './expenses/expenses.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { GetTenantGuard } from './auth/guards/get-tenant.guard';
 
 @Module({
-  imports: [CacheModule, PrismaModule, SupabaseModule, AuthModule, ProductsModule, WarehousesModule, InventoryModule, CategoriesModule, UsersModule, CustomersModule, InvoicesModule, SuppliersModule, CashFlowModule, ExpensesModule],
+  imports: [CacheModule, PrismaModule, SupabaseModule, AuthModule, ProductsModule, WarehousesModule, InventoryModule, CategoriesModule, UsersModule, CustomersModule, InvoicesModule, SuppliersModule, CashFlowModule, ExpensesModule, AnalyticsModule],
   controllers: [AppController],
   providers: [
     AppService,

@@ -5,23 +5,23 @@ export declare class WarehousesController {
     private readonly warehousesService;
     constructor(warehousesService: WarehousesService);
     create(tenantId: string, dto: CreateWarehouseDto): Promise<{
-        name: string;
         id: string;
+        name: string;
         tenantId: string;
         address: string | null;
         isDefault: boolean;
     }>;
     findAll(tenantId: string): Promise<any[]>;
     update(tenantId: string, id: string, dto: UpdateWarehouseDto): Promise<{
-        name: string;
         id: string;
+        name: string;
         tenantId: string;
         address: string | null;
         isDefault: boolean;
     }>;
     remove(tenantId: string, id: string): Promise<{
-        name: string;
         id: string;
+        name: string;
         tenantId: string;
         address: string | null;
         isDefault: boolean;

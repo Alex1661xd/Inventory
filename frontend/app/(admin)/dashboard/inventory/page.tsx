@@ -272,62 +272,54 @@ export default function InventoryPage() {
                     {/* Stats Summary - Redesigned with Valuation */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:col-span-2 lg:col-span-4 mb-4">
                         <Card className="bg-[hsl(var(--surface-elevated))] border-none shadow-sm overflow-hidden">
-                            <CardContent className="px-4 py-6 flex flex-col items-center justify-center min-h-[140px]">
-                                <div className="flex flex-col items-center justify-center h-full w-full">
-                                    <div className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-tighter opacity-70 mb-2 text-center">Inversión (Costo)</div>
-                                    <div className="text-xl md:text-2xl font-black text-[hsl(var(--foreground))] text-center mb-3">
-                                        ${formatThousands(filteredValuation?.totalCost || 0)}
-                                    </div>
-                                    <div className="h-1 w-full max-w-[80px] bg-amber-500/20 rounded-full mb-2 mx-auto">
-                                        <div className="h-1 bg-amber-500 rounded-full" style={{ width: '100%' }}></div>
-                                    </div>
-                                    <div className="text-[9px] font-medium text-[hsl(var(--muted))] opacity-60 text-center">Capital invertido en compras</div>
+                            <CardContent className="p-6 flex flex-col items-center justify-center min-h-[140px]">
+                                <div className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-tighter opacity-70 mb-2 text-center">Inversión (Costo)</div>
+                                <div className="text-xl md:text-2xl font-black text-[hsl(var(--foreground))] text-center mb-3">
+                                    ${formatThousands(filteredValuation?.totalCost || 0)}
                                 </div>
+                                <div className="h-1 w-full max-w-[80px] bg-amber-500/20 rounded-full mb-2 mx-auto">
+                                    <div className="h-1 bg-amber-500 rounded-full" style={{ width: '100%' }}></div>
+                                </div>
+                                <div className="text-[9px] font-medium text-[hsl(var(--muted))] opacity-60 text-center">Capital invertido en compras</div>
                             </CardContent>
                         </Card>
 
                         <Card className="bg-[hsl(var(--surface-elevated))] border-none shadow-sm overflow-hidden">
-                            <CardContent className="px-4 py-6 flex flex-col items-center justify-center min-h-[140px]">
-                                <div className="flex flex-col items-center justify-center h-full w-full">
-                                    <div className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-tighter opacity-70 mb-2 text-center">Valor Venta Est.</div>
-                                    <div className="text-xl md:text-2xl font-black text-emerald-600 text-center mb-3">
-                                        ${formatThousands(filteredValuation?.totalValue || 0)}
-                                    </div>
-                                    <div className="h-1 w-full max-w-[80px] bg-emerald-500/20 rounded-full mb-2 mx-auto">
-                                        <div className="h-1 bg-emerald-500 rounded-full" style={{ width: '100%' }}></div>
-                                    </div>
-                                    <div className="text-[9px] font-medium text-[hsl(var(--muted))] opacity-60 text-center">Ingreso bruto potencial</div>
+                            <CardContent className="p-6 flex flex-col items-center justify-center min-h-[140px]">
+                                <div className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-tighter opacity-70 mb-2 text-center">Valor Venta Est.</div>
+                                <div className="text-xl md:text-2xl font-black text-emerald-600 text-center mb-3">
+                                    ${formatThousands(filteredValuation?.totalValue || 0)}
                                 </div>
+                                <div className="h-1 w-full max-w-[80px] bg-emerald-500/20 rounded-full mb-2 mx-auto">
+                                    <div className="h-1 bg-emerald-500 rounded-full" style={{ width: '100%' }}></div>
+                                </div>
+                                <div className="text-[9px] font-medium text-[hsl(var(--muted))] opacity-60 text-center">Ingreso bruto potencial</div>
                             </CardContent>
                         </Card>
 
                         <Card className="bg-[hsl(var(--surface-elevated))] border-none shadow-sm overflow-hidden">
-                            <CardContent className="px-4 py-6 flex flex-col items-center justify-center min-h-[140px]">
-                                <div className="flex flex-col items-center justify-center h-full w-full">
-                                    <div className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-tighter opacity-70 mb-2 text-center">Margen Potencial</div>
-                                    <div className="text-xl md:text-2xl font-black text-blue-600 text-center mb-1">
-                                        ${formatThousands(filteredValuation?.potentialProfit || 0)}
-                                    </div>
-                                    <div className="text-[10px] font-bold text-blue-500 mb-2 text-center">
-                                        {filteredValuation?.totalCost ? ((filteredValuation.potentialProfit / filteredValuation.totalCost) * 100).toFixed(1) : 0}% sobre costo
-                                    </div>
-                                    <div className="text-[9px] font-medium text-[hsl(var(--muted))] opacity-60 text-center">Utilidad bruta esperada</div>
+                            <CardContent className="p-6 flex flex-col items-center justify-center min-h-[140px]">
+                                <div className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-tighter opacity-70 mb-2 text-center">Margen Potencial</div>
+                                <div className="text-xl md:text-2xl font-black text-blue-600 text-center mb-1">
+                                    ${formatThousands(filteredValuation?.potentialProfit || 0)}
                                 </div>
+                                <div className="text-[10px] font-bold text-blue-500 mb-2 text-center">
+                                    {filteredValuation?.totalCost ? ((filteredValuation.potentialProfit / filteredValuation.totalCost) * 100).toFixed(1) : 0}% sobre costo
+                                </div>
+                                <div className="text-[9px] font-medium text-[hsl(var(--muted))] opacity-60 text-center">Utilidad bruta esperada</div>
                             </CardContent>
                         </Card>
 
                         <Card className="bg-[hsl(var(--primary))] text-white border-none shadow-md overflow-hidden">
-                            <CardContent className="px-4 py-6 flex flex-col items-center justify-center min-h-[140px]">
-                                <div className="flex flex-col items-center justify-center h-full w-full">
-                                    <div className="text-[10px] font-black opacity-80 uppercase tracking-tighter mb-2 text-center">Total Unidades</div>
-                                    <div className="text-xl md:text-2xl font-black text-center mb-2">
-                                        {formatThousands(filteredValuation?.totalItems || 0)}
-                                    </div>
-                                    <div className="text-[10px] font-bold opacity-70 mb-1 text-center">
-                                        {selectedWarehouse ? 'En esta bodega' : `En ${filteredValuation?.warehouseBreakdown?.length || 0} Bodegas`}
-                                    </div>
-                                    <div className="text-[9px] font-medium opacity-50 text-center">Conteo físico de mercancía</div>
+                            <CardContent className="p-6 flex flex-col items-center justify-center min-h-[140px]">
+                                <div className="text-[10px] font-black opacity-80 uppercase tracking-tighter mb-2 text-center">Total Unidades</div>
+                                <div className="text-xl md:text-2xl font-black text-center mb-2">
+                                    {formatThousands(filteredValuation?.totalItems || 0)}
                                 </div>
+                                <div className="text-[10px] font-bold opacity-70 mb-1 text-center">
+                                    {selectedWarehouse ? 'En esta bodega' : `En ${filteredValuation?.warehouseBreakdown?.length || 0} Bodegas`}
+                                </div>
+                                <div className="text-[9px] font-medium opacity-50 text-center">Conteo físico de mercancía</div>
                             </CardContent>
                         </Card>
                     </div>

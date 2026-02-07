@@ -53,10 +53,24 @@ export class CacheService {
      * no expone un método keys() directo en la versión actual
      */
     async invalidatePattern(pattern: string): Promise<void> {
-        // Por ahora, este método no hace nada. 
-        // Para invalidación por patrón, necesitarías Redis directamente
-        // o mantener un registro de claves por tenant
-        console.warn(`invalidatePattern no implementado para: ${pattern}`);
+        try {
+            console.log(`🧹 [CACHE INVALIDATE PATTERN] ${pattern}`);
+            const store = (this.cacheManager as any).store;
+
+            // Intentar obtener todas las claves si el store lo soporta
+            if (typeof store.keys === 'function') {
+                const allKeys = await store.keys(pattern);
+                if (allKeys && allKeys.length > 0) {
+                    console.log(`🗑️ Borrando ${allKeys.length} claves para el patrón: ${pattern}`);
+                    await Promise.all(allKeys.map(key => this.cacheManager.del(key)));
+                    console.log(`✅ [INVALIDATE PATTERN SUCCESS] ${pattern}`);
+                }
+            } else {
+                console.warn(`⚠️ OJO: El store de caché no soporta búsqueda de claves (necesario para patrones). Se ignoró el patrón: ${pattern}`);
+            }
+        } catch (error) {
+            console.error(`🚨 [CACHE INVALIDATE PATTERN ERROR] ${pattern}:`, error.message);
+        }
     }
 
     /**

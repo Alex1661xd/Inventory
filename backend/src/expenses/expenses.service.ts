@@ -1,14 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../cache/cache.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 
 @Injectable()
 export class ExpensesService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private cacheService: CacheService
+    ) { }
 
     async create(tenantId: string, userId: string, dto: CreateExpenseDto) {
-        return this.prisma.expense.create({
+        const expense = await this.prisma.expense.create({
             data: {
                 amount: dto.amount,
                 description: dto.description,
@@ -25,6 +29,12 @@ export class ExpensesService {
                 }
             }
         });
+
+        // Invalidar cachés relacionados
+        await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'analytics', '*'));
+        await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'expenses', '*'));
+
+        return expense;
     }
 
     async findAll(tenantId: string, filters?: {
@@ -69,19 +79,29 @@ export class ExpensesService {
     }
 
     async update(tenantId: string, id: string, dto: UpdateExpenseDto) {
-        return this.prisma.expense.updateMany({
+        const result = await this.prisma.expense.updateMany({
             where: { id, tenantId },
             data: {
                 ...dto,
                 date: dto.date ? new Date(dto.date) : undefined,
             },
         });
+
+        await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'analytics', '*'));
+        await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'expenses', '*'));
+
+        return result;
     }
 
     async remove(tenantId: string, id: string) {
-        return this.prisma.expense.deleteMany({
+        const result = await this.prisma.expense.deleteMany({
             where: { id, tenantId },
         });
+
+        await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'analytics', '*'));
+        await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'expenses', '*'));
+
+        return result;
     }
 
     // Resumen para el P&L
@@ -113,6 +133,10 @@ export class ExpensesService {
 
     // Estado de Resultados (P&L)
     async getProfitAndLoss(tenantId: string, startDate: string, endDate: string) {
+        const cacheKey = this.cacheService.generateKey(tenantId, 'expenses', 'profit-loss', startDate, endDate);
+        const cached = await this.cacheService.get<any>(cacheKey);
+        if (cached) return cached;
+
         // Total de ventas
         const salesResult = await this.prisma.invoice.aggregate({
             where: {
@@ -166,7 +190,7 @@ export class ExpensesService {
         const netProfit = grossProfit - expensesSummary.totalExpenses;
         const netMargin = totalSales > 0 ? (netProfit / totalSales) * 100 : 0;
 
-        return {
+        const result = {
             period: { startDate, endDate },
             revenue: {
                 totalSales,
@@ -179,5 +203,8 @@ export class ExpensesService {
             netProfit,
             netMargin: Math.round(netMargin * 100) / 100
         };
+
+        await this.cacheService.set(cacheKey, result, 120);
+        return result;
     }
 }
