@@ -14,6 +14,7 @@ const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
 const crypto_1 = require("crypto");
 const cache_service_1 = require("../cache/cache.service");
+const client_1 = require("@prisma/client");
 let ProductsService = class ProductsService {
     prisma;
     cacheService;
@@ -36,7 +37,7 @@ let ProductsService = class ProductsService {
         }
         throw new common_1.BadRequestException('Could not generate a unique barcode');
     }
-    async create(tenantId, dto) {
+    async create(tenantId, dto, userId) {
         const currentProductsCount = await this.prisma.product.count({
             where: { tenantId }
         });
@@ -90,6 +91,17 @@ let ProductsService = class ProductsService {
                             warehouseId: initialWarehouseId,
                             quantity: initialStock,
                         },
+                    });
+                    await tx.stockMovement.create({
+                        data: {
+                            type: client_1.StockMovementType.INITIAL,
+                            quantity: initialStock,
+                            balanceAfter: initialStock,
+                            productId: product.id,
+                            warehouseId: initialWarehouseId,
+                            notes: 'Inventario inicial al crear el producto',
+                            userId: userId || null,
+                        }
                     });
                 }
                 return product;

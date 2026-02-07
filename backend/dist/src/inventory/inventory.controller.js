@@ -16,6 +16,7 @@ exports.InventoryController = void 0;
 const common_1 = require("@nestjs/common");
 const get_tenant_guard_1 = require("../auth/guards/get-tenant.guard");
 const get_tenant_id_decorator_1 = require("../auth/decorators/get-tenant-id.decorator");
+const get_user_decorator_1 = require("../auth/decorators/get-user.decorator");
 const inventory_service_1 = require("./inventory.service");
 const update_stock_dto_1 = require("./dto/update-stock.dto");
 const transfer_stock_dto_1 = require("./dto/transfer-stock.dto");
@@ -26,14 +27,17 @@ let InventoryController = class InventoryController {
     constructor(inventoryService) {
         this.inventoryService = inventoryService;
     }
-    updateStock(tenantId, dto) {
-        return this.inventoryService.updateStock(tenantId, dto);
+    updateStock(tenantId, userId, dto) {
+        return this.inventoryService.updateStock(tenantId, dto, userId);
     }
-    transferStock(tenantId, dto) {
-        return this.inventoryService.transferStock(tenantId, dto);
+    transferStock(tenantId, userId, dto) {
+        return this.inventoryService.transferStock(tenantId, dto, userId);
     }
     findStock(tenantId, query) {
         return this.inventoryService.findStock(tenantId, query);
+    }
+    getKardex(tenantId, productId, warehouseId) {
+        return this.inventoryService.getKardex(tenantId, productId, warehouseId);
     }
 };
 exports.InventoryController = InventoryController;
@@ -41,18 +45,20 @@ __decorate([
     (0, common_1.Patch)('update-stock'),
     (0, roles_decorator_1.Roles)('ADMIN', 'SUPER_ADMIN'),
     __param(0, (0, get_tenant_id_decorator_1.GetTenantId)()),
-    __param(1, (0, common_1.Body)()),
+    __param(1, (0, get_user_decorator_1.GetUser)('id')),
+    __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, update_stock_dto_1.UpdateStockDto]),
+    __metadata("design:paramtypes", [String, String, update_stock_dto_1.UpdateStockDto]),
     __metadata("design:returntype", void 0)
 ], InventoryController.prototype, "updateStock", null);
 __decorate([
     (0, common_1.Patch)('transfer'),
     (0, roles_decorator_1.Roles)('ADMIN', 'SUPER_ADMIN', 'SELLER'),
     __param(0, (0, get_tenant_id_decorator_1.GetTenantId)()),
-    __param(1, (0, common_1.Body)()),
+    __param(1, (0, get_user_decorator_1.GetUser)('id')),
+    __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, transfer_stock_dto_1.TransferStockDto]),
+    __metadata("design:paramtypes", [String, String, transfer_stock_dto_1.TransferStockDto]),
     __metadata("design:returntype", void 0)
 ], InventoryController.prototype, "transferStock", null);
 __decorate([
@@ -63,6 +69,16 @@ __decorate([
     __metadata("design:paramtypes", [String, query_stock_dto_1.QueryStockDto]),
     __metadata("design:returntype", void 0)
 ], InventoryController.prototype, "findStock", null);
+__decorate([
+    (0, common_1.Get)('kardex'),
+    (0, roles_decorator_1.Roles)('ADMIN', 'SUPER_ADMIN'),
+    __param(0, (0, get_tenant_id_decorator_1.GetTenantId)()),
+    __param(1, (0, common_1.Query)('productId')),
+    __param(2, (0, common_1.Query)('warehouseId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", void 0)
+], InventoryController.prototype, "getKardex", null);
 exports.InventoryController = InventoryController = __decorate([
     (0, common_1.UseGuards)(get_tenant_guard_1.GetTenantGuard),
     (0, common_1.Controller)('inventory'),

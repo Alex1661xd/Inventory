@@ -1,4 +1,5 @@
-import { IsUUID, IsInt, IsNotEmpty } from 'class-validator';
+import { IsUUID, IsInt, IsNotEmpty, IsEnum, IsOptional } from 'class-validator';
+import { StockMovementType } from '@prisma/client';
 
 export class UpdateStockDto {
     @IsUUID()
@@ -12,4 +13,8 @@ export class UpdateStockDto {
     @IsInt()
     @IsNotEmpty()
     quantityDelta!: number;
+
+    @IsEnum(StockMovementType)
+    @IsOptional()
+    type?: StockMovementType;
 }

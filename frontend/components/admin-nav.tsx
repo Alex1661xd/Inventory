@@ -12,7 +12,8 @@ const links = [
     { href: '/dashboard/categories', label: 'Categorías', icon: '📁' },
     { href: '/dashboard/transfers', label: 'Traslados', icon: '🚚' },
     { href: '/dashboard/suppliers', label: 'Proveedores', icon: '🏭' },
-    { href: '/dashboard/cash-flow', label: 'Arqueos de Caja', icon: '💰' },
+    { href: '/dashboard/cash-flow', label: 'Arqueos de Caja', icon: '💵' },
+    { href: '/dashboard/expenses', label: 'Gastos y Utilidad', icon: '💰' },
     { href: '/dashboard/sellers', label: 'Vendedores', icon: '👥' },
 ]
 

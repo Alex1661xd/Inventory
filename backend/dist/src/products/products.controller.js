@@ -20,13 +20,14 @@ const roles_decorator_1 = require("../auth/decorators/roles.decorator");
 const create_product_dto_1 = require("./dto/create-product.dto");
 const update_product_dto_1 = require("./dto/update-product.dto");
 const products_service_1 = require("./products.service");
+const get_user_decorator_1 = require("../auth/decorators/get-user.decorator");
 let ProductsController = class ProductsController {
     productsService;
     constructor(productsService) {
         this.productsService = productsService;
     }
-    create(tenantId, dto) {
-        return this.productsService.create(tenantId, dto);
+    create(tenantId, dto, userId) {
+        return this.productsService.create(tenantId, dto, userId);
     }
     findAll(tenantId) {
         return this.productsService.findAllWithTotalStock(tenantId);
@@ -50,8 +51,9 @@ __decorate([
     (0, roles_decorator_1.Roles)('ADMIN', 'SUPER_ADMIN'),
     __param(0, (0, get_tenant_id_decorator_1.GetTenantId)()),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, get_user_decorator_1.GetUser)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, create_product_dto_1.CreateProductDto]),
+    __metadata("design:paramtypes", [String, create_product_dto_1.CreateProductDto, String]),
     __metadata("design:returntype", void 0)
 ], ProductsController.prototype, "create", null);
 __decorate([

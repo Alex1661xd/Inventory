@@ -5,6 +5,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
+import { GetUser } from '../auth/decorators/get-user.decorator';
 
 @UseGuards(GetTenantGuard)
 @Controller('products')
@@ -13,8 +14,12 @@ export class ProductsController {
 
     @Post()
     @Roles('ADMIN', 'SUPER_ADMIN')
-    create(@GetTenantId() tenantId: string, @Body() dto: CreateProductDto) {
-        return this.productsService.create(tenantId, dto);
+    create(
+        @GetTenantId() tenantId: string,
+        @Body() dto: CreateProductDto,
+        @GetUser('id') userId: string
+    ) {
+        return this.productsService.create(tenantId, dto, userId);
     }
 
     @Get()

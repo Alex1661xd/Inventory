@@ -11,10 +11,12 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateStockDto = void 0;
 const class_validator_1 = require("class-validator");
+const client_1 = require("@prisma/client");
 class UpdateStockDto {
     productId;
     warehouseId;
     quantityDelta;
+    type;
 }
 exports.UpdateStockDto = UpdateStockDto;
 __decorate([
@@ -32,4 +34,9 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", Number)
 ], UpdateStockDto.prototype, "quantityDelta", void 0);
+__decorate([
+    (0, class_validator_1.IsEnum)(client_1.StockMovementType),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], UpdateStockDto.prototype, "type", void 0);
 //# sourceMappingURL=update-stock.dto.js.map

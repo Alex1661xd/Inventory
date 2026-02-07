@@ -4,6 +4,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { randomBytes } from 'crypto';
 import { CacheService } from '../cache/cache.service';
+import { StockMovementType } from '@prisma/client';
 
 @Injectable()
 export class ProductsService {
@@ -30,7 +31,7 @@ export class ProductsService {
         throw new BadRequestException('Could not generate a unique barcode');
     }
 
-    async create(tenantId: string, dto: CreateProductDto) {
+    async create(tenantId: string, dto: CreateProductDto, userId?: string) {
         // 1. Validar límite de productos (Plan Básico: 500 productos)
         const currentProductsCount = await this.prisma.product.count({
             where: { tenantId }
@@ -97,6 +98,19 @@ export class ProductsService {
                             warehouseId: initialWarehouseId,
                             quantity: initialStock,
                         },
+                    });
+
+                    // Record initial stock in Kardex
+                    await tx.stockMovement.create({
+                        data: {
+                            type: StockMovementType.INITIAL,
+                            quantity: initialStock,
+                            balanceAfter: initialStock,
+                            productId: product.id,
+                            warehouseId: initialWarehouseId,
+                            notes: 'Inventario inicial al crear el producto',
+                            userId: userId || null,
+                        }
                     });
                 }
 

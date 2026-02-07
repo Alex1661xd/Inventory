@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
+import { KardexModal } from '@/components/inventory/KardexModal'
 
 interface AggregatedStock {
     productId: string
@@ -39,7 +40,8 @@ export default function InventoryPage() {
         productId: '',
         warehouseId: '',
         quantityDelta: 1,
-        action: 'increase' // 'increase' or 'decrease'
+        action: 'increase', // 'increase' or 'decrease'
+        reason: 'ADJUSTMENT' // 'ADJUSTMENT', 'DAMAGE', 'RETURN'
     })
     const [currentStock, setCurrentStock] = useState<number | null>(null)
     const [showConfirmation, setShowConfirmation] = useState(false)
@@ -50,6 +52,7 @@ export default function InventoryPage() {
     const [selectedWarehouse, setSelectedWarehouse] = useState('')
     const [searchQuery, setSearchQuery] = useState('')
     const [showFilters, setShowFilters] = useState(false)
+    const [selectedKardexProduct, setSelectedKardexProduct] = useState<{ id: string, name: string, warehouseId?: string } | null>(null)
 
     const loadData = async () => {
         setLoading(true)
@@ -106,13 +109,14 @@ export default function InventoryPage() {
             await api.inventory.updateStock({
                 productId,
                 warehouseId,
-                quantityDelta: finalDelta
+                quantityDelta: finalDelta,
+                type: updateStockForm.reason as any
             })
 
             toast.success(`Stock actualizado: ${action === 'increase' ? '+' : '-'}${quantityDelta} unidades`)
             setShowConfirmation(false)
             setShowUpdateStockModal(false)
-            setUpdateStockForm({ productId: '', warehouseId: '', quantityDelta: 1, action: 'increase' })
+            setUpdateStockForm({ productId: '', warehouseId: '', quantityDelta: 1, action: 'increase', reason: 'ADJUSTMENT' })
             setCurrentStock(null)
             await loadData()
         } catch (e: any) {
@@ -362,12 +366,13 @@ export default function InventoryPage() {
                                     <th className="px-6 py-4 text-left text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Almacén</th>
                                     <th className="px-6 py-4 text-center text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Cantidad</th>
                                     <th className="px-6 py-4 text-left text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Estado</th>
+                                    <th className="px-6 py-4 text-right text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Kardex</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[hsl(var(--border))]">
                                 {paginatedStock.length === 0 && (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center text-[hsl(var(--muted))]">
+                                        <td colSpan={6} className="px-6 py-12 text-center text-[hsl(var(--muted))]">
                                             <div className="text-4xl mb-4">🔍</div>
                                             <p className="font-medium">No se encontraron productos con los filtros seleccionados.</p>
                                         </td>
@@ -401,6 +406,20 @@ export default function InventoryPage() {
                                                     <span className="text-xs font-medium px-2 py-1 rounded-full bg-red-50 text-red-700 border border-red-100">
                                                         Sin Stock
                                                     </span>
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-8 text-[10px] font-black uppercase tracking-tighter border-indigo-200 bg-indigo-50/30 text-indigo-700 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all duration-300 shadow-sm flex items-center gap-1.5 rounded-full px-3 ml-auto"
+                                                        onClick={() => item.product && setSelectedKardexProduct({
+                                                            id: item.product.id,
+                                                            name: item.product.name,
+                                                            warehouseId: selectedWarehouse || undefined
+                                                        })}
+                                                    >
+                                                        <span>📋</span> Ver Kardex
+                                                    </Button>
                                                 </td>
                                             </tr>
                                         ];
@@ -438,6 +457,20 @@ export default function InventoryPage() {
                                                     <span className={`text-xs font-medium px-2 py-1 rounded-full bg-${statusColor}-50 text-${statusColor}-700 border border-${statusColor}-100`}>
                                                         {stockStatus}
                                                     </span>
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-8 text-[10px] font-black uppercase tracking-tighter border-indigo-200 bg-indigo-50/30 text-indigo-700 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all duration-300 shadow-sm flex items-center gap-1.5 rounded-full px-3 ml-auto"
+                                                        onClick={() => item.product && setSelectedKardexProduct({
+                                                            id: item.product.id,
+                                                            name: item.product.name,
+                                                            warehouseId: warehouse.id
+                                                        })}
+                                                    >
+                                                        <span>📋</span> Ver Kardex
+                                                    </Button>
                                                 </td>
                                             </tr>
                                         );
@@ -568,7 +601,7 @@ export default function InventoryPage() {
                                     <Button
                                         type="button"
                                         variant={updateStockForm.action === 'increase' ? 'default' : 'outline'}
-                                        onClick={() => setUpdateStockForm(prev => ({ ...prev, action: 'increase' }))}
+                                        onClick={() => setUpdateStockForm(prev => ({ ...prev, action: 'increase', reason: 'ADJUSTMENT' }))}
                                         className="h-10"
                                     >
                                         ➕ Aumentar
@@ -576,12 +609,38 @@ export default function InventoryPage() {
                                     <Button
                                         type="button"
                                         variant={updateStockForm.action === 'decrease' ? 'default' : 'outline'}
-                                        onClick={() => setUpdateStockForm(prev => ({ ...prev, action: 'decrease' }))}
+                                        onClick={() => setUpdateStockForm(prev => ({ ...prev, action: 'decrease', reason: 'ADJUSTMENT' }))}
                                         className="h-10"
                                     >
                                         ➖ Disminuir
                                     </Button>
                                 </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium">Motivo del Movimiento</Label>
+                                <select
+                                    className="flex h-10 w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
+                                    value={updateStockForm.reason}
+                                    onChange={(e) => setUpdateStockForm(prev => ({ ...prev, reason: e.target.value }))}
+                                >
+                                    <option value="ADJUSTMENT">Ajuste Manual (General)</option>
+                                    {updateStockForm.action === 'increase' ? (
+                                        <>
+                                            <option value="PURCHASE">Ingreso por Compra</option>
+                                            <option value="RETURN">Devolución de Cliente</option>
+                                            <option value="INITIAL">Inventario Inicial</option>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <option value="DAMAGE">Daño / Merma (Rotura)</option>
+                                            <option value="RETURN">Devolución a Proveedor</option>
+                                        </>
+                                    )}
+                                </select>
+                                <p className="text-[10px] text-[hsl(var(--muted))] italic">
+                                    Esto determinará cómo aparece etiquetado en el Kardex.
+                                </p>
                             </div>
 
                             <div className="space-y-2">
@@ -631,7 +690,7 @@ export default function InventoryPage() {
                                 onClick={() => {
                                     setShowUpdateStockModal(false)
                                     setShowConfirmation(false)
-                                    setUpdateStockForm({ productId: '', warehouseId: '', quantityDelta: 1, action: 'increase' })
+                                    setUpdateStockForm({ productId: '', warehouseId: '', quantityDelta: 1, action: 'increase', reason: 'ADJUSTMENT' })
                                     setCurrentStock(null)
                                 }}
                                 className="flex-1"
@@ -710,6 +769,14 @@ export default function InventoryPage() {
                                             {updateStockForm.action === 'increase' ? '+' : '-'}{updateStockForm.quantityDelta} unidades
                                         </span>
                                     </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-[hsl(var(--muted))]">Motivo:</span>
+                                        <span className="text-sm font-bold text-indigo-600">
+                                            {updateStockForm.reason === 'DAMAGE' ? 'DAÑO / MERMA' :
+                                                updateStockForm.reason === 'RETURN' ? 'DEVOLUCIÓN' :
+                                                    updateStockForm.reason === 'PURCHASE' ? 'COMPRA' : 'AJUSTE MANUAL'}
+                                        </span>
+                                    </div>
                                     <div className="flex justify-between pt-2 border-t border-[hsl(var(--border))]">
                                         <span className="text-sm font-semibold">Stock Final:</span>
                                         <span className="text-sm font-bold">
@@ -748,6 +815,13 @@ export default function InventoryPage() {
                     </div>
                 </div>
             )}
+
+            <KardexModal
+                isOpen={!!selectedKardexProduct}
+                onClose={() => setSelectedKardexProduct(null)}
+                product={selectedKardexProduct}
+                warehouseId={selectedKardexProduct?.warehouseId}
+            />
         </div>
     )
 }

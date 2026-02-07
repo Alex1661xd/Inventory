@@ -127,6 +127,49 @@ export type CashTransaction = {
     createdAt: string;
 };
 
+export type ExpenseCategory =
+    | 'RENT'
+    | 'UTILITIES'
+    | 'PAYROLL'
+    | 'SUPPLIES'
+    | 'MAINTENANCE'
+    | 'TRANSPORT'
+    | 'MARKETING'
+    | 'TAXES'
+    | 'INSURANCE'
+    | 'OTHER';
+
+export type Expense = {
+    id: string;
+    amount: number;
+    description: string;
+    category: ExpenseCategory;
+    date: string;
+    supplierId?: string;
+    supplier?: Supplier;
+    createdById: string;
+    createdBy?: { id: string; name: string };
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type StockMovementType = 'PURCHASE' | 'SALE' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'ADJUSTMENT' | 'RETURN' | 'DAMAGE' | 'INITIAL';
+
+export type StockMovement = {
+    id: string;
+    type: StockMovementType;
+    quantity: number;
+    balanceAfter: number;
+    reference?: string | null;
+    notes?: string | null;
+    productId: string;
+    warehouseId: string;
+    userId?: string | null;
+    createdAt: string;
+    warehouse: { id: string; name: string };
+    user?: { id: string; name: string };
+};
+
 export const api = {
     products: {
         list: () => backendFetch<Product[]>('/products'),
@@ -183,7 +226,7 @@ export const api = {
         remove: (id: string) => backendFetch<Category>(`/categories/${id}`, { method: 'DELETE' }),
     },
     inventory: {
-        updateStock: (payload: { productId: string; warehouseId: string; quantityDelta: number }) =>
+        updateStock: (payload: { productId: string; warehouseId: string; quantityDelta: number; type?: StockMovementType }) =>
             backendFetch<any>('/inventory/update-stock', { method: 'PATCH', json: payload }),
         transfer: (payload: { productId: string; fromWarehouseId: string; toWarehouseId: string; quantity: number }) =>
             backendFetch<any>('/inventory/transfer', { method: 'PATCH', json: payload }),
@@ -193,6 +236,12 @@ export const api = {
             if (params.warehouseId) search.set('warehouseId', params.warehouseId);
             const q = search.toString();
             return backendFetch<StockRow[]>(`/inventory/stock${q ? `?${q}` : ''}`);
+        },
+        kardex: (productId: string, warehouseId?: string) => {
+            const search = new URLSearchParams();
+            search.set('productId', productId);
+            if (warehouseId) search.set('warehouseId', warehouseId);
+            return backendFetch<StockMovement[]>(`/inventory/kardex?${search.toString()}`);
         },
     },
     auth: {
@@ -243,5 +292,35 @@ export const api = {
         addTransaction: (payload: { amount: number; reason: string; type: 'DEPOSIT' | 'WITHDRAWAL' | 'EXPENSE' }) =>
             backendFetch<CashTransaction>('/cash-flow/transaction', { method: 'POST', json: payload }),
         history: () => backendFetch<CashShift[]>('/cash-flow/history'),
+    },
+    expenses: {
+        list: (filters?: { startDate?: string; endDate?: string; category?: string }) => {
+            const params = new URLSearchParams();
+            if (filters?.startDate) params.set('startDate', filters.startDate);
+            if (filters?.endDate) params.set('endDate', filters.endDate);
+            if (filters?.category) params.set('category', filters.category);
+            const q = params.toString();
+            return backendFetch<Expense[]>(`/expenses${q ? `?${q}` : ''}`);
+        },
+        create: (payload: { amount: number; description: string; category: ExpenseCategory; date?: string; supplierId?: string }) =>
+            backendFetch<Expense>('/expenses', { method: 'POST', json: payload }),
+        update: (id: string, payload: Partial<{ amount: number; description: string; category: ExpenseCategory; date?: string; supplierId?: string }>) =>
+            backendFetch<Expense>(`/expenses/${id}`, { method: 'PUT', json: payload }),
+        remove: (id: string) => backendFetch<void>(`/expenses/${id}`, { method: 'DELETE' }),
+        summary: (startDate: string, endDate: string) =>
+            backendFetch<{ byCategory: { category: string; total: number }[]; totalExpenses: number }>(
+                `/expenses/summary?startDate=${startDate}&endDate=${endDate}`
+            ),
+        profitLoss: (startDate: string, endDate: string) =>
+            backendFetch<{
+                period: { startDate: string; endDate: string };
+                revenue: { totalSales: number; salesCount: number };
+                costOfGoodsSold: number;
+                grossProfit: number;
+                grossMargin: number;
+                operatingExpenses: { byCategory: { category: string; total: number }[]; totalExpenses: number };
+                netProfit: number;
+                netMargin: number;
+            }>(`/expenses/profit-loss?startDate=${startDate}&endDate=${endDate}`),
     },
 };

@@ -4,13 +4,9 @@ import { ProductsService } from './products.service';
 export declare class ProductsController {
     private readonly productsService;
     constructor(productsService: ProductsService);
-    create(tenantId: string, dto: CreateProductDto): Promise<{
-        name: string;
+    create(tenantId: string, dto: CreateProductDto, userId: string): Promise<{
         id: string;
-        tenantId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        isPublic: boolean;
+        name: string;
         description: string | null;
         barcode: string | null;
         sku: string | null;
@@ -18,18 +14,18 @@ export declare class ProductsController {
         images: string[];
         costPrice: import("@prisma/client/runtime/library").Decimal;
         salePrice: import("@prisma/client/runtime/library").Decimal;
+        isPublic: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
         categoryId: string | null;
     }>;
     findAll(tenantId: string): Promise<any[]>;
     findByBarcode(tenantId: string, barcode: string): Promise<any>;
     findOne(tenantId: string, id: string): Promise<any>;
     update(tenantId: string, id: string, dto: UpdateProductDto): Promise<{
-        name: string;
         id: string;
-        tenantId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        isPublic: boolean;
+        name: string;
         description: string | null;
         barcode: string | null;
         sku: string | null;
@@ -37,15 +33,15 @@ export declare class ProductsController {
         images: string[];
         costPrice: import("@prisma/client/runtime/library").Decimal;
         salePrice: import("@prisma/client/runtime/library").Decimal;
+        isPublic: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
         categoryId: string | null;
     }>;
     remove(tenantId: string, id: string): Promise<{
-        name: string;
         id: string;
-        tenantId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        isPublic: boolean;
+        name: string;
         description: string | null;
         barcode: string | null;
         sku: string | null;
@@ -53,6 +49,10 @@ export declare class ProductsController {
         images: string[];
         costPrice: import("@prisma/client/runtime/library").Decimal;
         salePrice: import("@prisma/client/runtime/library").Decimal;
+        isPublic: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
         categoryId: string | null;
     }>;
 }

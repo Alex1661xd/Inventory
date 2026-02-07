@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { StockMovementType } from '@prisma/client';
 import { CacheService } from '../cache/cache.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 
@@ -82,10 +83,10 @@ export class InvoicesService {
                 include: { items: true }
             });
 
-            // 3. Decrement Stock if status is PAID
+            // 3. Decrement Stock + Keep Kardex
             if (dto.status === 'PAID') {
                 for (const item of dto.items) {
-                    await tx.stock.update({
+                    const updatedStock = await tx.stock.update({
                         where: {
                             productId_warehouseId: {
                                 productId: item.productId,
@@ -93,6 +94,20 @@ export class InvoicesService {
                             }
                         },
                         data: { quantity: { decrement: item.quantity } }
+                    });
+
+                    // Registro en Kardex (SALE)
+                    await tx.stockMovement.create({
+                        data: {
+                            productId: item.productId,
+                            warehouseId: dto.warehouseId,
+                            type: StockMovementType.SALE,
+                            quantity: -item.quantity,
+                            balanceAfter: updatedStock.quantity,
+                            reference: `Invoice #${invoice.invoiceNumber}`,
+                            notes: `Venta #${invoice.invoiceNumber}`,
+                            userId: sellerId,
+                        }
                     });
                 }
             }

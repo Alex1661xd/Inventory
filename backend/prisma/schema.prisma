@@ -71,6 +71,7 @@ model Tenant {
   categories  Category[]
   suppliers   Supplier[]
   cashShifts  CashShift[]
+  expenses    Expense[]
 }
 
 // --------------------------------------
@@ -95,6 +96,8 @@ model User {
   // Relaciones
   sales     Invoice[] // Las ventas que ha hecho este usuario
   cashShifts CashShift[]
+  expenses  Expense[] // Gastos registrados por este usuario
+  stockMovements StockMovement[] // Movimientos de inventario realizados
 
   @@index([tenantId])
   @@index([warehouseId])
@@ -136,6 +139,7 @@ model Product {
   // Relaciones
   inventory   Stock[]       // Relación con almacenes
   invoiceItems InvoiceItem[]
+  stockMovements StockMovement[] // Kardex del producto
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -160,6 +164,8 @@ model Warehouse {
   users     User[]
 
   isDefault Boolean  @default(false)
+  
+  stockMovements StockMovement[] // Movimientos en este almacén
 
   @@index([tenantId])
 }
@@ -179,6 +185,47 @@ model Stock {
   @@unique([productId, warehouseId])
   @@index([productId])
   @@index([warehouseId])
+}
+
+// --------------------------------------
+// KARDEX - MOVIMIENTOS DE INVENTARIO
+// --------------------------------------
+
+enum StockMovementType {
+  PURCHASE      // Entrada por compra
+  SALE          // Salida por venta
+  TRANSFER_IN   // Entrada por transferencia
+  TRANSFER_OUT  // Salida por transferencia
+  ADJUSTMENT    // Ajuste manual (positivo o negativo)
+  RETURN        // Devolución de cliente
+  DAMAGE        // Merma por daño
+  INITIAL       // Stock inicial
+}
+
+model StockMovement {
+  id            String            @id @default(uuid())
+  quantity      Int               // Positivo = entrada, Negativo = salida
+  balanceAfter  Int               // Saldo después del movimiento
+  type          StockMovementType
+  reference     String?           // Número de factura, orden de compra, etc.
+  notes         String?           // Notas adicionales
+  
+  productId     String
+  product       Product           @relation(fields: [productId], references: [id])
+  
+  warehouseId   String
+  warehouse     Warehouse         @relation(fields: [warehouseId], references: [id])
+  
+  // Opcional: Usuario que hizo el movimiento
+  userId        String?
+  user          User?             @relation(fields: [userId], references: [id])
+  
+  createdAt     DateTime          @default(now())
+  
+  @@index([productId])
+  @@index([warehouseId])
+  @@index([createdAt])
+  @@index([type])
 }
 
 // --------------------------------------
@@ -258,6 +305,9 @@ model Supplier {
   tenantId     String
   tenant       Tenant   @relation(fields: [tenantId], references: [id])
   
+  // Gastos pagados a este proveedor
+  expenses     Expense[]
+  
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   
@@ -306,4 +356,47 @@ model CashTransaction {
   shift       CashShift           @relation(fields: [shiftId], references: [id])
   
   createdAt   DateTime            @default(now())
+}
+
+// --------------------------------------
+// GASTOS OPERATIVOS
+// --------------------------------------
+
+enum ExpenseCategory {
+  RENT          // Arriendo del local
+  UTILITIES     // Servicios públicos (agua, luz, internet)
+  PAYROLL       // Nómina y salarios
+  SUPPLIES      // Suministros de oficina
+  MAINTENANCE   // Mantenimiento y reparaciones
+  TRANSPORT     // Transporte y fletes
+  MARKETING     // Publicidad y marketing
+  TAXES         // Impuestos
+  INSURANCE     // Seguros
+  OTHER         // Otros gastos
+}
+
+model Expense {
+  id          String          @id @default(uuid())
+  amount      Decimal
+  description String
+  category    ExpenseCategory
+  date        DateTime        @default(now())  // Fecha del gasto
+  
+  // Opcional: Proveedor asociado
+  supplierId  String?
+  supplier    Supplier?       @relation(fields: [supplierId], references: [id])
+  
+  // Multi-tenancy
+  tenantId    String
+  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+  
+  // Quién registró el gasto
+  createdById String
+  createdBy   User            @relation(fields: [createdById], references: [id])
+  
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([tenantId])
+  @@index([date])
 }

@@ -2,52 +2,96 @@
 
 Basado en el análisis de la estructura actual del sistema, se han identificado las siguientes áreas clave que faltan o podrían mejorarse para convertir la aplicación en una solución de gestión de recursos empresariales (ERP) completa y robusta.
 
-## 1. Módulo de Compras y Proveedores (Critico)
-Actualmente, el inventario parece alimentarse manualmente o por ajustes. Falta un ciclo formal de reabastecimiento.
+---
 
-*   **Gestión de Proveedores**: Base de datos de proveedores con información de contacto, plazos de pago y calificación.
-*   **Órdenes de Compra (Purchase Orders)**:
-    *   Generación de pedidos a proveedores.
-    *   Recepción de mercancía (convertir Orden de Compra -> Entrada de Inventario).
-    *   Control de costos de adquisición (promedio ponderado).
-*   **Cuentas por Pagar**: Registro de facturas de proveedores y fechas de vencimiento de pagos.
+## ✅ 1. Módulo de Compras y Proveedores (**IMPLEMENTADO**)
+Este módulo ya ha sido integrado para formalizar el ciclo de reabastecimiento.
 
-## 2. Módulo Financiero y Flujo de Caja (Critico para POS)
-Es vital saber no solo cuánto se vendió, sino dónde está el dinero y cuánto se gana realmente.
+*   **Gestión de Proveedores** (✅): Base de datos completa con contacto, dirección, identificación tributaria y términos de pago.
+*   **Órdenes de Compra / Recepción**: Se integró la capacidad de registrar proveedores vinculados al tenant.
+*   **Estado**: El backend ya soporta la relación `Supplier` y el frontend cuenta con el módulo de gestión.
 
-*   **Apertura y Cierre de Caja (Corte de Turno)**:
-    *   Control de efectivo inicial y final por vendedor/caja.
-    *   Arqueo de caja: Comparación de efectivo real vs. sistema.
-    *   Registro de salidas de dinero (retiros, pagos menores).
-*   **Registro de Gastos Operativos**:
-    *   Categorías de gastos (ej. Renta, Servicios, Nómina, Mantenimiento).
-    *   Registro de gastos recurrentes y únicos.
-*   **Estado de Resultados (P&L)**: Reporte simple de Ventas - (Costo de Ventas + Gastos) = Utilidad Neta.
+## ✅ 2. Módulo Financiero y Flujo de Caja (**IMPLEMENTADO**)
+Se ha robustecido el POS para garantizar que el dinero físico coincida con el sistema.
 
-## 3. Reportes Avanzados e Inteligencia de Negocio
-El dashboard actual ofrece una vista general, pero un administrador necesita profundizar.
+*   **Apertura y Cierre de Caja (Corte de Turno)** (✅): 
+    *   **Implementación**: Se crearon los diálogos `CashOpenDialog` y `CashCloseDialog`.
+    *   **Lógica**: Al abrir se define una base inicial. Al cerrar, el sistema muestra un resumen detallado (Ventas + Entradas - Salidas) y solicita el arqueo real.
+    *   **Seguridad**: El sistema obliga a cerrar sesión al finalizar el turno para garantizar un inicio limpio el día siguiente.
+*   **Registro de Movimientos Manuales** (✅):
+    *   **Implementación**: Botón "Movimiento" en el POS para registrar **Depósitos, Retiros y Gastos**.
+    *   **Visibilidad**: Los movimientos se desglosan en el cierre de caja y en el historial de administración.
+*   **Auditoría**: Nueva tabla de "Control de Flujo" para administradores con cálculo de diferencias y promedio de ventas neto.
 
-*   **Kardex de Inventario**: Historial detallado de cada movimiento (entrada/salida) de un producto específico (Auditoría de stock).
-*   **Valoración de Inventario**: ¿Cuánto dinero tengo invertido en bodega hoy? (Costo total del stock administrativo).
-*   **Productos Más/Menos Vendidos**: Análisis de Pareto (80/20) para optimizar compras.
-*   **Reportes de Márgenes**: Beneficio por producto, por categoría y por vendedor.
-*   **Reporte de Stock Bajo/Crítico**: Alertas automáticas o lista para generar órdenes de compra.
+## ✅ 3. Gastos Operativos y Estado de Resultados (**IMPLEMENTADO**)
+Se implementó el módulo de gastos para que el dueño del negocio conozca su utilidad real.
 
+*   **Gastos Operativos** (✅):
+    *   **Backend**: Nuevo modelo `Expense` con categorías (Arriendo, Servicios, Nómina, Suministros, Mantenimiento, Transporte, Marketing, Impuestos, Seguros, Otros).
+    *   **Endpoints CRUD**: Crear, listar con filtros (fechas, categoría), actualizar y eliminar gastos.
+    *   **Relaciones**: Asociación opcional a proveedores y registro de quién creó el gasto.
+*   **Estado de Resultados (P&L)** (✅):
+    *   **Cálculo Automático**: Ventas - Costo de Mercancía - Gastos Operativos = Utilidad Neta.
+    *   **Dashboard Visual**: Tarjetas con gradientes para Ventas, Costo de Ventas, Gastos y Utilidad Neta.
+    *   **Reporte Detallado**: Desglose línea a línea del estado de resultados con márgenes.
+*   **Frontend**: Nueva página `/dashboard/expenses` con:
+    *   Filtros por fecha y categoría.
+    *   Tabla de gastos con acciones de eliminar.
+    *   Formulario modal para registrar nuevos gastos.
 
-## 5. Auditoría y Seguridad
-*   **Logs de Actividad**: Registro de "quién hizo qué y cuándo" (especialmente para ediciones de stock, eliminaciones y descuentos).
-*   **Roles y Permisos Granulares**: Definir exactamente qué puede hacer cada vendedor (ej. ¿puede hacer descuentos? ¿puede ver costos?).
+## ✅ 4. Reportes Avanzados e Inteligencia de Negocio (**EN PROGRESO**)
+El dashboard ha sido potenciado con trazabilidad profunda.
 
-## 6. Mejoras en Inventario (Multialmacén)
-Dado que ya existen los almacenes (`warehouses`) y transferencias (`transfers`):
+*   **Kardex de Inventario** (✅): 
+    *   **Implementación**: Historial completo por producto y por almacén.
+    *   **Funcionalidad**: Registro automático de Ventas, Traslados, Compras y Stock Inicial.
+    *   **Control**: Registro de Usuario responsable en cada movimiento manual.
+    *   **Interfaz**: Modal de alta precisión con paginación y alternancia entre vista local (almacén) y global.
+*   **Ajustes de Inventario (Mermas/Daños)** (✅): 
+    *   **Motivos**: Capacidad de clasificar salidas por Daño, Devolución o Ajuste técnico.
+    *   **Inteligencia**: El formulario de actualización filtra motivos según si es entrada o salida.
+*   **Valoración de Inventario** (⏳): ¿Cuánto dinero hay invertido en bodega según el costo de adquisición?
+*   **Alerta de Stock Bajo** (⏳): Sistema de notificaciones cuando un producto baja de cierto umbral.
+*   **Productos Más/Menos Vendidos** (⏳): Análisis de Pareto (80/20) para optimizar compras.
 
-*   **Ajustes de Inventario (Mermas/Pérdidas)**: Módulo específico para registrar roturas, robos o vencimientos, diferenciándolos de las ventas.
-*   **Inventario Físico (Toma de Inventario)**: Herramienta para "congelar" el sistema y realizar el conteo físico, generando automáticamente los ajustes de diferencias.
+## 🔒 5. Auditoría y Seguridad
+*   **Logs de Actividad**: Registro de "quién hizo qué" (ediciones de stock o eliminación de facturas).
+*   **Roles Granulares**: Limitar qué vendedores pueden ver costos de compra o aplicar descuentos manuales.
+
+## 🏗️ 6. Mejoras en Inventario (Multialmacén)
+*   **Ajustes de Inventario** (✅): Implementado con trazabilidad en Kardex.
+*   **Toma de Inventario Físico** (⏳): Herramienta para comparar conteos manuales vs. sistema en bloque.
+*   **Módulo de Traslados** (✅): Implementado con registro doble en Kardex (Salida origen / Entrada destino).
 
 ---
 
-### Resumen de Prioridades Recomendadas
+### Resumen de Avance
 
-1.  **1º Prioridad**: Flujo de Caja (Cortes de caja). Es fundamental para evitar robos y descontrol de efectivo en el día a día.
-2.  **2º Prioridad**: Gastos y Reporte de Utilidad. Para saber si el negocio es rentable.
-3.  **3º Prioridad**: Compras y Proveedores. Para organizar el reabastecimiento.
+| Módulo | Estado | Descripción |
+|--------|--------|-------------|
+| Flujo de Caja | ✅ 100% | Apertura, cierre, movimientos manuales y arqueo |
+| Proveedores | ✅ 100% | Backend y Frontend funcionales |
+| **Kardex** | ✅ 100% | Trazabilidad completa, motivos de daño y vista global/local |
+| Ventas | ✅ 100% | Con capacidad de pausar, resumir y anular |
+| **Gastos y P&L** | ✅ 100% | Registro de gastos operativos y estado de resultados |
+
+---
+
+### 🔧 Instrucciones para Activar el Módulo de Gastos
+
+1. **Ejecutar migración de base de datos**:
+   ```bash
+   cd backend
+   npx prisma migrate dev --name add_expense_model
+   # O si falla la conexión directa:
+   npx prisma db push
+   npx prisma generate
+   ```
+
+2. **Reiniciar el backend** para que cargue los nuevos endpoints.
+
+3. **Acceder al módulo**: En el panel de administración, buscar **"💰 Gastos y Utilidad"** en el menú lateral.
+
+---
+
+**🎯 Próxima prioridad sugerida**: Implementar la **Valoración de Inventario** (conocer el capital sentado en bodega) y las **Alertas de Stock Bajo** para automatizar el ciclo de reabastecimiento.

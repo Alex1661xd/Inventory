@@ -3,12 +3,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TransferStockDto } from './dto/transfer-stock.dto';
 import { UpdateStockDto } from './dto/update-stock.dto';
 import { QueryStockDto } from './dto/query-stock.dto';
+import { StockMovementType } from '@prisma/client';
 
 @Injectable()
 export class InventoryService {
     constructor(private readonly prisma: PrismaService) { }
 
-    async transferStock(tenantId: string, dto: TransferStockDto) {
+    async transferStock(tenantId: string, dto: TransferStockDto, userId?: string) {
         if (dto.fromWarehouseId === dto.toWarehouseId) {
             throw new BadRequestException('Source and destination warehouses must be different');
         }
@@ -39,7 +40,7 @@ export class InventoryService {
             }
 
             // Decrement source
-            await tx.stock.update({
+            const sourceUpdated = await tx.stock.update({
                 where: {
                     productId_warehouseId: {
                         productId: dto.productId,
@@ -49,6 +50,19 @@ export class InventoryService {
                 data: {
                     quantity: sourceStock.quantity - dto.quantity,
                 },
+            });
+
+            // Record Outgoing Movement
+            await tx.stockMovement.create({
+                data: {
+                    type: StockMovementType.TRANSFER_OUT,
+                    quantity: -dto.quantity,
+                    balanceAfter: sourceUpdated.quantity,
+                    productId: dto.productId,
+                    warehouseId: dto.fromWarehouseId,
+                    notes: `Transferencia a ${toWarehouse.name}`,
+                    userId: userId || null,
+                }
             });
 
             // Increment destination (or create if not exists)
@@ -61,8 +75,9 @@ export class InventoryService {
                 },
             });
 
+            let destUpdated;
             if (destStock) {
-                await tx.stock.update({
+                destUpdated = await tx.stock.update({
                     where: {
                         productId_warehouseId: {
                             productId: dto.productId,
@@ -74,7 +89,7 @@ export class InventoryService {
                     },
                 });
             } else {
-                await tx.stock.create({
+                destUpdated = await tx.stock.create({
                     data: {
                         productId: dto.productId,
                         warehouseId: dto.toWarehouseId,
@@ -83,11 +98,24 @@ export class InventoryService {
                 });
             }
 
+            // Record Incoming Movement
+            await tx.stockMovement.create({
+                data: {
+                    type: StockMovementType.TRANSFER_IN,
+                    quantity: dto.quantity,
+                    balanceAfter: destUpdated.quantity,
+                    productId: dto.productId,
+                    warehouseId: dto.toWarehouseId,
+                    notes: `Transferencia desde ${fromWarehouse.name}`,
+                    userId: userId || null,
+                }
+            });
+
             return { success: true, message: `Transferred ${dto.quantity} units of ${product.name}` };
         });
     }
 
-    async updateStock(tenantId: string, dto: UpdateStockDto) {
+    async updateStock(tenantId: string, dto: UpdateStockDto, userId?: string) {
         if (!Number.isInteger(dto.quantityDelta) || dto.quantityDelta === 0) {
             throw new BadRequestException('quantityDelta must be a non-zero integer');
         }
@@ -110,36 +138,58 @@ export class InventoryService {
                 },
             });
 
+            let newStock;
             if (!existing) {
                 if (dto.quantityDelta < 0) {
                     throw new BadRequestException('Cannot decrease stock below zero');
                 }
 
-                return tx.stock.create({
+                newStock = await tx.stock.create({
                     data: {
                         productId: dto.productId,
                         warehouseId: dto.warehouseId,
                         quantity: dto.quantityDelta,
                     },
                 });
-            }
+            } else {
+                const newQuantity = existing.quantity + dto.quantityDelta;
+                if (newQuantity < 0) {
+                    throw new BadRequestException('Cannot decrease stock below zero');
+                }
 
-            const newQuantity = existing.quantity + dto.quantityDelta;
-            if (newQuantity < 0) {
-                throw new BadRequestException('Cannot decrease stock below zero');
-            }
-
-            return tx.stock.update({
-                where: {
-                    productId_warehouseId: {
-                        productId: dto.productId,
-                        warehouseId: dto.warehouseId,
+                newStock = await tx.stock.update({
+                    where: {
+                        productId_warehouseId: {
+                            productId: dto.productId,
+                            warehouseId: dto.warehouseId,
+                        },
                     },
-                },
+                    data: {
+                        quantity: newQuantity,
+                    },
+                });
+            }
+
+            // Determine movement type and default notes
+            const movementType = dto.type || StockMovementType.ADJUSTMENT;
+            const defaultNotes = movementType === StockMovementType.DAMAGE ? 'Registro de daño/merma' :
+                movementType === StockMovementType.RETURN ? 'Devolución de mercancía' :
+                    'Ajuste manual de inventario';
+
+            // Record Movement
+            await tx.stockMovement.create({
                 data: {
-                    quantity: newQuantity,
-                },
+                    type: movementType,
+                    quantity: dto.quantityDelta,
+                    balanceAfter: newStock.quantity,
+                    productId: dto.productId,
+                    warehouseId: dto.warehouseId,
+                    notes: defaultNotes,
+                    userId: userId || null,
+                }
             });
+
+            return newStock;
         });
     }
 
@@ -163,5 +213,22 @@ export class InventoryService {
             product,
             warehouse,
         }));
+    }
+
+    async getKardex(tenantId: string, productId: string, warehouseId?: string) {
+        const product = await this.prisma.product.findFirst({ where: { id: productId, tenantId } });
+        if (!product) throw new NotFoundException('Product not found');
+
+        return this.prisma.stockMovement.findMany({
+            where: {
+                productId,
+                ...(warehouseId ? { warehouseId } : {})
+            },
+            include: {
+                warehouse: { select: { id: true, name: true } },
+                user: { select: { id: true, name: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
     }
 }

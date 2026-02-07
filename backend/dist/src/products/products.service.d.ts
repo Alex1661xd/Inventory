@@ -8,13 +8,9 @@ export declare class ProductsService {
     constructor(prisma: PrismaService, cacheService: CacheService);
     private generateBarcode;
     private generateUniqueBarcode;
-    create(tenantId: string, dto: CreateProductDto): Promise<{
-        name: string;
+    create(tenantId: string, dto: CreateProductDto, userId?: string): Promise<{
         id: string;
-        tenantId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        isPublic: boolean;
+        name: string;
         description: string | null;
         barcode: string | null;
         sku: string | null;
@@ -22,18 +18,18 @@ export declare class ProductsService {
         images: string[];
         costPrice: import("@prisma/client/runtime/library").Decimal;
         salePrice: import("@prisma/client/runtime/library").Decimal;
+        isPublic: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
         categoryId: string | null;
     }>;
     findAllWithTotalStock(tenantId: string): Promise<any[]>;
     findOne(tenantId: string, id: string): Promise<any>;
     findByBarcode(tenantId: string, barcode: string): Promise<any>;
     update(tenantId: string, id: string, dto: UpdateProductDto): Promise<{
-        name: string;
         id: string;
-        tenantId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        isPublic: boolean;
+        name: string;
         description: string | null;
         barcode: string | null;
         sku: string | null;
@@ -41,15 +37,15 @@ export declare class ProductsService {
         images: string[];
         costPrice: import("@prisma/client/runtime/library").Decimal;
         salePrice: import("@prisma/client/runtime/library").Decimal;
+        isPublic: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
         categoryId: string | null;
     }>;
     remove(tenantId: string, id: string): Promise<{
-        name: string;
         id: string;
-        tenantId: string;
-        createdAt: Date;
-        updatedAt: Date;
-        isPublic: boolean;
+        name: string;
         description: string | null;
         barcode: string | null;
         sku: string | null;
@@ -57,6 +53,10 @@ export declare class ProductsService {
         images: string[];
         costPrice: import("@prisma/client/runtime/library").Decimal;
         salePrice: import("@prisma/client/runtime/library").Decimal;
+        isPublic: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        tenantId: string;
         categoryId: string | null;
     }>;
     private invalidateProductCache;
