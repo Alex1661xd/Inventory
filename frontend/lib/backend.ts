@@ -325,7 +325,13 @@ export const api = {
         } | null>('/cash-flow/summary'),
         addTransaction: (payload: { amount: number; reason: string; type: 'DEPOSIT' | 'WITHDRAWAL' | 'EXPENSE' }) =>
             backendFetch<CashTransaction>('/cash-flow/transaction', { method: 'POST', json: payload }),
-        history: () => backendFetch<CashShift[]>('/cash-flow/history'),
+        history: (filters?: { startDate?: string; endDate?: string }) => {
+            const params = new URLSearchParams();
+            if (filters?.startDate) params.append('from', filters.startDate);
+            if (filters?.endDate) params.append('to', filters.endDate);
+            const query = params.toString();
+            return backendFetch<CashShift[]>(`/cash-flow/history${query ? `?${query}` : ''}`);
+        },
     },
     expenses: {
         list: (filters?: { startDate?: string; endDate?: string; category?: string }) => {
