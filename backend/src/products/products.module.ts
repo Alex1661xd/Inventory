@@ -2,9 +2,11 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ProductsController } from './products.controller';
 import { ProductsService } from './products.service';
+import { CacheModule } from '../cache/cache.module';
+import { SupabaseModule } from '../supabase/supabase.module';
 
 @Module({
-    imports: [PrismaModule],
+    imports: [PrismaModule, CacheModule, SupabaseModule],
     controllers: [ProductsController],
     providers: [ProductsService],
     exports: [ProductsService],

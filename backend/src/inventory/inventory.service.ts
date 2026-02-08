@@ -3,11 +3,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TransferStockDto } from './dto/transfer-stock.dto';
 import { UpdateStockDto } from './dto/update-stock.dto';
 import { QueryStockDto } from './dto/query-stock.dto';
+import { CacheService } from '../cache/cache.service';
 import { StockMovementType } from '@prisma/client';
 
 @Injectable()
 export class InventoryService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly cacheService: CacheService
+    ) { }
 
     async transferStock(tenantId: string, dto: TransferStockDto, userId?: string) {
         if (dto.fromWarehouseId === dto.toWarehouseId) {
@@ -111,6 +115,9 @@ export class InventoryService {
                 }
             });
 
+            await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'products', '*'));
+            await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'inventory', '*'));
+
             return { success: true, message: `Transferred ${dto.quantity} units of ${product.name}` };
         });
     }
@@ -128,7 +135,7 @@ export class InventoryService {
         if (!product) throw new NotFoundException('Product not found');
         if (!warehouse) throw new NotFoundException('Warehouse not found');
 
-        return this.prisma.$transaction(async (tx) => {
+        const result = await this.prisma.$transaction(async (tx) => {
             const existing = await tx.stock.findUnique({
                 where: {
                     productId_warehouseId: {
@@ -170,6 +177,51 @@ export class InventoryService {
                 });
             }
 
+            // --- LÓGICA FIFO PARA AJUSTES MANUALES ---
+            if (dto.quantityDelta > 0) {
+                // Si es un ajuste positivo, creamos un nuevo lote con el costo actual del producto
+                const productData = await tx.product.findUnique({
+                    where: { id: dto.productId },
+                    select: { costPrice: true }
+                });
+
+                await tx.stockBatch.create({
+                    data: {
+                        tenantId,
+                        productId: dto.productId,
+                        warehouseId: dto.warehouseId,
+                        initialQuantity: dto.quantityDelta,
+                        remainingQuantity: dto.quantityDelta,
+                        costPrice: productData?.costPrice ?? 0,
+                        entryDate: new Date()
+                    }
+                });
+            } else if (dto.quantityDelta < 0) {
+                // Si es un ajuste negativo, consumimos lotes existentes (FIFO)
+                let pendingToSubtract = Math.abs(dto.quantityDelta);
+
+                const batches = await tx.stockBatch.findMany({
+                    where: {
+                        productId: dto.productId,
+                        warehouseId: dto.warehouseId,
+                        remainingQuantity: { gt: 0 }
+                    },
+                    orderBy: { entryDate: 'asc' }
+                });
+
+                for (const batch of batches) {
+                    if (pendingToSubtract <= 0) break;
+                    const qtyToTake = Math.min(batch.remainingQuantity, pendingToSubtract);
+
+                    await tx.stockBatch.update({
+                        where: { id: batch.id },
+                        data: { remainingQuantity: { decrement: qtyToTake } }
+                    });
+
+                    pendingToSubtract -= qtyToTake;
+                }
+            }
+
             // Determine movement type and default notes
             const movementType = dto.type || StockMovementType.ADJUSTMENT;
             const defaultNotes = movementType === StockMovementType.DAMAGE ? 'Registro de daño/merma' :
@@ -191,10 +243,30 @@ export class InventoryService {
 
             return newStock;
         });
+
+        // CACHE INVALIDATION (OUTSIDE TRANSACTION TO ENSURE DB COMMIT FIRST)
+        try {
+            console.log(`🧹 [InventoryService] Invalidando caché tras ajuste manual...`);
+            await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'products', '*'));
+            await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'inventory', '*'));
+
+            // Invalidador explícito de la lista de productos
+            await this.cacheService.invalidate(this.cacheService.generateKey(tenantId, 'products', 'list'));
+        } catch (e) {
+            console.error('Error invalidating cache in updateStock:', e);
+        }
+
+        return result;
     }
 
     async findStock(tenantId: string, query: QueryStockDto) {
-        const where: any = { product: { tenantId } };
+        const where: any = {
+            product: {
+                tenantId,
+                // @ts-ignore
+                active: true
+            }
+        };
 
         if (query.productId) where.productId = query.productId;
         if (query.warehouseId) where.warehouseId = query.warehouseId;
@@ -235,7 +307,11 @@ export class InventoryService {
     async getValuation(tenantId: string) {
         const stocks = await this.prisma.stock.findMany({
             where: {
-                product: { tenantId }
+                product: {
+                    tenantId,
+                    // @ts-ignore
+                    active: true
+                }
             },
             include: {
                 product: {

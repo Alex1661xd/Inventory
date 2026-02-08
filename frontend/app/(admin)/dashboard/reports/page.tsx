@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { api, AnalyticsDashboard } from "@/lib/backend"
 import { formatThousands } from "@/lib/utils"
-import { subDays, format } from "date-fns"
+import { subDays, format, startOfMonth } from "date-fns"
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Cell, PieChart, Pie, Legend, AreaChart, Area
@@ -15,7 +15,7 @@ import { toast } from "sonner"
 export default function ReportsPage() {
     const [data, setData] = useState<AnalyticsDashboard | null>(null)
     const [loading, setLoading] = useState(true)
-    const [fromDate, setFromDate] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'))
+    const [fromDate, setFromDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'))
     const [toDate, setToDate] = useState(format(new Date(), 'yyyy-MM-dd'))
 
     useEffect(() => {

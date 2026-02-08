@@ -15,14 +15,28 @@ const supabase_js_1 = require("@supabase/supabase-js");
 let SupabaseService = class SupabaseService {
     supabase;
     constructor() {
-        this.supabase = (0, supabase_js_1.createClient)(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+        const url = process.env.SUPABASE_URL;
+        const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (!url || !key) {
+            console.error('❌ [SupabaseService] ERROR: SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY no están definidas en el entorno.');
+            console.log('Ambiente detectado:', {
+                URL: url ? '✅ Configurada' : '❌ Falta',
+                KEY: key ? '✅ Configurada' : '❌ Falta'
+            });
+            return;
+        }
+        this.supabase = (0, supabase_js_1.createClient)(url, key, {
             auth: {
                 autoRefreshToken: false,
                 persistSession: false,
             },
         });
+        console.log('✅ [SupabaseService] Cliente inicializado correctamente');
     }
     getClient() {
+        if (!this.supabase) {
+            throw new Error('Supabase client was not initialized due to missing environment variables.');
+        }
         return this.supabase;
     }
 };

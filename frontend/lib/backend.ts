@@ -56,6 +56,47 @@ export type Category = {
     updatedAt: string;
 };
 
+export type PurchaseStatus = 'PENDING' | 'COMPLETED' | 'CANCELLED' | 'PARTIAL';
+
+export type PurchaseItem = {
+    id: string;
+    quantity: number;
+    costPrice: number;
+    productId: string;
+    product: {
+        id: string;
+        name: string;
+        sku?: string | null;
+        costPrice: number;
+    };
+};
+
+export type Purchase = {
+    id: string;
+    purchaseNumber: number;
+    total: number;
+    status: PurchaseStatus;
+    date: string;
+    supplierId: string;
+    supplier: {
+        id: string;
+        name: string;
+        taxId?: string | null;
+        email?: string | null;
+    };
+    buyerId: string;
+    buyer: {
+        id: string;
+        name: string;
+    };
+    warehouseId?: string | null;
+    items: PurchaseItem[];
+    createdAt: string;
+    _count?: {
+        items: number;
+    };
+};
+
 export type Product = {
     id: string;
     name: string;
@@ -72,6 +113,7 @@ export type Product = {
     updatedAt: string;
     categoryId?: string | null;
     totalStock?: number;
+    activeCosts?: { cost: number; quantity: number }[];
 };
 
 export type Warehouse = {
@@ -205,8 +247,8 @@ export type AnalyticsDashboard = {
 
 export const api = {
     products: {
-        list: () => backendFetch<Product[]>('/products'),
-        get: (id: string) => backendFetch<Product>(`/products/${id}`),
+        list: (refresh = false) => backendFetch<Product[]>(`/products${refresh ? '?refresh=' + Date.now() : ''}`),
+        get: (id: string, refresh = false) => backendFetch<Product>(`/products/${id}${refresh ? '?refresh=1' : ''}`),
         findByBarcode: (barcode: string) => {
             const search = new URLSearchParams();
             if (barcode) search.set('barcode', barcode);
@@ -371,5 +413,17 @@ export const api = {
             const query = params.toString();
             return backendFetch<AnalyticsDashboard>(`/analytics/dashboard${query ? `?${query}` : ''}`);
         },
+    },
+    purchases: {
+        list: (from?: string, to?: string) => {
+            const params = new URLSearchParams();
+            if (from) params.append('from', from);
+            if (to) params.append('to', to);
+            const query = params.toString();
+            return backendFetch<Purchase[]>(`/purchases${query ? `?${query}` : ''}`);
+        },
+        get: (id: string) => backendFetch<Purchase>(`/purchases/${id}`),
+        create: (payload: { supplierId: string; warehouseId?: string; date?: string; items: { productId: string; quantity: number; costPrice: number }[] }) =>
+            backendFetch<Purchase>('/purchases', { method: 'POST', json: payload }),
     },
 };

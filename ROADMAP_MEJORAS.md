@@ -4,12 +4,18 @@ Basado en el análisis de la estructura actual del sistema, se han identificado 
 
 ---
 
-## ✅ 1. Módulo de Compras y Proveedores (**IMPLEMENTADO**)
-Este módulo ya ha sido integrado para formalizar el ciclo de reabastecimiento.
+## ✅ 1. Módulo de Compras y Reabastecimiento (**IMPLEMENTADO**)
+Este módulo ha sido transformado en un sistema formal para gestionar el ciclo de vida del inventario desde el proveedor.
 
-*   **Gestión de Proveedores** (✅): Base de datos completa con contacto, dirección, identificación tributaria y términos de pago.
-*   **Órdenes de Compra / Recepción**: Se integró la capacidad de registrar proveedores vinculados al tenant.
-*   **Estado**: El backend ya soporta la relación `Supplier` y el frontend cuenta con el módulo de gestión.
+*   **Registro de Compras Formal** (✅):
+    *   **Backend**: Nuevos modelos `Purchase` y `PurchaseItem` para documentar facturas de proveedores.
+    *   **Impacto Automático**: Una sola compra actualiza automáticamente:
+        1.  **Stock**: Sube la cantidad en el almacén seleccionado.
+        2.  **Costos**: Actualiza el `costPrice` del producto para cálculos de utilidad precisos.
+        3.  **Kardex**: Registra el movimiento tipo `PURCHASE` con referencia al número de compra.
+        4.  **Finanzas**: Crea automáticamente un **Gasto Operativo** bajo la categoría `INVENTORY` para reflejar la salida de dinero.
+*   **Gestión de Proveedores** (✅): Base de datos completa con contacto, identificación tributaria y términos de pago.
+*   **Estado**: Módulo 100% funcional con historial, buscador de compras y formulario de ingreso interactivo.
 
 ## ✅ 2. Módulo Financiero y Flujo de Caja (**IMPLEMENTADO**)
 Se ha robustecido el POS para garantizar que el dinero físico coincida con el sistema.
@@ -84,10 +90,10 @@ El dashboard ha sido potenciado con trazabilidad profunda y analítica visual.
 1. **Ejecutar migración de base de datos**:
    ```bash
    cd backend
-   npx prisma migrate dev --name add_expense_model
-   # O si falla la conexión directa:
-   npx prisma db push
-   npx prisma generate
+    npx prisma migrate dev --name add_purchases_module
+    # O si falla la conexión directa:
+    npx prisma db push --accept-data-loss
+    npx prisma generate
    ```
 
 2. **Reiniciar el backend** para que cargue los nuevos endpoints.

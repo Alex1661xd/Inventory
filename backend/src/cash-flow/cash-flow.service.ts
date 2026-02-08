@@ -174,13 +174,25 @@ export class CashFlowService {
     }
 
     // Para Admin
-    async getHistory(tenantId: string, limit = 50) {
-        const cacheKey = this.cacheService.generateKey(tenantId, 'cash-flow', 'history', limit.toString());
+    async getHistory(tenantId: string, from?: string, to?: string, limit = 50) {
+        const cacheKey = this.cacheService.generateKey(tenantId, 'cash-flow', 'history', from || 'none', to || 'none', limit.toString());
         const cached = await this.cacheService.get<any>(cacheKey);
         if (cached) return cached;
 
+        const where: any = { tenantId };
+
+        if (from || to) {
+            where.openingTime = {};
+            if (from) where.openingTime.gte = new Date(from);
+            if (to) {
+                const toDate = new Date(to);
+                toDate.setHours(23, 59, 59, 999);
+                where.openingTime.lte = toDate;
+            }
+        }
+
         const result = await this.prisma.cashShift.findMany({
-            where: { tenantId },
+            where,
             orderBy: { openingTime: 'desc' },
             take: limit,
             include: {

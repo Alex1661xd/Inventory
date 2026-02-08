@@ -35,8 +35,8 @@ let ProductsController = class ProductsController {
     findByBarcode(tenantId, barcode) {
         return this.productsService.findByBarcode(tenantId, barcode);
     }
-    findOne(tenantId, id) {
-        return this.productsService.findOne(tenantId, id);
+    findOne(tenantId, id, refresh) {
+        return this.productsService.findOne(tenantId, id, !!refresh);
     }
     update(tenantId, id, dto) {
         return this.productsService.update(tenantId, id, dto);
@@ -75,8 +75,9 @@ __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, get_tenant_id_decorator_1.GetTenantId)()),
     __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Query)('refresh')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
 ], ProductsController.prototype, "findOne", null);
 __decorate([

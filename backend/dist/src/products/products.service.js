@@ -15,12 +15,15 @@ const prisma_service_1 = require("../prisma/prisma.service");
 const crypto_1 = require("crypto");
 const cache_service_1 = require("../cache/cache.service");
 const client_1 = require("@prisma/client");
+const supabase_service_1 = require("../supabase/supabase.service");
 let ProductsService = class ProductsService {
     prisma;
     cacheService;
-    constructor(prisma, cacheService) {
+    supabaseService;
+    constructor(prisma, cacheService, supabaseService) {
         this.prisma = prisma;
         this.cacheService = cacheService;
+        this.supabaseService = supabaseService;
     }
     generateBarcode() {
         return `MUE-${(0, crypto_1.randomBytes)(4).toString('hex').toUpperCase()}`;
@@ -39,7 +42,7 @@ let ProductsService = class ProductsService {
     }
     async create(tenantId, dto, userId) {
         const currentProductsCount = await this.prisma.product.count({
-            where: { tenantId }
+            where: { tenantId, active: true }
         });
         if (currentProductsCount >= 500) {
             throw new common_1.BadRequestException('Has alcanzado el límite máximo de 500 productos permitido en tu plan. Por favor, actualiza tu plan para agregar más inventario.');
@@ -114,13 +117,36 @@ let ProductsService = class ProductsService {
         }
     }
     async findAllWithTotalStock(tenantId) {
-        const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'list');
-        const cached = await this.cacheService.get(cacheKey);
-        if (cached) {
-            return cached;
+        if (!tenantId) {
+            console.error('❌ [ProductsService] Intento de findAllWithTotalStock sin tenantId');
+            return [];
         }
+        const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'list');
+        try {
+            const cached = await this.cacheService.get(cacheKey);
+            if (cached) {
+                console.log(`📦 [ProductsService] Cargando ${cached.length} productos desde CACHE (Tenant: ${tenantId})`);
+                return cached;
+            }
+        }
+        catch (e) {
+            console.error('⚠️ [ProductsService] Error leyendo caché:', e.message);
+        }
+        console.log(`🔍 [ProductsService] Consultando DB para tenant: ${tenantId}`);
+        const products = await this.prisma.product.findMany({
+            where: { tenantId, active: true },
+            orderBy: { createdAt: 'desc' },
+        });
+        if (products.length === 0) {
+            console.log(`ℹ️ [ProductsService] El tenant ${tenantId} no tiene productos registrados.`);
+            return [];
+        }
+        const productIds = products.map(p => p.id);
         const stockData = await this.prisma.stock.groupBy({
             by: ['productId'],
+            where: {
+                productId: { in: productIds }
+            },
             _sum: {
                 quantity: true,
             },
@@ -129,34 +155,69 @@ let ProductsService = class ProductsService {
         stockData.forEach(item => {
             stockMap.set(item.productId, item._sum.quantity ?? 0);
         });
-        const products = await this.prisma.product.findMany({
-            where: { tenantId },
-            orderBy: { createdAt: 'desc' },
-        });
         const result = products.map(product => ({
             ...product,
+            costPrice: Number(product.costPrice),
+            salePrice: Number(product.salePrice),
             totalStock: stockMap.get(product.id) ?? 0,
         }));
-        await this.cacheService.set(cacheKey, result, 300);
+        console.log(`✅ [ProductsService] DB retornó ${result.length} productos procesados (Tenant: ${tenantId})`);
+        try {
+            await this.cacheService.set(cacheKey, result, 300);
+        }
+        catch (e) {
+            console.error('⚠️ [ProductsService] Error guardando en caché:', e.message);
+        }
         return result;
     }
-    async findOne(tenantId, id) {
+    async findOne(tenantId, id, refresh = false) {
         const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'detail', id);
-        const cached = await this.cacheService.get(cacheKey);
-        if (cached) {
-            return cached;
+        if (!refresh) {
+            const cached = await this.cacheService.get(cacheKey);
+            if (cached)
+                return cached;
         }
         const product = await this.prisma.product.findFirst({
-            where: { id, tenantId },
+            where: { id, tenantId, active: true },
             include: {
                 inventory: { select: { quantity: true } },
+                stockBatches: {
+                    where: { remainingQuantity: { gt: 0 } },
+                    orderBy: { entryDate: 'desc' },
+                    select: { id: true, costPrice: true, remainingQuantity: true, entryDate: true }
+                }
             },
         });
         if (!product)
             throw new common_1.NotFoundException('Product not found');
-        const totalStock = product.inventory.reduce((acc, s) => acc + s.quantity, 0);
-        const { inventory, ...rest } = product;
-        const result = { ...rest, totalStock };
+        const totalStock = (product.inventory || []).reduce((acc, s) => acc + s.quantity, 0);
+        const { inventory, stockBatches, ...rest } = product;
+        const groupedMap = new Map();
+        let leftToShow = totalStock;
+        if (stockBatches && stockBatches.length > 0) {
+            const sortedBatches = (stockBatches || []).sort((a, b) => {
+                const dateDiff = new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime();
+                if (dateDiff !== 0)
+                    return dateDiff;
+                return b.id.localeCompare(a.id);
+            });
+            for (const batch of sortedBatches) {
+                if (leftToShow <= 0)
+                    break;
+                const qtyInBatch = batch.remainingQuantity || 0;
+                const qtyToShow = Math.min(qtyInBatch, leftToShow);
+                if (qtyToShow > 0) {
+                    const priceKey = Number(batch.costPrice).toString();
+                    groupedMap.set(priceKey, (groupedMap.get(priceKey) || 0) + qtyToShow);
+                    leftToShow -= qtyToShow;
+                }
+            }
+        }
+        const activeCosts = Array.from(groupedMap.entries()).map(([costStr, quantity]) => ({
+            cost: Number(costStr),
+            quantity
+        })).sort((a, b) => b.cost - a.cost);
+        const result = { ...rest, totalStock, activeCosts };
         await this.cacheService.set(cacheKey, result, 600);
         return result;
     }
@@ -170,7 +231,7 @@ let ProductsService = class ProductsService {
             return cached;
         }
         const product = await this.prisma.product.findFirst({
-            where: { tenantId, barcode: normalized },
+            where: { tenantId, barcode: normalized, active: true },
         });
         if (!product)
             throw new common_1.NotFoundException('Product not found');
@@ -205,21 +266,55 @@ let ProductsService = class ProductsService {
         }
     }
     async remove(tenantId, id) {
-        const exists = await this.prisma.product.findFirst({
+        const product = await this.prisma.product.findFirst({
             where: { id, tenantId },
-            select: { id: true },
+            select: { id: true, images: true, imageUrl: true },
         });
-        if (!exists)
+        if (!product)
             throw new common_1.NotFoundException('Product not found');
         try {
-            const result = await this.prisma.product.delete({
+            const result = await this.prisma.product.update({
                 where: { id },
+                data: { active: false }
             });
+            const imagesToDelete = product.images && product.images.length > 0
+                ? product.images
+                : (product.imageUrl ? [product.imageUrl] : []);
+            if (imagesToDelete.length > 0) {
+                await this.deleteImagesFromStorage(imagesToDelete);
+            }
             await this.invalidateProductCache(tenantId, id);
             return result;
         }
         catch (error) {
-            throw new common_1.BadRequestException(error?.message ?? 'Error deleting product');
+            throw new common_1.BadRequestException(error?.message ?? 'Error in soft-deleting product');
+        }
+    }
+    async deleteImagesFromStorage(images) {
+        if (!images || images.length === 0)
+            return;
+        try {
+            const supabase = this.supabaseService.getClient();
+            const paths = images
+                .filter(url => url && url.includes('supabase'))
+                .map(url => {
+                try {
+                    const urlObj = new URL(url);
+                    const parts = urlObj.pathname.split('/product-images/');
+                    return parts.length > 1 ? parts[1] : null;
+                }
+                catch (e) {
+                    return null;
+                }
+            })
+                .filter(p => p !== null);
+            if (paths.length > 0) {
+                console.log(`🧹 [Storage] Eliminando ${paths.length} imágenes del storage para producto eliminado`);
+                await supabase.storage.from('product-images').remove(paths);
+            }
+        }
+        catch (error) {
+            console.error('⚠️ [ProductsService] Error al eliminar imágenes del storage:', error.message);
         }
     }
     async invalidateProductCache(tenantId, productId) {
@@ -235,6 +330,7 @@ exports.ProductsService = ProductsService;
 exports.ProductsService = ProductsService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        cache_service_1.CacheService])
+        cache_service_1.CacheService,
+        supabase_service_1.SupabaseService])
 ], ProductsService);
 //# sourceMappingURL=products.service.js.map

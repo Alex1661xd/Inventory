@@ -5,12 +5,14 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { randomBytes } from 'crypto';
 import { CacheService } from '../cache/cache.service';
 import { StockMovementType } from '@prisma/client';
+import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
 export class ProductsService {
     constructor(
         private readonly prisma: PrismaService,
-        private readonly cacheService: CacheService
+        private readonly cacheService: CacheService,
+        private readonly supabaseService: SupabaseService
     ) { }
 
     private generateBarcode() {
@@ -34,7 +36,8 @@ export class ProductsService {
     async create(tenantId: string, dto: CreateProductDto, userId?: string) {
         // 1. Validar límite de productos (Plan Básico: 500 productos)
         const currentProductsCount = await this.prisma.product.count({
-            where: { tenantId }
+            // @ts-ignore
+            where: { tenantId, active: true }
         });
 
         if (currentProductsCount >= 500) {
@@ -127,68 +130,144 @@ export class ProductsService {
     }
 
     async findAllWithTotalStock(tenantId: string) {
-        // Intentar obtener del caché
-        const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'list');
-        const cached = await this.cacheService.get<any[]>(cacheKey);
-
-        if (cached) {
-            return cached;
+        if (!tenantId) {
+            console.error('❌ [ProductsService] Intento de findAllWithTotalStock sin tenantId');
+            return [];
         }
 
-        // Si no está en caché, consultar la DB
-        // Optimized query: Get all stock data in a single query
+        const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'list');
+        try {
+            const cached = await this.cacheService.get<any[]>(cacheKey);
+            if (cached) {
+                console.log(`📦 [ProductsService] Cargando ${cached.length} productos desde CACHE (Tenant: ${tenantId})`);
+                return cached;
+            }
+        } catch (e) {
+            console.error('⚠️ [ProductsService] Error leyendo caché:', e.message);
+        }
+
+        console.log(`🔍 [ProductsService] Consultando DB para tenant: ${tenantId}`);
+
+        // 1. Obtener todos los productos del tenant primero (solo activos)
+        const products = await this.prisma.product.findMany({
+            // @ts-ignore
+            where: { tenantId, active: true },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        if (products.length === 0) {
+            console.log(`ℹ️ [ProductsService] El tenant ${tenantId} no tiene productos registrados.`);
+            return [];
+        }
+
+        const productIds = products.map(p => p.id);
+
+        // 2. Obtener el stock total SOLO para esos productos
         const stockData = await this.prisma.stock.groupBy({
             by: ['productId'],
+            where: {
+                productId: { in: productIds }
+            },
             _sum: {
                 quantity: true,
             },
         });
 
-        // Create a map for fast lookup
+        // 3. Crear mapa de stock
         const stockMap = new Map<string, number>();
         stockData.forEach(item => {
             stockMap.set(item.productId, item._sum.quantity ?? 0);
         });
 
-        // Fetch all products in a single query
-        const products = await this.prisma.product.findMany({
-            where: { tenantId },
-            orderBy: { createdAt: 'desc' },
-        });
-
-        // Combine products with their stock totals using the map
+        // 4. Combinar y asegurar tipos numéricos para el frontend
         const result = products.map(product => ({
             ...product,
+            // Convertimos Decimal a Number para evitar problemas de serialización/caché
+            costPrice: Number(product.costPrice),
+            salePrice: Number(product.salePrice),
             totalStock: stockMap.get(product.id) ?? 0,
         }));
 
-        // Guardar en caché por 5 minutos (300 segundos)
-        await this.cacheService.set(cacheKey, result, 300);
+        console.log(`✅ [ProductsService] DB retornó ${result.length} productos procesados (Tenant: ${tenantId})`);
+
+        // 5. Guardar en caché
+        try {
+            await this.cacheService.set(cacheKey, result, 300);
+        } catch (e) {
+            console.error('⚠️ [ProductsService] Error guardando en caché:', e.message);
+        }
 
         return result;
     }
 
-    async findOne(tenantId: string, id: string) {
-        // Intentar obtener del caché
+    async findOne(tenantId: string, id: string, refresh = false) {
+        // Intentar obtener del caché (a menos que se pida refrescar)
         const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'detail', id);
-        const cached = await this.cacheService.get<any>(cacheKey);
 
-        if (cached) {
-            return cached;
+        if (!refresh) {
+            const cached = await this.cacheService.get<any>(cacheKey);
+            if (cached) return cached;
         }
 
         const product = await this.prisma.product.findFirst({
-            where: { id, tenantId },
+            // @ts-ignore
+            where: { id, tenantId, active: true },
             include: {
                 inventory: { select: { quantity: true } },
+                // @ts-ignore
+                stockBatches: {
+                    where: { remainingQuantity: { gt: 0 } },
+                    orderBy: { entryDate: 'desc' },
+                    select: { id: true, costPrice: true, remainingQuantity: true, entryDate: true }
+                }
             },
         });
 
         if (!product) throw new NotFoundException('Product not found');
 
-        const totalStock = product.inventory.reduce((acc, s) => acc + s.quantity, 0);
-        const { inventory, ...rest } = product;
-        const result = { ...rest, totalStock };
+        // @ts-ignore
+        const totalStock = (product.inventory || []).reduce((acc, s) => acc + s.quantity, 0);
+        // @ts-ignore
+        const { inventory, stockBatches, ...rest } = product;
+
+        // Agrupamos por costo usando un String como clave para evitar duplicados por precisión
+        const groupedMap = new Map<string, number>();
+        let leftToShow = totalStock;
+
+        if (stockBatches && stockBatches.length > 0) {
+            // Refuerzo: Ordenamos también en memoria por fecha descendente
+            // @ts-ignore
+            // Refuerzo: Ordenamos también en memoria por fecha descendente y luego por ID descendente
+            // @ts-ignore
+            const sortedBatches = (stockBatches || []).sort((a, b) => {
+                const dateDiff = new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime();
+                if (dateDiff !== 0) return dateDiff;
+                // Si tienen la misma fecha exacta, usamos el ID que suele ser UUID v4 o secuencial, pero al menos da determinismo
+                // Aunque lo mejor sería 'createdAt', pero no lo estamos seleccionando. Asumimos que los nuevos entran después.
+                return b.id.localeCompare(a.id);
+            });
+
+            for (const batch of sortedBatches) {
+                if (leftToShow <= 0) break;
+
+                const qtyInBatch = batch.remainingQuantity || 0;
+                const qtyToShow = Math.min(qtyInBatch, leftToShow);
+
+                if (qtyToShow > 0) {
+                    // Usamos el valor numérico formateado como clave para agrupar
+                    const priceKey = Number(batch.costPrice).toString();
+                    groupedMap.set(priceKey, (groupedMap.get(priceKey) || 0) + qtyToShow);
+                    leftToShow -= qtyToShow;
+                }
+            }
+        }
+
+        const activeCosts = Array.from(groupedMap.entries()).map(([costStr, quantity]) => ({
+            cost: Number(costStr),
+            quantity
+        })).sort((a, b) => b.cost - a.cost);
+
+        const result = { ...rest, totalStock, activeCosts };
 
         // Guardar en caché por 10 minutos
         await this.cacheService.set(cacheKey, result, 600);
@@ -209,7 +288,8 @@ export class ProductsService {
         }
 
         const product = await this.prisma.product.findFirst({
-            where: { tenantId, barcode: normalized },
+            // @ts-ignore
+            where: { tenantId, barcode: normalized, active: true },
         });
 
         if (!product) throw new NotFoundException('Product not found');
@@ -255,24 +335,62 @@ export class ProductsService {
 
 
     async remove(tenantId: string, id: string) {
-        const exists = await this.prisma.product.findFirst({
+        const product = await this.prisma.product.findFirst({
             where: { id, tenantId },
-            select: { id: true },
+            select: { id: true, images: true, imageUrl: true },
         });
 
-        if (!exists) throw new NotFoundException('Product not found');
+        if (!product) throw new NotFoundException('Product not found');
 
         try {
-            const result = await this.prisma.product.delete({
+            // Soft delete: solo lo marcamos como inactivo
+            const result = await this.prisma.product.update({
                 where: { id },
+                // @ts-ignore
+                data: { active: false }
             });
+
+            // Borrado real de imágenes físicamente del storage para ahorrar espacio
+            const imagesToDelete = product.images && product.images.length > 0
+                ? product.images
+                : (product.imageUrl ? [product.imageUrl] : []);
+
+            if (imagesToDelete.length > 0) {
+                await this.deleteImagesFromStorage(imagesToDelete);
+            }
 
             // Invalidar caché
             await this.invalidateProductCache(tenantId, id);
 
             return result;
         } catch (error: any) {
-            throw new BadRequestException(error?.message ?? 'Error deleting product');
+            throw new BadRequestException(error?.message ?? 'Error in soft-deleting product');
+        }
+    }
+
+    private async deleteImagesFromStorage(images: string[]) {
+        if (!images || images.length === 0) return;
+
+        try {
+            const supabase = this.supabaseService.getClient();
+            const paths = images
+                .filter(url => url && url.includes('supabase'))
+                .map(url => {
+                    try {
+                        const urlObj = new URL(url);
+                        const parts = urlObj.pathname.split('/product-images/');
+                        return parts.length > 1 ? parts[1] : null;
+                    } catch (e) { return null; }
+                })
+                .filter(p => p !== null) as string[];
+
+            if (paths.length > 0) {
+                console.log(`🧹 [Storage] Eliminando ${paths.length} imágenes del storage para producto eliminado`);
+                await supabase.storage.from('product-images').remove(paths);
+            }
+        } catch (error) {
+            console.error('⚠️ [ProductsService] Error al eliminar imágenes del storage:', error.message);
+            // No lanzamos excepción para no bloquear el borrado del producto si falla el storage
         }
     }
 

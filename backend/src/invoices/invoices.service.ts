@@ -27,9 +27,14 @@ export class InvoicesService {
             await this.cacheService.invalidate(detailKey);
         }
 
-        // TAMBIÉN INVALIDAR ANALYTICS Y P&L (Gastos y Utilidad) ya que las facturas afectan estos reportes
+        // TAMBIÉN INVALIDAR ANALYTICS, PRODUCTOS E INVENTARIO
         await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'analytics', '*'));
         await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'expenses', '*'));
+        await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'products', '*'));
+        await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'inventory', '*'));
+
+        // Fallback explícito para la lista de productos (importante para stock real-time)
+        await this.cacheService.invalidate(this.cacheService.generateKey(tenantId, 'products', 'list'));
     }
 
     async create(tenantId: string, sellerId: string, dto: CreateInvoiceDto) {
@@ -87,29 +92,69 @@ export class InvoicesService {
                 include: { items: true }
             });
 
-            // 3. Decrement Stock + Keep Kardex
+            // 3. Decrement Stock (FIFO Logic) + Kardex
             if (dto.status === 'PAID') {
-                for (const item of dto.items) {
+                for (const invoiceItem of invoice.items) {
+                    let pendingToSubtract = invoiceItem.quantity;
+                    let calculatedTotalCost = 0;
+
+                    // A. Buscar lotes disponibles ordenados por fecha (FIFO)
+                    const batches = await tx.stockBatch.findMany({
+                        where: {
+                            productId: invoiceItem.productId,
+                            warehouseId: dto.warehouseId,
+                            remainingQuantity: { gt: 0 }
+                        },
+                        orderBy: { entryDate: 'asc' }
+                    });
+
+                    // B. Consumir lotes
+                    for (const batch of batches) {
+                        if (pendingToSubtract <= 0) break;
+
+                        const qtyToTake = Math.min(batch.remainingQuantity, pendingToSubtract);
+
+                        await tx.stockBatch.update({
+                            where: { id: batch.id },
+                            data: { remainingQuantity: { decrement: qtyToTake } }
+                        });
+
+                        calculatedTotalCost += qtyToTake * Number(batch.costPrice);
+                        pendingToSubtract -= qtyToTake;
+                    }
+
+                    // C. Si aún queda pendiente, hubo un error de sincronización o stock insuficiente
+                    if (pendingToSubtract > 0) {
+                        throw new BadRequestException(`Error interno de FIFO: Stock insuficiente en lotes para ${invoiceItem.productId}`);
+                    }
+
+                    // D. Actualizar el costo real en el ítem de la factura
+                    await tx.invoiceItem.update({
+                        where: { id: invoiceItem.id },
+                        data: { totalCost: calculatedTotalCost }
+                    });
+
+                    // E. Actualizar el saldo global (Stock table)
                     const updatedStock = await tx.stock.update({
                         where: {
                             productId_warehouseId: {
-                                productId: item.productId,
+                                productId: invoiceItem.productId,
                                 warehouseId: dto.warehouseId
                             }
                         },
-                        data: { quantity: { decrement: item.quantity } }
+                        data: { quantity: { decrement: invoiceItem.quantity } }
                     });
 
-                    // Registro en Kardex (SALE)
+                    // F. Registro en Kardex (SALE)
                     await tx.stockMovement.create({
                         data: {
-                            productId: item.productId,
+                            productId: invoiceItem.productId,
                             warehouseId: dto.warehouseId,
                             type: StockMovementType.SALE,
-                            quantity: -item.quantity,
+                            quantity: -invoiceItem.quantity,
                             balanceAfter: updatedStock.quantity,
                             reference: `Invoice #${invoice.invoiceNumber}`,
-                            notes: `Venta #${invoice.invoiceNumber}`,
+                            notes: `Venta #${invoice.invoiceNumber} (Consumido FIFO)`,
                             userId: sellerId,
                         }
                     });

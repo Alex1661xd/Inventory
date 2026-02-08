@@ -2,9 +2,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TransferStockDto } from './dto/transfer-stock.dto';
 import { UpdateStockDto } from './dto/update-stock.dto';
 import { QueryStockDto } from './dto/query-stock.dto';
+import { CacheService } from '../cache/cache.service';
 export declare class InventoryService {
     private readonly prisma;
-    constructor(prisma: PrismaService);
+    private readonly cacheService;
+    constructor(prisma: PrismaService, cacheService: CacheService);
     transferStock(tenantId: string, dto: TransferStockDto, userId?: string): Promise<{
         success: boolean;
         message: string;
@@ -12,37 +14,37 @@ export declare class InventoryService {
     updateStock(tenantId: string, dto: UpdateStockDto, userId?: string): Promise<any>;
     findStock(tenantId: string, query: QueryStockDto): Promise<{
         product: {
-            name: string;
             id: string;
+            name: string;
+            barcode: string | null;
             sku: string | null;
             costPrice: import("@prisma/client/runtime/library").Decimal;
             categoryId: string | null;
-            barcode: string | null;
         };
         warehouse: {
-            name: string;
             id: string;
+            name: string;
         };
         id: string;
-        warehouseId: string;
         quantity: number;
         productId: string;
+        warehouseId: string;
     }[]>;
     getKardex(tenantId: string, productId: string, warehouseId?: string): Promise<({
         user: {
-            name: string;
             id: string;
+            name: string;
         } | null;
         warehouse: {
-            name: string;
             id: string;
+            name: string;
         };
     } & {
         id: string;
-        warehouseId: string;
         createdAt: Date;
         quantity: number;
         productId: string;
+        warehouseId: string;
         balanceAfter: number;
         type: import("@prisma/client").$Enums.StockMovementType;
         reference: string | null;

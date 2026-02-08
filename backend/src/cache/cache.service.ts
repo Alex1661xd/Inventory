@@ -56,17 +56,23 @@ export class CacheService {
         try {
             console.log(`🧹 [CACHE INVALIDATE PATTERN] ${pattern}`);
             const store = (this.cacheManager as any).store;
+            let keys: string[] = [];
 
-            // Intentar obtener todas las claves si el store lo soporta
             if (typeof store.keys === 'function') {
-                const allKeys = await store.keys(pattern);
-                if (allKeys && allKeys.length > 0) {
-                    console.log(`🗑️ Borrando ${allKeys.length} claves para el patrón: ${pattern}`);
-                    await Promise.all(allKeys.map(key => this.cacheManager.del(key)));
-                    console.log(`✅ [INVALIDATE PATTERN SUCCESS] ${pattern}`);
-                }
+                keys = await store.keys(pattern);
+            } else if (store.client && typeof store.client.keys === 'function') {
+                // Para algunos drivers de Redis directos
+                keys = await store.client.keys(pattern);
+            }
+
+            console.log(`   Llaves encontradas para borrar: ${keys?.length || 0}`);
+
+            if (keys && keys.length > 0) {
+                console.log(`🗑️ Borrando claves: ${keys.join(', ')}`);
+                await Promise.all(keys.map(key => this.cacheManager.del(key)));
+                console.log(`✅ [INVALIDATE PATTERN SUCCESS] ${pattern}`);
             } else {
-                console.warn(`⚠️ OJO: El store de caché no soporta búsqueda de claves (necesario para patrones). Se ignoró el patrón: ${pattern}`);
+                console.log(`ℹ️ No se encontraron llaves para el patrón: ${pattern}`);
             }
         } catch (error) {
             console.error(`🚨 [CACHE INVALIDATE PATTERN ERROR] ${pattern}:`, error.message);

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
@@ -17,11 +18,12 @@ import { SuppliersModule } from './suppliers/suppliers.module';
 import { CashFlowModule } from './cash-flow/cash-flow.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { PurchasesModule } from './purchases/purchases.module';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { GetTenantGuard } from './auth/guards/get-tenant.guard';
 
 @Module({
-  imports: [CacheModule, PrismaModule, SupabaseModule, AuthModule, ProductsModule, WarehousesModule, InventoryModule, CategoriesModule, UsersModule, CustomersModule, InvoicesModule, SuppliersModule, CashFlowModule, ExpensesModule, AnalyticsModule],
+  imports: [CacheModule, PrismaModule, SupabaseModule, AuthModule, ProductsModule, WarehousesModule, InventoryModule, CategoriesModule, UsersModule, CustomersModule, InvoicesModule, SuppliersModule, CashFlowModule, ExpensesModule, AnalyticsModule, PurchasesModule],
   controllers: [AppController],
   providers: [
     AppService,

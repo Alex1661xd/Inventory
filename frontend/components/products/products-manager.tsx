@@ -73,6 +73,7 @@ export function ProductsManager({
     const [uploading, setUploading] = useState(false)
     const [imagesToDelete, setImagesToDelete] = useState<string[]>([])
     const [itemToDelete, setItemToDelete] = useState<string | null>(null)
+    const [isCostFlipped, setIsCostFlipped] = useState(false)
 
     const isEditing = useMemo(() => Boolean(editingId), [editingId])
 
@@ -202,6 +203,25 @@ export function ProductsManager({
     const parseCurrencyInput = (value: string) => {
         const digits = value.replace(/\D/g, '')
         return digits
+    }
+
+    const handleViewProduct = async (p: Product) => {
+        setIsCostFlipped(false)
+        // Mostramos lo que tenemos de inmediato
+        setViewModal({ product: p, visible: true })
+
+        // Cargamos el detalle completo FORZANDO el refresco de caché
+        try {
+            const detail = await api.products.get(p.id, true)
+            setViewModal({ product: detail, visible: true })
+        } catch (e) {
+            console.error('Error fetching product detail:', e)
+        }
+    }
+
+    const closeViewModal = () => {
+        setIsCostFlipped(false)
+        setViewModal({ product: null, visible: false })
     }
 
     const resetForm = () => {
@@ -399,12 +419,6 @@ export function ProductsManager({
         try {
             const productToDelete = products.find(p => p.id === id)
             await api.products.remove(id)
-            if (productToDelete) {
-                const images = productToDelete.images && productToDelete.images.length > 0
-                    ? productToDelete.images
-                    : (productToDelete.imageUrl ? [productToDelete.imageUrl] : [])
-                await deleteImagesFromStorage(images)
-            }
             toast.success('Producto eliminado')
             await load()
         } catch (e: any) {
@@ -638,7 +652,7 @@ export function ProductsManager({
                                 variant="outline"
                                 size="sm"
                                 className="h-7 text-[10px] font-bold"
-                                onClick={() => setViewModal({ product: p, visible: true })}
+                                onClick={() => handleViewProduct(p)}
                             >
                                 Ver
                             </Button>
@@ -745,14 +759,16 @@ export function ProductsManager({
                                     <Input value={form.description} onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))} placeholder="Describe el material, dimensiones, etc." />
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label>Precio Costo (Valor de adquisición)</Label>
-                                    <Input
-                                        type="text"
-                                        value={formatCurrency(form.costPrice)}
-                                        onChange={(e) => setForm((s) => ({ ...s, costPrice: parseCurrencyInput(e.target.value) }))}
-                                    />
-                                </div>
+                                {isAdminView && (
+                                    <div className="space-y-2">
+                                        <Label>Precio Costo (Valor de adquisición)</Label>
+                                        <Input
+                                            type="text"
+                                            value={formatCurrency(form.costPrice)}
+                                            onChange={(e) => setForm((s) => ({ ...s, costPrice: parseCurrencyInput(e.target.value) }))}
+                                        />
+                                    </div>
+                                )}
 
                                 <div className="space-y-2">
                                     <Label>Precio Venta (Precio al público)</Label>
@@ -853,12 +869,12 @@ export function ProductsManager({
             {/* View Product Modal - Original Design */}
             {viewModal.visible && viewModal.product && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
-                    <div className="absolute inset-0 bg-[rgb(25,35,25)]/40 backdrop-blur-sm" onClick={() => setViewModal({ product: null, visible: false })} />
+                    <div className="absolute inset-0 bg-[rgb(25,35,25)]/40 backdrop-blur-sm" onClick={closeViewModal} />
                     <Card className="w-full max-w-2xl relative z-10 animate-scale-in max-h-[90vh] flex flex-col">
                         <CardHeader className="border-b border-[rgb(230,225,220)]">
                             <div className="flex items-center justify-between">
                                 <CardTitle style={{ fontFamily: 'var(--font-display)' }}>Detalles de Producto</CardTitle>
-                                <Button variant="ghost" onClick={() => setViewModal({ product: null, visible: false })} size="icon">✕</Button>
+                                <Button variant="ghost" onClick={closeViewModal} size="icon">✕</Button>
                             </div>
                         </CardHeader>
                         <CardContent className="p-6 overflow-y-auto custom-scrollbar space-y-6">
@@ -874,24 +890,84 @@ export function ProductsManager({
                                     <h3 className="text-3xl font-bold text-[rgb(25,35,25)] leading-tight">{viewModal.product.name}</h3>
                                     <div className="space-y-2">
                                         <div className="text-sm font-bold text-[rgb(120,115,110)] uppercase tracking-widest">Información Económica</div>
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className={cn("grid gap-4", isAdminView ? "grid-cols-2" : "grid-cols-1")}>
                                             <div className="p-3 bg-emerald-50 rounded-xl">
                                                 <div className="text-[10px] text-emerald-600 font-bold uppercase">Precio Venta</div>
                                                 <div className="text-xl font-black text-emerald-900">{formatCurrency(viewModal.product.salePrice)}</div>
                                             </div>
-                                            <div className="p-3 bg-stone-50 rounded-xl">
-                                                <div className="text-[10px] text-stone-500 font-bold uppercase">Costo</div>
-                                                <div className="text-xl font-black text-stone-700">{formatCurrency(viewModal.product.costPrice)}</div>
-                                            </div>
+
+                                            {isAdminView && (
+                                                <div
+                                                    className="relative perspective-1000 cursor-pointer h-[72px] group"
+                                                    onClick={() => setIsCostFlipped(!isCostFlipped)}
+                                                >
+                                                    <div className={cn(
+                                                        "relative w-full h-full transition-all duration-500 preserve-3d group-hover:scale-[1.02]",
+                                                        isCostFlipped && "rotate-y-180",
+                                                        (viewModal.product.activeCosts?.length ?? 0) > 1 && !isCostFlipped && "ring-2 ring-emerald-500/20 shadow-lg animate-pulse-soft"
+                                                    )}>
+                                                        {/* Front: Principal Cost */}
+                                                        <div className="absolute inset-0 backface-hidden p-3 bg-stone-50 rounded-xl border border-stone-200 flex flex-col justify-center shadow-sm">
+                                                            <div className="flex justify-between items-center">
+                                                                <div className="text-[10px] text-stone-500 font-bold uppercase flex items-center gap-1">
+                                                                    Costo Actual
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5 text-[8px] bg-stone-900 text-white px-2 py-0.5 rounded-full font-black animate-pulse-soft">
+                                                                    
+                                                                    <span className="text-xs">↻</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-end gap-2">
+                                                                <div className="text-xl font-black text-stone-700">{formatCurrency(viewModal.product.costPrice)}</div>
+                                                                {(viewModal.product.activeCosts?.length ?? 0) > 1 && (
+                                                                    <span className="text-lg animate-bounce leading-none">👇</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Back: List of all Active Costs with Quantities */}
+                                                        <div className="absolute inset-0 backface-hidden rotate-y-180 p-2 bg-stone-900 rounded-xl text-white flex flex-col justify-center border border-stone-700 shadow-xl">
+                                                            <div className="text-[8px] text-stone-400 font-bold uppercase mb-1 flex justify-between items-center px-1">
+                                                                <span>Costos por Lote (FIFO)</span>
+                                                                <span className="text-white text-[12px] animate-spin-slow">↻</span>
+                                                            </div>
+                                                            <div className="flex flex-col gap-1 overflow-y-auto max-h-[50px] custom-scrollbar px-1">
+                                                                {(viewModal.product.activeCosts && viewModal.product.activeCosts.length > 0) ? (
+                                                                    viewModal.product.activeCosts.map((item, i) => (
+                                                                        <div key={i} className="flex justify-between items-center bg-stone-800/40 px-2 py-0.5 rounded border border-stone-700/50">
+                                                                            <span className="text-[10px] font-bold text-white">{formatCurrency(item.cost)}</span>
+                                                                            <span className="text-[9px] text-emerald-400 font-black">{item.quantity} uds</span>
+                                                                        </div>
+                                                                    ))
+                                                                ) : (
+                                                                    <div className="flex justify-between items-center bg-stone-800/40 px-2 py-0.5 rounded border border-stone-700/50">
+                                                                        <span className="text-[10px] font-bold text-white">{formatCurrency(viewModal.product.costPrice)}</span>
+                                                                        <span className="text-[9px] text-stone-400">Stock actual</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="space-y-2">
                                         <div className="text-sm font-bold text-[rgb(120,115,110)] uppercase tracking-widest">Estado de Stock</div>
-                                        <div className="p-4 bg-[rgb(25,35,25)] text-white rounded-xl flex items-center justify-between">
+                                        <div className="p-4 bg-[rgb(25,35,25)] text-white rounded-xl flex items-center justify-between shadow-lg">
                                             <span className="text-lg">Unidades Totales</span>
                                             <span className="text-3xl font-black">{viewModal.product.totalStock ?? 0}</span>
                                         </div>
                                     </div>
+
+                                    {viewModal.product.description && (
+                                        <div className="space-y-2">
+                                            <div className="text-sm font-bold text-[rgb(120,115,110)] uppercase tracking-widest">Descripción</div>
+                                            <div className="p-4 bg-[rgb(250,248,245)] rounded-xl border border-[rgb(230,225,220)] text-gray-700 text-sm italic leading-relaxed">
+                                                "{viewModal.product.description}"
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

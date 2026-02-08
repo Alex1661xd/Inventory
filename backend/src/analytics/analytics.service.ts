@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../cache/cache.service';
-import { startOfDay, subDays, differenceInDays, addDays, parseISO } from 'date-fns';
+import { startOfDay, endOfDay, subDays, differenceInDays, addDays, parseISO } from 'date-fns';
 
 @Injectable()
 export class AnalyticsService {
@@ -12,51 +12,37 @@ export class AnalyticsService {
 
     async getDashboardStats(tenantId: string, from?: string, to?: string) {
         const cacheKey = this.cacheService.generateKey(tenantId, 'analytics', 'dashboard', from || '30d', to || 'now');
+
         const cachedData = await this.cacheService.get<any>(cacheKey);
         if (cachedData) return cachedData;
 
+        // Ajuste de fechas para incluir el día completo (00:00:00 a 23:59:59)
         const startDate = from ? startOfDay(parseISO(from)) : startOfDay(subDays(new Date(), 30));
-        const endDate = to ? startOfDay(parseISO(to)) : startOfDay(new Date());
+        const endDate = to ? endOfDay(parseISO(to)) : endOfDay(new Date());
 
         // 1. Obtener todas las facturas pagas del periodo
         const invoices = await this.prisma.invoice.findMany({
             where: {
                 tenantId,
                 status: 'PAID',
-                createdAt: { gte: startDate, lte: addDays(endDate, 1) },
+                createdAt: { gte: startDate, lte: endDate },
             },
             include: {
                 items: {
                     include: {
                         product: {
-                            select: {
-                                name: true,
-                                costPrice: true,
-                                category: {
-                                    select: {
-                                        name: true,
-                                    }
-                                }
-                            },
-                        },
-                    },
-                },
-                seller: {
-                    select: {
-                        name: true,
-                        warehouse: {
-                            select: {
-                                id: true,
-                                name: true
+                            include: {
+                                category: true
                             }
                         }
-                    },
+                    }
                 },
-                customer: {
-                    select: {
-                        name: true,
-                    },
+                seller: {
+                    include: {
+                        warehouse: true
+                    }
                 },
+                customer: true,
             },
             orderBy: {
                 createdAt: 'asc',
@@ -128,7 +114,11 @@ export class AnalyticsService {
             inv.items.forEach(item => {
                 soldProductIds.add(item.productId);
                 const itemRevenue = item.quantity * Number(item.unitPrice);
-                const itemCost = item.quantity * Number(item.product.costPrice);
+
+                // Si la factura tiene totalCost (FIFO), usarlo. Si no, usar el costPrice actual (retrocompatibilidad)
+                // @ts-ignore
+                const itemCost = item.totalCost ? Number(item.totalCost) : (item.quantity * Number(item.product.costPrice));
+
                 invoiceCost += itemCost;
 
                 const pStat = productStatsMap.get(item.productId) || { name: item.product.name, quantity: 0, revenue: 0, profit: 0 };

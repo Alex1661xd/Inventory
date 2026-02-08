@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Request, Query } from '@nestjs/common';
 import { CashFlowService } from './cash-flow.service';
 import { OpenShiftDto } from './dto/open-shift.dto';
 import { CloseShiftDto } from './dto/close-shift.dto';
@@ -40,7 +40,12 @@ export class CashFlowController {
 
     @Get('history')
     @Roles('ADMIN', 'SUPER_ADMIN')
-    getHistory(@GetTenantId() tenantId: string) {
-        return this.cashFlowService.getHistory(tenantId);
+    getHistory(
+        @GetTenantId() tenantId: string,
+        @Query('from') from?: string,
+        @Query('to') to?: string,
+        @Query('limit') limit?: string,
+    ) {
+        return this.cashFlowService.getHistory(tenantId, from, to, limit ? parseInt(limit) : 50);
     }
 }

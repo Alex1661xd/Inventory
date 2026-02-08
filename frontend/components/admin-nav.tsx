@@ -13,20 +13,20 @@ const navSections = [
         ]
     },
     {
+        title: "FINANZAS",
+        links: [
+            { href: '/dashboard/cash-flow', label: 'Arqueos de Caja', icon: '💵' },
+            { href: '/dashboard/expenses', label: 'Gastos y Utilidad', icon: '💰' },
+        ]
+    },
+    {
         title: "OPERACIONES",
         links: [
             { href: '/dashboard/products', label: 'Productos', icon: '📦' },
             { href: '/dashboard/inventory', label: 'Inventario', icon: '📋' },
             { href: '/dashboard/warehouses', label: 'Almacenes', icon: '🏢' },
-            { href: '/dashboard/categories', label: 'Categorías', icon: '📁' },
+            { href: '/dashboard/purchases', label: 'Compras', icon: '🛒' },
             { href: '/dashboard/transfers', label: 'Traslados', icon: '🚚' },
-        ]
-    },
-    {
-        title: "FINANZAS",
-        links: [
-            { href: '/dashboard/cash-flow', label: 'Arqueos de Caja', icon: '💵' },
-            { href: '/dashboard/expenses', label: 'Gastos y Utilidad', icon: '💰' },
         ]
     },
     {
@@ -35,6 +35,7 @@ const navSections = [
             { href: '/dashboard/sellers', label: 'Vendedores', icon: '👥' },
             { href: '/dashboard/suppliers', label: 'Proveedores', icon: '🏭' },
             { href: '/dashboard/customers', label: 'Clientes', icon: '👤' },
+            { href: '/dashboard/categories', label: 'Categorías', icon: '📁' }
         ]
     }
 ]

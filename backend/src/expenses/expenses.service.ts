@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../cache/cache.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
+import { startOfDay, endOfDay, parseISO } from 'date-fns';
 
 @Injectable()
 export class ExpensesService {
@@ -46,8 +47,8 @@ export class ExpensesService {
 
         if (filters?.startDate || filters?.endDate) {
             where.date = {};
-            if (filters.startDate) where.date.gte = new Date(filters.startDate);
-            if (filters.endDate) where.date.lte = new Date(filters.endDate);
+            if (filters.startDate) where.date.gte = startOfDay(parseISO(filters.startDate));
+            if (filters.endDate) where.date.lte = endOfDay(parseISO(filters.endDate));
         }
 
         if (filters?.category) {
@@ -105,14 +106,17 @@ export class ExpensesService {
     }
 
     // Resumen para el P&L
-    async getSummary(tenantId: string, startDate: string, endDate: string) {
+    async getSummary(tenantId: string, startDateStr: string, endDateStr: string) {
+        const startDate = startOfDay(parseISO(startDateStr));
+        const endDate = endOfDay(parseISO(endDateStr));
+
         const expenses = await this.prisma.expense.groupBy({
             by: ['category'],
             where: {
                 tenantId,
                 date: {
-                    gte: new Date(startDate),
-                    lte: new Date(endDate),
+                    gte: startDate,
+                    lte: endDate,
                 }
             },
             _sum: {
@@ -132,10 +136,14 @@ export class ExpensesService {
     }
 
     // Estado de Resultados (P&L)
-    async getProfitAndLoss(tenantId: string, startDate: string, endDate: string) {
-        const cacheKey = this.cacheService.generateKey(tenantId, 'expenses', 'profit-loss', startDate, endDate);
+    async getProfitAndLoss(tenantId: string, startDateStr: string, endDateStr: string) {
+        const cacheKey = this.cacheService.generateKey(tenantId, 'expenses', 'profit-loss', startDateStr, endDateStr);
+
         const cached = await this.cacheService.get<any>(cacheKey);
         if (cached) return cached;
+
+        const startDate = startOfDay(parseISO(startDateStr));
+        const endDate = endOfDay(parseISO(endDateStr));
 
         // Total de ventas
         const salesResult = await this.prisma.invoice.aggregate({
@@ -143,8 +151,8 @@ export class ExpensesService {
                 tenantId,
                 status: 'PAID',
                 createdAt: {
-                    gte: new Date(startDate),
-                    lte: new Date(endDate),
+                    gte: startDate,
+                    lte: endDate,
                 }
             },
             _sum: {
@@ -156,15 +164,15 @@ export class ExpensesService {
         const totalSales = Number(salesResult._sum.total || 0);
         const salesCount = salesResult._count;
 
-        // Costo de ventas (basado en productos vendidos)
+        // Costo de ventas (basado en productos vendidos - PRIORIZA FIFO)
         const invoiceItems = await this.prisma.invoiceItem.findMany({
             where: {
                 invoice: {
                     tenantId,
                     status: 'PAID',
                     createdAt: {
-                        gte: new Date(startDate),
-                        lte: new Date(endDate),
+                        gte: startDate,
+                        lte: endDate,
                     }
                 }
             },
@@ -176,7 +184,9 @@ export class ExpensesService {
         });
 
         const costOfGoodsSold = invoiceItems.reduce((sum, item) => {
-            return sum + (Number(item.product.costPrice || 0) * item.quantity);
+            // @ts-ignore - totalCost existe en la DB pero podría no estar en el tipo si no se ha regenerado Prisma
+            const cost = item.totalCost ? Number(item.totalCost) : (Number(item.product.costPrice || 0) * item.quantity);
+            return sum + cost;
         }, 0);
 
         // Utilidad bruta
@@ -184,14 +194,14 @@ export class ExpensesService {
         const grossMargin = totalSales > 0 ? (grossProfit / totalSales) * 100 : 0;
 
         // Gastos operativos
-        const expensesSummary = await this.getSummary(tenantId, startDate, endDate);
+        const expensesSummary = await this.getSummary(tenantId, startDateStr, endDateStr);
 
         // Utilidad neta
         const netProfit = grossProfit - expensesSummary.totalExpenses;
         const netMargin = totalSales > 0 ? (netProfit / totalSales) * 100 : 0;
 
         const result = {
-            period: { startDate, endDate },
+            period: { startDate: startDateStr, endDate: endDateStr },
             revenue: {
                 totalSales,
                 salesCount

@@ -33,8 +33,12 @@ export class ProductsController {
     }
 
     @Get(':id')
-    findOne(@GetTenantId() tenantId: string, @Param('id') id: string) {
-        return this.productsService.findOne(tenantId, id);
+    findOne(
+        @GetTenantId() tenantId: string,
+        @Param('id') id: string,
+        @Query('refresh') refresh?: string
+    ) {
+        return this.productsService.findOne(tenantId, id, !!refresh);
     }
 
     @Patch(':id')

@@ -11,7 +11,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")       
+  directUrl = env("DIRECT_URL")
 }
 
 
@@ -72,6 +72,8 @@ model Tenant {
   suppliers   Supplier[]
   cashShifts  CashShift[]
   expenses    Expense[]
+  purchases   Purchase[]
+  stockBatches StockBatch[]
 }
 
 // --------------------------------------
@@ -98,6 +100,7 @@ model User {
   cashShifts CashShift[]
   expenses  Expense[] // Gastos registrados por este usuario
   stockMovements StockMovement[] // Movimientos de inventario realizados
+  purchases   Purchase[]
 
   @@index([tenantId])
   @@index([warehouseId])
@@ -129,6 +132,7 @@ model Product {
   salePrice   Decimal  @default(0) // Precio al público
   
   isPublic    Boolean  @default(true) // Si false, no sale en el catálogo web
+  active      Boolean  @default(true) // Para Soft-Delete
 
   // Multi-tenancy
   tenantId    String
@@ -147,6 +151,8 @@ model Product {
   // Un código de barras debe ser único SOLO dentro de la misma empresa
   @@unique([barcode, tenantId]) 
   @@index([tenantId])
+  purchaseItems PurchaseItem[]
+  stockBatches  StockBatch[]
 }
 
 model Warehouse {
@@ -166,6 +172,7 @@ model Warehouse {
   isDefault Boolean  @default(false)
   
   stockMovements StockMovement[] // Movimientos en este almacén
+  stockBatches    StockBatch[]
 
   @@index([tenantId])
 }
@@ -281,6 +288,9 @@ model InvoiceItem {
   // Si mañana el sofá sube de precio, la factura vieja no debe cambiar.
   unitPrice       Decimal 
   
+  // Para FIFO: registramos el costo total real de estos productos
+  totalCost       Decimal? @default(0)
+
   invoiceId       String
   invoice         Invoice  @relation(fields: [invoiceId], references: [id])
   
@@ -312,6 +322,7 @@ model Supplier {
   updatedAt    DateTime @updatedAt
   
   @@index([tenantId])
+  purchases    Purchase[]
 }
 
 // --------------------------------------
@@ -373,6 +384,7 @@ enum ExpenseCategory {
   TAXES         // Impuestos
   INSURANCE     // Seguros
   OTHER         // Otros gastos
+  INVENTORY     // Compra de mercancía
 }
 
 model Expense {
@@ -399,4 +411,93 @@ model Expense {
 
   @@index([tenantId])
   @@index([date])
+}
+
+// --------------------------------------
+// COMPRAS (MÓDULO NUEVO)
+// --------------------------------------
+
+enum PurchaseStatus {
+  PENDING     // Pendiente de recibir o pagar
+  COMPLETED   // Completada (mercancía recibida y pagada)
+  CANCELLED   // Cancelada
+  PARTIAL     // Parcialmente recibida o pagada
+}
+
+model Purchase {
+  id              String         @id @default(uuid())
+  purchaseNumber  Int            @default(autoincrement())
+  total           Decimal
+  status          PurchaseStatus @default(COMPLETED)
+  
+  // Fechas (Importante para que tu papá vea el flujo diario)
+  date            DateTime       @default(now()) 
+  
+  // Relaciones
+  tenantId        String
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  
+  supplierId      String
+  supplier        Supplier       @relation(fields: [supplierId], references: [id])
+  
+  buyerId         String
+  buyer           User           @relation(fields: [buyerId], references: [id])
+  
+  warehouseId     String? // Bodega a la que entró la mercancía
+  
+  items           PurchaseItem[]
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([tenantId])
+  @@index([supplierId])
+  @@index([date])
+}
+
+model PurchaseItem {
+  id              String   @id @default(uuid())
+  quantity        Int
+  costPrice       Decimal // Precio de costo AL MOMENTO de la compra
+  
+  purchaseId      String
+  purchase        Purchase @relation(fields: [purchaseId], references: [id])
+  
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id])
+
+  // Relación con el lote de stock que genera esta compra
+  stockBatch      StockBatch?
+}
+
+// --------------------------------------
+// FIFO / LOTES DE STOCK (TRAZABILIDAD)
+// --------------------------------------
+
+model StockBatch {
+  id                String    @id @default(uuid())
+  
+  productId        String
+  product          Product   @relation(fields: [productId], references: [id])
+  
+  warehouseId      String
+  warehouse        Warehouse @relation(fields: [warehouseId], references: [id])
+  
+  // Opcional: El lote puede venir de una compra o de un ajuste manual
+  purchaseItemId   String?   @unique
+  purchaseItem     PurchaseItem? @relation(fields: [purchaseItemId], references: [id])
+  
+  initialQuantity  Int
+  remainingQuantity Int       @default(0)
+  costPrice        Decimal   @default(0)
+  
+  entryDate        DateTime  @default(now())
+  
+  // Multi-tenancy
+  tenantId         String
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([productId, entryDate])
+  @@index([warehouseId])
 }
