@@ -37,6 +37,22 @@ export class BackupService {
     }
 
     async getStatus(tenantId: string) {
+        if (tenantId === 'GLOBAL') {
+            const config = await this.prisma.globalBackupConfig.findUnique({
+                where: { id: 'global-config' }
+            });
+
+            if (!config || !config.refreshToken) {
+                return { connected: false };
+            }
+
+            return {
+                connected: true,
+                email: config.googleEmail,
+                lastBackupAt: config.lastBackupAt
+            };
+        }
+
         const config = await this.prisma.backupConfig.findUnique({
             where: { tenantId }
         });
@@ -59,7 +75,7 @@ export class BackupService {
                 'https://www.googleapis.com/auth/drive.file',
                 'https://www.googleapis.com/auth/userinfo.email'
             ],
-            state: tenantId, // Pasamos el tenantId para saber de quién es el token al volver
+            state: tenantId, // Pasamos el tenantId o 'GLOBAL' para saber de quién es el token al volver
             prompt: 'consent' // Forzar a mostrar la pantalla de consentimiento para asegurar el refresh token
         });
     }
@@ -73,20 +89,36 @@ export class BackupService {
             const oauth2 = google.oauth2({ version: 'v2', auth: this.oauth2Client });
             const userInfo = await oauth2.userinfo.get();
 
-            await this.prisma.backupConfig.upsert({
-                where: { tenantId },
-                update: {
-                    refreshToken: tokens.refresh_token,
-                    googleEmail: userInfo.data.email,
-                    isEnabled: true,
-                },
-                create: {
-                    tenantId,
-                    refreshToken: tokens.refresh_token,
-                    googleEmail: userInfo.data.email,
-                    isEnabled: true,
-                }
-            });
+            if (tenantId === 'GLOBAL') {
+                await this.prisma.globalBackupConfig.upsert({
+                    where: { id: 'global-config' },
+                    update: {
+                        refreshToken: tokens.refresh_token,
+                        googleEmail: userInfo.data.email,
+                        isEnabled: true,
+                    },
+                    create: {
+                        refreshToken: tokens.refresh_token,
+                        googleEmail: userInfo.data.email,
+                        isEnabled: true,
+                    }
+                });
+            } else {
+                await this.prisma.backupConfig.upsert({
+                    where: { tenantId },
+                    update: {
+                        refreshToken: tokens.refresh_token,
+                        googleEmail: userInfo.data.email,
+                        isEnabled: true,
+                    },
+                    create: {
+                        tenantId,
+                        refreshToken: tokens.refresh_token,
+                        googleEmail: userInfo.data.email,
+                        isEnabled: true,
+                    }
+                });
+            }
 
             return { success: true, email: userInfo.data.email };
         } catch (error) {
@@ -96,6 +128,10 @@ export class BackupService {
     }
 
     async runBackup(tenantId: string) {
+        if (tenantId === 'GLOBAL') {
+            return await this.runGlobalBackup();
+        }
+
         const config = await this.prisma.backupConfig.findUnique({
             where: { tenantId }
         });
@@ -120,6 +156,97 @@ export class BackupService {
         });
 
         return { success: true, date: new Date() };
+    }
+
+    async runGlobalBackup() {
+        const config = await this.prisma.globalBackupConfig.findUnique({
+            where: { id: 'global-config' }
+        });
+
+        if (!config || !config.refreshToken) {
+            throw new NotFoundException('Google Drive no está conectado para el Super Admin');
+        }
+
+        const tenants = await this.prisma.tenant.findMany();
+        const drive = this.getDriveClient(config.refreshToken);
+
+        // 1. Crear carpeta raíz del día
+        const dateStr = new Date().toISOString().split('T')[0];
+        const rootFolderId = await this.ensureFolderExists(drive, config.targetFolderId, 'SYSTEM_BACKUPS');
+
+        // Actualizar folder raíz si es nuevo
+        if (rootFolderId !== config.targetFolderId) {
+            await this.prisma.globalBackupConfig.update({
+                where: { id: 'global-config' },
+                data: { targetFolderId: rootFolderId }
+            });
+        }
+
+        const dailyFolderId = await this.createFolder(drive, rootFolderId, `Backup_${dateStr}`);
+
+        // 2. Por cada negocio, generar su excel y subirlo a la carpeta del día
+        for (const tenant of tenants) {
+            try {
+                const data = await this.collectTenantData(tenant.id);
+                const workbook = await this.createExcelWorkbook(data);
+
+                const buffer = await workbook.xlsx.writeBuffer();
+                const stream = new Stream.PassThrough();
+                stream.end(buffer);
+
+                const fileName = `${tenant.name.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
+
+                await drive.files.create({
+                    requestBody: {
+                        name: fileName,
+                        parents: [dailyFolderId],
+                    },
+                    media: {
+                        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        body: stream,
+                    },
+                } as any);
+            } catch (err) {
+                console.error(`Error respaldando tenant ${tenant.name}:`, err.message);
+            }
+        }
+
+        await this.prisma.globalBackupConfig.update({
+            where: { id: 'global-config' },
+            data: { lastBackupAt: new Date() }
+        });
+
+        return { success: true, date: new Date() };
+    }
+
+    private getDriveClient(refreshToken: string) {
+        this.oauth2Client.setCredentials({ refresh_token: refreshToken });
+        return google.drive({ version: 'v3', auth: this.oauth2Client });
+    }
+
+    private async ensureFolderExists(drive: any, currentId: string, folderName: string): Promise<string> {
+        if (currentId) return currentId;
+
+        const response = await drive.files.create({
+            requestBody: {
+                name: folderName,
+                mimeType: 'application/vnd.google-apps.folder',
+            },
+            fields: 'id',
+        } as any);
+        return response.data.id;
+    }
+
+    private async createFolder(drive: any, parentId: string, folderName: string): Promise<string> {
+        const response = await drive.files.create({
+            requestBody: {
+                name: folderName,
+                mimeType: 'application/vnd.google-apps.folder',
+                parents: [parentId]
+            },
+            fields: 'id',
+        } as any);
+        return response.data.id;
     }
 
     private async collectTenantData(tenantId: string) {

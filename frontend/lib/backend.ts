@@ -490,5 +490,10 @@ export const api = {
         getAuthUrl: () => backendFetch<{ url: string }>('/backup/auth-url'),
         run: () => backendFetch<{ success: boolean; date: string }>('/backup/run', { method: 'POST' }),
         getStatus: () => backendFetch<{ connected: boolean; email?: string; lastBackupAt?: string }>('/backup/status'),
+
+        // Super Admin Global Backups
+        getGlobalAuthUrl: () => backendFetch<{ url: string }>('/backup/global/auth-url'),
+        runGlobal: () => backendFetch<{ success: boolean; date: string }>('/backup/global/run', { method: 'POST' }),
+        getGlobalStatus: () => backendFetch<{ connected: boolean; email?: string; lastBackupAt?: string }>('/backup/global/status'),
     }
 };

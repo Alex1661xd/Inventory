@@ -111,6 +111,20 @@ model BackupConfig {
   updatedAt         DateTime @updatedAt
 }
 
+model GlobalBackupConfig {
+  id                String   @id @default("global-config")
+  
+  googleEmail       String?
+  refreshToken      String?
+  targetFolderId    String?  // Carpeta raíz de los backups globales
+  
+  isEnabled         Boolean  @default(false)
+  lastBackupAt      DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
 // --------------------------------------
 // CÓDIGOS DE REGISTRO (SUPER ADMIN)
 // --------------------------------------
