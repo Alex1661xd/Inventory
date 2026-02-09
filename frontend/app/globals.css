@@ -2,85 +2,71 @@
 @import "tailwindcss";
 
 :root {
-  /* Modern SaaS Color Palette - Versatile for Any Business */
-  --primary: 220 90 56;
-  /* Vibrant Blue - Professional & Trustworthy */
-  --primary-light: 220 85 65;
-  /* Light Blue */
-  --primary-dark: 220 95 45;
-  /* Deep Blue */
+  /* InventoryPro Elegant & Soft Palette - Quiet Luxury Aesthetic */
+  --primary: 215 25% 27%;
+  /* Soft Slate - Deep & Elegant */
+  --primary-light: 215 20% 45%;
+  --primary-dark: 215 30% 15%;
 
-  --secondary: 270 70 60;
-  /* Purple - Innovation & Creativity */
-  --secondary-light: 270 65 70;
-  /* Light Purple */
-  --secondary-dark: 270 75 50;
-  /* Deep Purple */
+  --secondary: 35 15% 82%;
+  /* Warm Stone - Sophisticated Neutral */
+  --secondary-light: 35 20% 90%;
+  --secondary-dark: 35 15% 65%;
 
-  --accent: 340 82 52;
-  /* Vibrant Pink/Red - Energy & Action */
-  --accent-light: 340 77 62;
-  /* Light Pink */
-  --accent-dark: 340 87 42;
-  /* Deep Pink */
+  --accent: 160 10% 40%;
+  /* Muted Sage - Calm & Professional */
+  --accent-light: 160 15% 60%;
+  --accent-dark: 160 15% 25%;
 
-  /* Neutrals - Modern & Clean */
-  --background: 220 20 98;
-  /* Cool White */
-  --surface: 0 0 100;
+  /* Neutrals - Minimalist & Clean */
+  --background: 210 20% 98%;
+  /* Vapor White */
+  --surface: 0 0% 100%;
   /* Pure White */
-  --surface-elevated: 220 25 96;
-  /* Slightly elevated surface */
-  --foreground: 220 15 15;
-  /* Deep Charcoal */
-  --muted: 220 10 60;
-  /* Cool Gray */
-  --muted-light: 220 10 85;
-  /* Light Gray */
-  --border: 220 15 90;
-  /* Subtle Border */
+  --surface-elevated: 210 20% 96%;
+  --foreground: 215 25% 12%;
+  /* Deep Ink */
+  --muted: 215 15% 65%;
+  /* Soft Silver */
+  --muted-light: 215 20% 92%;
+  /* Pearl Gray */
+  --border: 215 20% 88%;
+  /* Subtle Silk */
 
-  /* Semantic Colors */
-  --success: 142 71 45;
-  /* Green - Success states */
-  --success-light: 142 65 55;
-  --warning: 38 92 50;
-  /* Amber - Warnings */
-  --warning-light: 38 85 60;
-  --error: 0 84 60;
-  /* Red - Errors */
-  --error-light: 0 75 70;
-  --info: 199 89 48;
-  /* Cyan - Information */
-  --info-light: 199 80 58;
+  /* Semantic Colors - Muted */
+  --success: 150 25% 40%;
+  --success-light: 150 25% 60%;
+  --warning: 35 40% 50%;
+  --warning-light: 35 40% 70%;
+  --error: 10 40% 45%;
+  --error-light: 10 40% 65%;
+  --info: 215 30% 45%;
+  --info-light: 215 30% 65%;
 
-  /* Gradients - Premium & Dynamic */
-  --gradient-primary: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
-  --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)) 0%, hsl(var(--accent)) 100%);
-  --gradient-accent: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(var(--primary)) 100%);
-  --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
-  --gradient-mesh: radial-gradient(at 0% 0%, hsl(var(--primary) / 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, hsl(var(--secondary) / 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, hsl(var(--accent) / 0.15) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, hsl(var(--primary) / 0.15) 0px, transparent 50%);
+  /* Gradients - Subtle & Sophisticated */
+  --gradient-primary: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-light)) 100%);
+  --gradient-soft: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--muted-light)) 100%);
+  --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%);
+  --gradient-mesh: radial-gradient(at 0% 0%, hsl(var(--primary) / 0.03) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, hsl(var(--accent) / 0.03) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, hsl(var(--muted) / 0.05) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, hsl(var(--primary) / 0.03) 0px, transparent 50%);
 }
 
 @theme inline {
-  --color-background: hsl(220 20% 98%);
-  --color-foreground: hsl(220 15% 15%);
-  --color-primary: hsl(220 90% 56%);
-  --color-secondary: hsl(270 70% 60%);
-  --color-accent: hsl(220 15% 95%);
-  --color-accent-foreground: hsl(220 15% 25%);
-  --color-muted: hsl(220 10% 95%);
-  --color-muted-foreground: hsl(220 10% 45%);
-  --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(220 15% 15%);
-  --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(220 15% 15%);
-  --color-border: hsl(220 15% 90%);
-  --color-input: hsl(220 15% 90%);
-  --color-ring: hsl(220 90% 56%);
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--surface));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--surface));
+  --color-muted: hsl(var(--muted-light));
+  --color-muted-foreground: hsl(var(--muted));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--border));
+  --color-ring: hsl(var(--primary));
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-display: 'Outfit', 'Inter', sans-serif;
 }

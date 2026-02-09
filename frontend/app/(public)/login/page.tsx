@@ -1,133 +1,140 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/utils/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import Link from 'next/link'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, Package, ArrowRight } from 'lucide-react'
 
 export default function LoginPage() {
+    const router = useRouter()
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false)
     const [loading, setLoading] = useState(false)
-    const router = useRouter()
     const supabase = createClient()
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
 
-        const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password
-        })
+        try {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            })
 
-        if (error) {
-            toast.error('Error al iniciar sesión: ' + error.message)
-            setLoading(false)
-            return
-        }
+            if (error) throw error
 
-        // Consultar Rol del usuario para redirección inteligente
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-            const { data: userData } = await supabase
+            // Redirección inteligente basada en rol
+            const { data: userData, error: userError } = await supabase
                 .from('User')
                 .select('role')
-                .eq('id', user.id)
+                .eq('id', data.user.id)
                 .single()
 
-            toast.success('Bienvenido de nuevo')
-            router.refresh()
+            if (userError) throw userError
 
-            if (userData?.role === 'SELLER') {
-                router.push('/sales')
+            toast.success('¡Bienvenido de nuevo!')
+
+            if (userData.role === 'SELLER') {
+                router.push('/pos')
+            } else if (userData.role === 'ADMIN' || userData.role === 'SUPER_ADMIN') {
+                router.push('/dashboard')
             } else {
                 router.push('/dashboard')
             }
-        } else {
-            // Fallback
-            router.push('/dashboard')
+        } catch (error: any) {
+            toast.error(error.message || 'Error al iniciar sesión')
+        } finally {
+            setLoading(false)
         }
     }
 
     return (
-        <div className="flex min-h-screen">
-            {/* Left Side - Branding */}
-            <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-[hsl(var(--foreground))] via-[hsl(var(--primary-dark))] to-[hsl(var(--secondary))]">
-                <div className="absolute inset-0 opacity-10">
-                    <div className="absolute top-20 left-20 w-64 h-64 bg-white rounded-full blur-3xl animate-float"></div>
-                    <div className="absolute bottom-20 right-20 w-96 h-96 bg-[hsl(var(--accent))] rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }}></div>
+        <div className="flex min-h-screen bg-[hsl(var(--background))]">
+            {/* Left Side - Branding (Desktop Only) */}
+            <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-[hsl(var(--primary))]">
+                {/* Elegant Decorative Elements */}
+                <div className="absolute inset-0 opacity-20">
+                    <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-white rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2 animate-pulse-soft"></div>
+                    <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[hsl(var(--secondary))] rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2"></div>
                 </div>
 
-                <div className="relative z-10 flex flex-col justify-center px-16 text-white">
+                <div className="relative z-10 flex flex-col justify-center px-20 text-white">
                     <div className="animate-slide-in">
-                        <div className="mb-8">
-                            <div className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center mb-6">
-                                <span className="text-4xl">📦</span>
+                        <Link href="/" className="flex items-center gap-3 mb-16 group cursor-pointer w-fit">
+                            <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                <Package className="w-7 h-7 text-white" />
                             </div>
-                            <h1 className="text-5xl font-bold mb-4" style={{ fontFamily: 'var(--font-display)' }}>
-                                Bienvenido de Vuelta
+                            <span className="text-3xl font-black tracking-tighter" style={{ fontFamily: 'var(--font-display)' }}>
+                                Inventory<span className="opacity-60 font-medium">Pro</span>
+                            </span>
+                        </Link>
+
+                        <div className="space-y-6">
+                            <h1 className="text-6xl font-black tracking-tighter leading-tight" style={{ fontFamily: 'var(--font-display)' }}>
+                                Gestiona con <br />
+                                <span className="text-[hsl(var(--secondary))] italic">precisión.</span>
                             </h1>
-                            <p className="text-xl text-white/90 leading-relaxed">
-                                Accede a tu panel de control y continúa gestionando tu negocio con eficiencia.
+                            <p className="text-xl text-white/60 leading-relaxed max-w-md font-medium">
+                                Accede a tu plataforma de control de inventarios y lleva la eficiencia de tu negocio al siguiente nivel.
                             </p>
                         </div>
 
-                        <div className="space-y-3 mt-12">
-                            <div className="flex items-center gap-3 text-white/80">
-                                <div className="w-2 h-2 rounded-full bg-[hsl(var(--accent))]"></div>
-                                <span>Gestión de inventario en tiempo real</span>
+                        <div className="mt-20 pt-10 border-t border-white/10 flex items-center gap-8 opacity-40">
+                            <div className="text-center">
+                                <p className="text-2xl font-black tracking-tighter">100%</p>
+                                <p className="text-[10px] uppercase font-bold tracking-widest">Seguro</p>
                             </div>
-                            <div className="flex items-center gap-3 text-white/80">
-                                <div className="w-2 h-2 rounded-full bg-[hsl(var(--accent))]"></div>
-                                <span>Reportes de ventas detallados</span>
-                            </div>
-                            <div className="flex items-center gap-3 text-white/80">
-                                <div className="w-2 h-2 rounded-full bg-[hsl(var(--accent))]"></div>
-                                <span>Catálogo digital actualizado</span>
+                            <div className="text-center">
+                                <p className="text-2xl font-black tracking-tighter">24/7</p>
+                                <p className="text-[10px] uppercase font-bold tracking-widest">Soporte</p>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Right Side - Login Form */}
-            <div className="flex-1 flex items-center justify-center p-8 bg-[hsl(var(--background))]">
+            {/* Right Side - Form */}
+            <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 relative overflow-hidden">
                 <div className="w-full max-w-md animate-scale-in">
-                    <div className="text-center mb-8">
-                        <h2 className="text-3xl font-bold text-[hsl(var(--foreground))] mb-2" style={{ fontFamily: 'var(--font-display)' }}>
-                            Iniciar Sesión
+                    <div className="text-center mb-10">
+                        <h2 className="text-4xl font-black text-[hsl(var(--foreground))] mb-3 tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
+                            Bienvenido
                         </h2>
-                        <p className="text-[hsl(var(--muted))]">Accede a tu panel administrativo</p>
+                        <p className="text-[hsl(var(--muted))] font-medium">Ingresa tus credenciales para continuar</p>
                     </div>
 
-                    <Card>
-                        <CardContent className="pt-6">
-                            <form onSubmit={handleLogin} className="space-y-5">
+                    <Card className="border-none shadow-[0_32px_64px_-16px_rgba(0,0,0,0.06)] overflow-hidden bg-[hsl(var(--surface))]">
+                        <CardContent className="p-8 md:p-10">
+                            <form onSubmit={handleLogin} className="space-y-6">
                                 <div className="space-y-2">
-                                    <Label htmlFor="email">Email</Label>
-                                    <Input
-                                        id="email"
-                                        type="email"
-                                        placeholder="contacto@mitienda.com"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        required
-                                    />
+                                    <Label htmlFor="email" className="font-bold text-xs uppercase tracking-widest text-[hsl(var(--muted))]">Email</Label>
+                                    <div className="relative">
+                                        <Input
+                                            id="email"
+                                            type="email"
+                                            placeholder="nombre@empresa.com"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            required
+                                            className="h-12 md:h-14 rounded-xl border-2 border-[hsl(var(--border))] focus:border-[hsl(var(--primary))] transition-all pl-12 bg-transparent"
+                                        />
+                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[hsl(var(--muted))]" />
+                                    </div>
                                 </div>
 
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between">
-                                        <Label htmlFor="password">Contraseña</Label>
+                                        <Label htmlFor="password" title="Contraseña" className="font-bold text-xs uppercase tracking-widest text-[hsl(var(--muted))]">Contraseña</Label>
                                         <Link
                                             href="/forgot-password"
-                                            className="text-xs text-[rgb(120,115,110)] hover:text-[rgb(25,35,25)] transition-colors"
+                                            className="text-xs font-bold text-[hsl(var(--primary))] hover:text-[hsl(var(--primary-dark))] transition-colors"
                                         >
                                             ¿Olvidaste tu contraseña?
                                         </Link>
@@ -140,45 +147,53 @@ export default function LoginPage() {
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
                                             required
-                                            className="pr-10"
+                                            className="h-12 md:h-14 rounded-xl border-2 border-[hsl(var(--border))] focus:border-[hsl(var(--primary))] transition-all pl-12 pr-12 bg-transparent"
                                         />
+                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[hsl(var(--muted))]" />
                                         <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[rgb(120,115,110)] hover:text-[rgb(25,35,25)] transition-colors"
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-colors"
                                         >
-                                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                                         </button>
                                     </div>
                                 </div>
 
-                                <Button type="submit" className="w-full" size="lg" disabled={loading}>
+                                <Button type="submit" className="w-full h-14 md:h-16 text-lg font-black rounded-2xl bg-[hsl(var(--primary))] text-white shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all" disabled={loading}>
                                     {loading ? (
                                         <span className="flex items-center gap-2">
-                                            <span className="animate-spin">⚙️</span>
-                                            Iniciando sesión...
+                                            <span className="animate-spin text-xl">⚙️</span>
+                                            Accediendo...
                                         </span>
                                     ) : (
-                                        'Entrar'
+                                        <span className="flex items-center gap-2">
+                                            Iniciar Sesión <ArrowRight className="w-5 h-5" />
+                                        </span>
                                     )}
                                 </Button>
                             </form>
-
-                            <div className="mt-6 text-center">
-                                <p className="text-sm text-[hsl(var(--muted))]">
-                                    ¿No tienes cuenta?{' '}
-                                    <Link href="/register" className="font-semibold text-[hsl(var(--primary))] hover:text-[hsl(var(--primary-dark))] underline-offset-4 hover:underline transition-colors">
-                                        Registra tu negocio
-                                    </Link>
-                                </p>
-                            </div>
                         </CardContent>
                     </Card>
 
-                    <div className="mt-8 text-center">
-                        <p className="text-xs text-[hsl(var(--muted))]">
-                            Sistema seguro con encriptación de extremo a extremo
+                    <div className="mt-10 text-center">
+                        <p className="text-[hsl(var(--muted))] font-medium">
+                            ¿Aún no tienes una cuenta?{' '}
+                            <Link
+                                href="/register"
+                                className="font-black text-[hsl(var(--primary))] hover:text-[hsl(var(--primary-dark))] transition-colors underline underline-offset-4"
+                            >
+                                Regístrate gratis
+                            </Link>
                         </p>
+                    </div>
+
+                    <div className="mt-16 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[hsl(var(--muted))] opacity-40">
+                        <Link href="/" className="hover:text-[hsl(var(--foreground))] transition-colors">Inicio</Link>
+                        <span>•</span>
+                        <Link href="#" className="hover:text-[hsl(var(--foreground))] transition-colors">Términos</Link>
+                        <span>•</span>
+                        <Link href="#" className="hover:text-[hsl(var(--foreground))] transition-colors">Privacidad</Link>
                     </div>
                 </div>
             </div>

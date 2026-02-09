@@ -1,83 +1,96 @@
+'use client'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+  Package,
+  ChevronRight,
+  BarChart3,
+  QrCode,
+  History,
+  Warehouse,
+  Smartphone,
+  ScanLine,
+  Wallet,
+  MessageSquare,
+  Share2,
+  CheckCircle2
+} from 'lucide-react'
 
-export default function Home() {
+export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[hsl(var(--background))] to-[hsl(var(--surface-elevated))] text-[hsl(var(--foreground))]">
-      {/* Navigation Header */}
-      <header className="fixed top-0 w-full z-50 glass-effect border-b border-[hsl(var(--border))]">
+    <div className="flex flex-col min-h-screen bg-[hsl(var(--background))] selection:bg-[hsl(var(--primary)/0.1)] selection:text-[hsl(var(--primary))]">
+      {/* Header / Navbar */}
+      <header className="fixed top-0 w-full z-50 glass-effect border-b border-[hsl(var(--border)/0.5)]">
         <div className="container mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-4xl">📦</span>
-            <span className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>InventoryPro</span>
+          <div className="flex items-center gap-2.5 group cursor-pointer animate-fade-in">
+            <div className="w-10 h-10 rounded-xl bg-[hsl(var(--primary))] text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+              <Package className="w-6 h-6" />
+            </div>
+            <span className="text-2xl font-black tracking-tighter text-[hsl(var(--foreground))]" style={{ fontFamily: 'var(--font-display)' }}>
+              Inventory<span className="text-[hsl(var(--primary))] opacity-80">Pro</span>
+            </span>
           </div>
-          <div className="flex items-center gap-4">
+
+          <nav className="hidden md:flex items-center gap-10 text-sm font-bold uppercase tracking-widest text-[hsl(var(--muted))] animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <Link href="#features" className="hover:text-[hsl(var(--primary))] transition-colors duration-300">Funcionalidades</Link>
+            <Link href="#solutions" className="hover:text-[hsl(var(--primary))] transition-colors duration-300">Soluciones</Link>
+            <Link href="/login" className="hover:text-[hsl(var(--primary))] transition-colors duration-300">Mi Cuenta</Link>
+          </nav>
+
+          <div className="flex items-center gap-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
             <Link href="/login">
-              <Button variant="ghost" className="font-semibold">Iniciar Sesión</Button>
+              <Button variant="ghost" className="hidden sm:inline-flex font-black text-xs uppercase tracking-widest hover:bg-[hsl(var(--primary)/0.05)]">Acceder</Button>
             </Link>
             <Link href="/register">
-              <Button className="font-bold shadow-lg bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] hover:opacity-90">Comenzar Gratis</Button>
+              <Button className="rounded-full px-8 bg-[hsl(var(--primary))] text-white font-black text-xs uppercase tracking-widest shadow-xl hover:shadow-[hsl(var(--primary)/0.2)] hover:scale-105 active:scale-95 transition-all duration-300">
+                Empezar
+              </Button>
             </Link>
           </div>
         </div>
       </header>
 
-      <main>
+      <main className="flex-grow pt-20">
         {/* Hero Section */}
-        <section className="pt-40 pb-20 px-6 overflow-hidden">
-          <div className="container mx-auto grid lg:grid-cols-2 gap-16 items-center">
-            <div className="relative z-10 animate-slide-in">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] text-xs font-bold uppercase tracking-widest mb-6">
-                <span className="w-2 h-2 rounded-full bg-[hsl(var(--primary))] animate-pulse"></span>
-                Gestión Inteligente
-              </div>
-              <h1 className="text-6xl lg:text-7xl font-bold mb-8 leading-[1.1]" style={{ fontFamily: 'var(--font-display)' }}>
-                Controla tu inventario, <br />
-                <span className="bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] bg-clip-text text-transparent">Impulsa tu negocio.</span>
-              </h1>
-              <p className="text-xl text-[hsl(var(--muted))] mb-10 leading-relaxed max-w-xl">
-                La plataforma definitiva para gestionar inventario, ventas y catálogo digital. Perfecta para tiendas de ropa, mercados, ferreterías y cualquier negocio retail.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/register">
-                  <Button size="lg" className="h-14 px-10 text-lg font-bold shadow-2xl bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--secondary))] hover:opacity-90">Empezar Ahora</Button>
-                </Link>
-                <Link href="/login">
-                  <Button size="lg" variant="outline" className="h-14 px-10 text-lg font-bold">Ver Demo</Button>
-                </Link>
-              </div>
-              <div className="mt-12 flex items-center gap-6 text-[hsl(var(--muted))]">
-                <div className="flex flex-col">
-                  <span className="text-2xl font-bold text-[hsl(var(--foreground))]">500+</span>
-                  <span className="text-xs uppercase tracking-widest">Negocios</span>
-                </div>
-                <div className="w-px h-10 bg-[hsl(var(--border))]"></div>
-                <div className="flex flex-col">
-                  <span className="text-2xl font-bold text-[hsl(var(--foreground))]">15k+</span>
-                  <span className="text-xs uppercase tracking-widest">Productos</span>
-                </div>
-              </div>
-            </div>
+        <section className="relative py-24 lg:py-40 px-6 overflow-hidden">
+          {/* Decorative Elements */}
+          <div className="absolute top-0 right-0 w-[50%] h-[50%] bg-[hsl(var(--primary)/0.03)] rounded-full blur-[120px] -z-10 animate-float"></div>
+          <div className="absolute bottom-0 left-0 w-[30%] h-[30%] bg-[hsl(var(--accent)/0.03)] rounded-full blur-[100px] -z-10" style={{ animation: 'float 5s ease-in-out infinite' }}></div>
 
-            <div className="relative animate-scale-in">
-              <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] rounded-[3rem] rotate-3 opacity-20 blur-3xl"></div>
-              <div className="relative rounded-[2.5rem] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] border-8 border-white">
-                <img
-                  src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80&w=1200"
-                  alt="Retail Store"
-                  className="w-full h-[600px] object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--foreground))]/60 via-transparent to-transparent flex items-end p-8">
-                  <div className="glass-effect p-6 rounded-2xl w-full">
-                    <div className="flex items-center justify-between text-white">
-                      <div>
-                        <div className="text-sm font-medium opacity-80">Última Venta</div>
-                        <div className="text-2xl font-bold">Producto Premium</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-medium opacity-80">Precio</div>
-                        <div className="text-2xl font-bold">$1,250.00</div>
-                      </div>
+          <div className="container mx-auto max-w-6xl">
+            <div className="text-center space-y-8 animate-slide-in">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[hsl(var(--primary)/0.05)] border border-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] text-[10px] font-black uppercase tracking-[0.2em] mb-4">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[hsl(var(--primary))] opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[hsl(var(--primary))]"></span>
+                </span>
+                Gestión Inteligente de Inventarios
+              </div>
+
+              <h1 className="text-6xl md:text-8xl font-black text-[hsl(var(--foreground))] tracking-tighter leading-[0.9] max-w-4xl mx-auto" style={{ fontFamily: 'var(--font-display)' }}>
+                Control total <br />
+                <span className="text-[hsl(var(--muted))] italic opacity-60">sin esfuerzo.</span>
+              </h1>
+
+              <p className="text-xl md:text-2xl text-[hsl(var(--muted))] max-w-2xl mx-auto leading-relaxed font-medium">
+                Potencia tu negocio con el sistema de gestión más elegante y eficiente. Inventario, POS y BI en una sola plataforma.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
+                <Link href="/register">
+                  <Button size="lg" className="h-16 px-12 rounded-2xl bg-[hsl(var(--primary))] text-white text-lg font-black shadow-2xl hover:scale-105 hover:shadow-[hsl(var(--primary)/0.3)] transition-all duration-300 w-full sm:w-auto">
+                    Empezar
+                  </Button>
+                </Link>
+              </div>
+
+              <div className="pt-20 lg:pt-32 animate-scale-in" style={{ animationDelay: '0.4s' }}>
+                <div className="relative mx-auto max-w-5xl rounded-3xl border border-[hsl(var(--border)/0.5)] bg-[hsl(var(--surface))] shadow-[0_48px_96px_-24px_rgba(0,0,0,0.12)] p-2">
+                  <div className="aspect-[16/9] bg-gradient-to-br from-[hsl(var(--background))] to-[hsl(var(--muted-light))] rounded-2xl flex items-center justify-center overflow-hidden">
+                    <div className="flex flex-col items-center gap-6 opacity-40">
+                      <Package className="w-24 h-24 stroke-[1] animate-float" />
+                      <p className="font-black text-sm uppercase tracking-[0.5em] animate-pulse-soft">Dashboard Preview</p>
                     </div>
                   </div>
                 </div>
@@ -87,68 +100,142 @@ export default function Home() {
         </section>
 
         {/* Features Section */}
-        <section className="py-32 bg-[hsl(var(--foreground))] text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-[hsl(var(--primary))] rounded-full blur-[150px] opacity-10 translate-x-1/2 -translate-y-1/2"></div>
-
-          <div className="container mx-auto px-6 relative z-10">
-            <div className="text-center max-w-2xl mx-auto mb-24">
-              <h2 className="text-4xl font-bold mb-6" style={{ fontFamily: 'var(--font-display)' }}>Características Diseñadas para el Éxito</h2>
-              <p className="text-white/60 text-lg">Herramientas profesionales para negocios modernos</p>
+        <section id="features" className="py-32 px-6 bg-[hsl(var(--surface-elevated))]">
+          <div className="container mx-auto">
+            <div className="text-center mb-24 space-y-4 animate-fade-in">
+              <h2 className="text-4xl md:text-5xl font-black text-[hsl(var(--foreground))] tracking-tighter" style={{ fontFamily: 'var(--font-display)' }}>
+                Una suite diseñada <br /> para el crecimiento.
+              </h2>
+              <p className="text-[hsl(var(--muted))] font-bold text-sm uppercase tracking-[0.2em]">Todo lo que tu negocio necesita en un solo lugar</p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-12">
-              <div className="group animate-fade-in" style={{ animationDelay: '0.2s' }}>
-                <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center text-3xl mb-8 group-hover:bg-gradient-to-br group-hover:from-[hsl(var(--primary))] group-hover:to-[hsl(var(--secondary))] transition-all duration-500">📦</div>
-                <h3 className="text-2xl font-bold mb-4" style={{ fontFamily: 'var(--font-display)' }}>Inventario Inteligente</h3>
-                <p className="text-white/60 leading-relaxed">Control total de stock en múltiples almacenes con códigos de barras automatizados y alertas de stock bajo.</p>
-              </div>
-              <div className="group animate-fade-in" style={{ animationDelay: '0.4s' }}>
-                <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center text-3xl mb-8 group-hover:bg-gradient-to-br group-hover:from-[hsl(var(--primary))] group-hover:to-[hsl(var(--secondary))] transition-all duration-500">📱</div>
-                <h3 className="text-2xl font-bold mb-4" style={{ fontFamily: 'var(--font-display)' }}>Catálogo Digital</h3>
-                <p className="text-white/60 leading-relaxed">Presenta tus productos al mundo con un catálogo elegante y siempre sincronizado con tus existencias físicas.</p>
-              </div>
-              <div className="group animate-fade-in" style={{ animationDelay: '0.6s' }}>
-                <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center text-3xl mb-8 group-hover:bg-gradient-to-br group-hover:from-[hsl(var(--primary))] group-hover:to-[hsl(var(--secondary))] transition-all duration-500">📊</div>
-                <h3 className="text-2xl font-bold mb-4" style={{ fontFamily: 'var(--font-display)' }}>Análisis Avanzado</h3>
-                <p className="text-white/60 leading-relaxed">Descubre qué productos generan más valor y toma decisiones basadas en datos reales de tu negocio.</p>
-              </div>
+            <div className="grid md:grid-cols-3 gap-8">
+              {[
+                {
+                  icon: <BarChart3 className="w-8 h-8" />,
+                  title: "BI & Intelligence",
+                  desc: "Analiza tu Profit & Loss en tiempo real con gráficas predictivas y detalladas.",
+                  delay: "0.1s"
+                },
+                {
+                  icon: <Warehouse className="w-8 h-8" />,
+                  title: "Control de Bodegas",
+                  desc: "Kardex detallado y movimientos de stock entre múltiples sedes sincronizados.",
+                  delay: "0.2s"
+                },
+                {
+                  icon: <Smartphone className="w-8 h-8" />,
+                  title: "POS Mobile-First",
+                  desc: "Vende en segundos desde cualquier dispositivo con escaneo de cámara integrado.",
+                  delay: "0.3s"
+                },
+                {
+                  icon: <QrCode className="w-8 h-8" />,
+                  title: "Código de Barras",
+                  desc: "Genera e imprime etiquetas personalizadas para un control total de cada pieza.",
+                  delay: "0.4s"
+                },
+                {
+                  icon: <MessageSquare className="w-8 h-8" />,
+                  title: "WhatsApp Sync",
+                  desc: "Envía recibos digitales y catálogos directamente al WhatsApp de tus clientes.",
+                  delay: "0.5s"
+                },
+                {
+                  icon: <Share2 className="w-8 h-8" />,
+                  title: "Catálogo Online",
+                  desc: "Tu inventario se convierte en una vitrina digital automática para tus compradores.",
+                  delay: "0.6s"
+                }
+              ].map((feature, i) => (
+                <Card key={i} className="border-none shadow-none bg-transparent group hover:translate-y-[-8px] transition-all duration-500 animate-slide-in" style={{ animationDelay: feature.delay }}>
+                  <CardContent className="p-10 space-y-6">
+                    <div className="w-16 h-16 rounded-2xl bg-[hsl(var(--background))] border border-[hsl(var(--border))] text-[hsl(var(--primary))] flex items-center justify-center group-hover:bg-[hsl(var(--primary))] group-hover:text-white transition-all duration-500 shadow-sm">
+                      {feature.icon}
+                    </div>
+                    <div className="space-y-3">
+                      <h3 className="text-xl font-black text-[hsl(var(--foreground))] tracking-tight">{feature.title}</h3>
+                      <p className="text-[hsl(var(--muted))] leading-relaxed font-medium">{feature.desc}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </div>
         </section>
 
-        {/* CTA Section */}
+        {/* Call to Action */}
         <section className="py-32 px-6">
-          <div className="container mx-auto max-w-4xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] rounded-[3rem] p-12 text-center text-white shadow-2xl relative overflow-hidden animate-float">
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute top-10 left-10 w-32 h-32 border-4 border-white rounded-full"></div>
-              <div className="absolute bottom-10 right-10 w-48 h-48 border-8 border-white rounded-full opacity-30"></div>
+          <div className="container mx-auto max-w-5xl">
+            <div className="rounded-[4rem] bg-[hsl(var(--primary))] p-12 lg:p-24 text-center text-white relative overflow-hidden shadow-[0_64px_128px_-32px_rgba(0,0,0,0.2)] animate-scale-in">
+              <div className="absolute top-0 right-0 w-[50%] h-[100%] bg-white/5 skew-x-[-12deg] -translate-y-1/2"></div>
+
+              <div className="relative z-10 space-y-10">
+                <h2 className="text-4xl md:text-6xl font-black tracking-tighter leading-[0.95]" style={{ fontFamily: 'var(--font-display)' }}>
+                  ¿Listo para transformar <br /> tu negocio?
+                </h2>
+                <p className="text-xl text-white/60 max-w-xl mx-auto font-medium">
+                  Únete ahora y descubre por qué InventoryPro es la herramienta definitiva para emprendedores modernos.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-6 justify-center pt-4">
+                  <Link href="/register">
+                    <Button size="lg" className="h-16 px-12 rounded-2xl bg-white text-[hsl(var(--primary))] text-lg font-black hover:scale-105 active:scale-95 transition-all shadow-xl">
+                      Empezar
+                    </Button>
+                  </Link>
+                </div>
+                <div className="flex flex-center justify-center gap-8 opacity-40 text-[10px] font-black uppercase tracking-[0.3em]">
+                  <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> Sin Tarjeta</div>
+                  <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> Setup en 2 Minutos</div>
+                </div>
+              </div>
             </div>
-            <h2 className="text-4xl md:text-5xl font-bold mb-8 relative z-10" style={{ fontFamily: 'var(--font-display)' }}>
-              ¿Listo para transformar tu negocio?
-            </h2>
-            <p className="text-xl mb-12 opacity-90 relative z-10 max-w-xl mx-auto font-medium">
-              Únete hoy a los cientos de empresarios que ya están optimizando su gestión de inventario.
-            </p>
-            <Link href="/register">
-              <Button variant="secondary" size="lg" className="h-16 px-12 text-xl font-bold shadow-2xl rounded-2xl relative z-10 bg-white text-[hsl(var(--primary))] hover:bg-white/90">Crear Mi Cuenta Gratis</Button>
-            </Link>
           </div>
         </section>
       </main>
 
-      <footer className="py-20 border-t border-[hsl(var(--border))] bg-white">
-        <div className="container mx-auto px-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-10">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">📦</span>
-              <span className="text-xl font-bold" style={{ fontFamily: 'var(--font-display)' }}>InventoryPro</span>
+      {/* Footer */}
+      <footer className="border-t border-[hsl(var(--border))] py-20 px-6 bg-[hsl(var(--surface))]">
+        <div className="container mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-start gap-12">
+            <div className="space-y-6 max-w-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[hsl(var(--primary))] text-white flex items-center justify-center">
+                  <Package className="w-5 h-5" />
+                </div>
+                <span className="text-xl font-black tracking-tighter text-[hsl(var(--foreground))]" style={{ fontFamily: 'var(--font-display)' }}>
+                  InventoryPro
+                </span>
+              </div>
+              <p className="text-sm text-[hsl(var(--muted))] leading-relaxed font-medium">
+                Redefiniendo la gestión de stocks para la nueva era digital. Elegancia, eficiencia y control.
+              </p>
             </div>
-            <div className="flex gap-8 text-[hsl(var(--muted))] font-medium">
-              <a href="#" className="hover:text-[hsl(var(--primary))] transition-colors">Privacidad</a>
-              <a href="#" className="hover:text-[hsl(var(--primary))] transition-colors">Términos</a>
-              <a href="#" className="hover:text-[hsl(var(--primary))] transition-colors">Contacto</a>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-12 lg:gap-24">
+              <div className="space-y-6">
+                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[hsl(var(--foreground))]">Plataforma</h4>
+                <ul className="space-y-4 text-sm font-bold text-[hsl(var(--muted))]">
+                  <li><Link href="/" className="hover:text-[hsl(var(--primary))] transition-colors duration-300">Funcionalidades</Link></li>
+                  <li><Link href="/" className="hover:text-[hsl(var(--primary))] transition-colors duration-300">Precios</Link></li>
+                  <li><Link href="/" className="hover:text-[hsl(var(--primary))] transition-colors duration-300">Seguridad</Link></li>
+                </ul>
+              </div>
+              <div className="space-y-6">
+                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[hsl(var(--foreground))]">Compañía</h4>
+                <ul className="space-y-4 text-sm font-bold text-[hsl(var(--muted))]">
+                  <li><Link href="/" className="hover:text-[hsl(var(--primary))] transition-colors duration-300">Sobre Nosotros</Link></li>
+                  <li><Link href="/" className="hover:text-[hsl(var(--primary))] transition-colors duration-300">Blog</Link></li>
+                  <li><Link href="/" className="hover:text-[hsl(var(--primary))] transition-colors duration-300">Contacto</Link></li>
+                </ul>
+              </div>
             </div>
-            <p className="text-[hsl(var(--muted))]">© 2024 InventoryPro. Todos los derechos reservados.</p>
+          </div>
+
+          <div className="mt-20 pt-8 border-t border-[hsl(var(--border)/0.5)] flex flex-col sm:flex-row justify-between items-center gap-6">
+            <p className="text-[10px] font-black uppercase tracking-widest text-[hsl(var(--muted))]">
+              © 2024 InventoryPro. Todos los derechos reservados.
+            </p>
           </div>
         </div>
       </footer>

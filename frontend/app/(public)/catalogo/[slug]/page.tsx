@@ -11,6 +11,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { ImageSlider } from "@/components/ui/image-slider"
+import { Package, Search, Info, CheckCircle2, MessageSquare, ArrowUpRight } from 'lucide-react'
 
 interface CatalogProduct {
     id: string
@@ -43,8 +44,6 @@ interface CatalogData {
     availableProducts: number
 }
 
-
-
 function formatPrice(price: number) {
     return new Intl.NumberFormat('es-CO', {
         style: 'currency',
@@ -70,7 +69,6 @@ export default function CatalogPage() {
         if (!slug) return
 
         const fetchCatalog = async () => {
-            // Aseguramos que la URL no termine en slash
             let backendHost = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000'
             if (backendHost.endsWith('/')) {
                 backendHost = backendHost.slice(0, -1)
@@ -94,13 +92,9 @@ export default function CatalogPage() {
                 const data = await res.json()
                 setCatalog(data)
             } catch (err: any) {
-                // Si es un error de notFound(), lo dejamos pasar
                 if (err?.digest === 'NEXT_NOT_FOUND' || err?.message === 'NEXT_NOT_FOUND') {
                     throw err;
                 }
-
-                console.error('Error fetching catalog:', err);
-                console.error('Attempted URL:', targetUrl);
                 setError('Error de conexión')
             } finally {
                 setLoading(false)
@@ -126,10 +120,12 @@ export default function CatalogPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-stone-100">
-                <div className="animate-pulse flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-stone-300"></div>
-                    <div className="h-4 w-32 bg-stone-300 rounded"></div>
+            <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--background))]">
+                <div className="flex flex-col items-center gap-6 animate-pulse">
+                    <div className="w-16 h-16 rounded-2xl bg-[hsl(var(--primary)/0.1)] flex items-center justify-center">
+                        <Package className="w-8 h-8 text-[hsl(var(--primary))]" />
+                    </div>
+                    <div className="h-2 w-32 bg-[hsl(var(--border))] rounded-full"></div>
                 </div>
             </div>
         )
@@ -137,14 +133,16 @@ export default function CatalogPage() {
 
     if (error || !catalog) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-stone-100 p-6">
-                <div className="text-center">
-                    <div className="text-6xl mb-4">📦</div>
-                    <h1 className="text-2xl font-bold text-stone-700 mb-2">
+            <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--background))] p-6">
+                <div className="text-center max-w-sm animate-scale-in">
+                    <div className="w-20 h-20 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-6 shadow-sm">
+                        <Info className="w-10 h-10" />
+                    </div>
+                    <h1 className="text-2xl font-black text-[hsl(var(--foreground))] mb-2 tracking-tight">
                         {error || 'Catálogo no disponible'}
                     </h1>
-                    <p className="text-stone-500">
-                        Este catálogo no existe o ha sido desactivado.
+                    <p className="text-[hsl(var(--muted))] font-medium">
+                        Este catálogo no existe o ha sido desactivado temporalmente por el propietario.
                     </p>
                 </div>
             </div>
@@ -155,21 +153,21 @@ export default function CatalogPage() {
 
     return (
         <div
-            className="min-h-screen"
+            className="min-h-screen flex flex-col selection:bg-[hsl(var(--primary)/0.1)] selection:text-[hsl(var(--primary))]"
             style={{ backgroundColor: business.bgColor }}
         >
             {/* Header */}
             <header
-                className="sticky top-0 z-50 shadow-lg"
+                className="sticky top-0 z-50 shadow-2xl transition-all duration-300"
                 style={{ backgroundColor: business.accentColor }}
             >
-                <div className="max-w-7xl mx-auto px-4 py-5">
-                    <div className="text-center">
-                        <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
-                            Catálogo de {business.name}
+                <div className="max-w-7xl mx-auto px-6 py-6 lg:py-8">
+                    <div className="text-center space-y-3">
+                        <h1 className="text-3xl md:text-5xl font-black text-white tracking-tighter" style={{ fontFamily: 'var(--font-display)' }}>
+                            {business.name}
                         </h1>
                         {business.description && (
-                            <p className="mt-2 text-white/80 text-sm md:text-base max-w-2xl mx-auto">
+                            <p className="text-white/70 text-sm md:text-base max-w-2xl mx-auto font-medium leading-relaxed">
                                 {business.description}
                             </p>
                         )}
@@ -178,29 +176,31 @@ export default function CatalogPage() {
             </header>
 
             {/* Search & Filters */}
-            <div className="sticky top-[72px] md:top-[88px] z-40 bg-white/80 backdrop-blur-md border-b border-stone-200 shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 py-3">
-                    <div className="flex flex-col md:flex-row gap-3">
+            <div className="sticky top-[86px] md:top-[124px] z-40 bg-white/70 backdrop-blur-xl border-b border-[hsl(var(--border)/0.5)] shadow-sm">
+                <div className="max-w-7xl mx-auto px-6 py-4">
+                    <div className="flex flex-col md:flex-row gap-4 items-center">
                         {/* Search */}
-                        <div className="flex-1 relative">
-
+                        <div className="w-full md:flex-1 relative group">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--muted))] group-focus-within:text-[hsl(var(--primary))] transition-colors" />
                             <input
                                 type="text"
-                                placeholder="Buscar productos..."
+                                placeholder="Buscar en el catálogo..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-stone-400 text-sm"
+                                className="w-full pl-11 pr-4 py-3 rounded-2xl border-2 border-[hsl(var(--border))] focus:border-[hsl(var(--primary))] focus:outline-none transition-all text-sm font-medium bg-white/50"
                             />
                         </div>
 
                         {/* Category Filter */}
-                        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                        <div className="w-full md:w-auto flex gap-2 overflow-x-auto pb-1 no-scrollbar">
                             <button
                                 onClick={() => setSelectedCategory(null)}
-                                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${!selectedCategory
-                                    ? 'text-white shadow-md'
-                                    : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50'
-                                    }`}
+                                className={cn(
+                                    "px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all",
+                                    !selectedCategory
+                                        ? "text-white shadow-xl shadow-black/10 scale-105"
+                                        : "bg-white text-[hsl(var(--muted))] border-2 border-[hsl(var(--border))] hover:bg-[hsl(var(--muted-light))]"
+                                )}
                                 style={!selectedCategory ? { backgroundColor: business.accentColor } : {}}
                             >
                                 Todos
@@ -209,10 +209,12 @@ export default function CatalogPage() {
                                 <button
                                     key={cat.id}
                                     onClick={() => setSelectedCategory(cat.id)}
-                                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${selectedCategory === cat.id
-                                        ? 'text-white shadow-md'
-                                        : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50'
-                                        }`}
+                                    className={cn(
+                                        "px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                                        selectedCategory === cat.id
+                                            ? "text-white shadow-xl shadow-black/10 scale-105"
+                                            : "bg-white text-[hsl(var(--muted))] border-2 border-[hsl(var(--border))] hover:bg-[hsl(var(--muted-light))]"
+                                    )}
                                     style={selectedCategory === cat.id ? { backgroundColor: business.accentColor } : {}}
                                 >
                                     {cat.name}
@@ -222,78 +224,89 @@ export default function CatalogPage() {
                     </div>
 
                     {/* Availability Toggle */}
-                    <div className="flex items-center justify-between mt-3">
-                        <label className="flex items-center gap-2 cursor-pointer select-none">
-                            <input
-                                type="checkbox"
-                                checked={showOnlyAvailable}
-                                onChange={(e) => setShowOnlyAvailable(e.target.checked)}
-                                className="w-4 h-4 rounded border-stone-300 accent-stone-700"
-                            />
-                            <span className="text-sm text-stone-600">Solo disponibles</span>
+                    <div className="flex items-center justify-between mt-4">
+                        <label className="flex items-center gap-2.5 cursor-pointer group select-none">
+                            <div className={cn(
+                                "w-10 h-5 rounded-full transition-all relative",
+                                showOnlyAvailable ? "bg-emerald-500" : "bg-[hsl(var(--border))]"
+                            )}>
+                                <div className={cn(
+                                    "absolute top-1 w-3 h-3 bg-white rounded-full transition-all",
+                                    showOnlyAvailable ? "left-6" : "left-1"
+                                )} />
+                                <input
+                                    type="checkbox"
+                                    className="sr-only"
+                                    checked={showOnlyAvailable}
+                                    onChange={(e) => setShowOnlyAvailable(e.target.checked)}
+                                />
+                            </div>
+                            <span className="text-xs font-bold text-[hsl(var(--muted))] uppercase tracking-widest group-hover:text-[hsl(var(--foreground))] transition-colors">Solo Disponibles</span>
                         </label>
-                        <span className="text-xs text-stone-400">
-                            {filteredProducts.length} de {catalog.totalProducts} productos
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[hsl(var(--muted))] opacity-60">
+                            {filteredProducts.length} mallas encontradas
                         </span>
                     </div>
                 </div>
             </div>
 
             {/* Products Grid */}
-            <main className="max-w-7xl mx-auto px-4 py-6">
+            <main className="max-w-7xl mx-auto px-6 py-12 flex-grow">
                 {filteredProducts.length === 0 ? (
-                    <div className="text-center py-16">
-                        <div className="text-5xl mb-4">🔍</div>
-                        <p className="text-stone-500">No se encontraron productos</p>
+                    <div className="text-center py-24 animate-scale-in">
+                        <div className="w-24 h-24 bg-[hsl(var(--muted-light))] rounded-full flex items-center justify-center mx-auto mb-6">
+                            <Search className="w-10 h-10 text-[hsl(var(--muted))]" />
+                        </div>
+                        <h3 className="text-2xl font-black text-[hsl(var(--foreground))] tracking-tight">Sin resultados</h3>
+                        <p className="text-[hsl(var(--muted))] font-medium mt-2">Intenta ajustar tus filtros de búsqueda.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-                        {filteredProducts.map((product) => (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                        {filteredProducts.map((product, i) => (
                             <div
                                 key={product.id}
                                 onClick={() => setSelectedProduct(product)}
-                                className={`group bg-white rounded-2xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer ${!product.available ? 'opacity-70' : ''
-                                    }`}
+                                className={cn(
+                                    "group bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden transition-all duration-500 hover:shadow-[0_48px_96px_-16px_rgba(0,0,0,0.12)] hover:-translate-y-3 cursor-pointer animate-slide-in",
+                                    !product.available && "opacity-60 grayscale-[0.4]"
+                                )}
+                                style={{ animationDelay: `${i * 0.05}s` }}
                             >
-                                {/* Product Image (Slider) */}
-                                <div className="relative aspect-square bg-stone-100 overflow-hidden">
+                                {/* Product Image */}
+                                <div className="relative aspect-[4/5] bg-[hsl(var(--muted-light))] overflow-hidden">
                                     <ImageSlider
                                         images={product.images}
                                         name={product.name}
                                     />
 
-                                    {/* Availability Badge */}
-                                    <div
-                                        className={`absolute top-2 right-2 px-2 py-1 rounded-full text-[10px] md:text-xs font-medium backdrop-blur-sm z-30 ${product.available
-                                            ? 'bg-green-500/90 text-white'
-                                            : 'bg-red-500/90 text-white'
-                                            }`}
-                                    >
-                                        {product.available ? '✓ Disponible' : '✕ Agotado'}
-                                    </div>
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-                                    {/* Category Tag */}
-                                    <div className="absolute bottom-2 left-2 px-2 py-1 rounded-full text-[10px] md:text-xs font-medium bg-black/50 text-white backdrop-blur-sm z-30">
-                                        {product.categoryName}
+                                    <div className={cn(
+                                        "absolute top-4 right-4 px-3 py-1.5 rounded-xl text-[9px] font-black tracking-widest uppercase z-30 shadow-lg transition-transform group-hover:scale-105",
+                                        product.available ? "bg-emerald-500 text-white" : "bg-red-500 text-white"
+                                    )}>
+                                        {product.available ? "En Stock" : "Agotado"}
                                     </div>
                                 </div>
 
                                 {/* Product Info */}
-                                <div className="p-3 md:p-4">
-                                    <h3 className="font-semibold text-stone-800 line-clamp-2 text-sm md:text-base leading-tight">
-                                        {product.name}
-                                    </h3>
-                                    {product.description && (
-                                        <p className="mt-1 text-xs text-stone-500 line-clamp-2">
-                                            {product.description}
+                                <div className="p-8 space-y-4">
+                                    <div className="space-y-1">
+                                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[hsl(var(--muted))]">
+                                            {product.categoryName}
+                                        </div>
+                                        <h3 className="text-xl font-black text-[hsl(var(--foreground))] tracking-tight group-hover:text-[hsl(var(--primary))] transition-colors line-clamp-1">
+                                            {product.name}
+                                        </h3>
+                                    </div>
+                                    <div className="flex items-center justify-between pt-2">
+                                        <p className="text-2xl font-black tracking-tighter" style={{ color: business.accentColor }}>
+                                            {formatPrice(product.price)}
                                         </p>
-                                    )}
-                                    <p
-                                        className="mt-2 text-lg md:text-xl font-bold"
-                                        style={{ color: business.accentColor }}
-                                    >
-                                        {formatPrice(product.price)}
-                                    </p>
+                                        <div className="w-10 h-10 rounded-full bg-[hsl(var(--muted-light))] flex items-center justify-center group-hover:bg-[hsl(var(--primary))] group-hover:text-white transition-all">
+                                            <ArrowUpRight className="w-5 h-5" />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -303,11 +316,11 @@ export default function CatalogPage() {
 
             {/* Product Modal */}
             <Dialog open={!!selectedProduct} onOpenChange={(open) => !open && setSelectedProduct(null)}>
-                <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-3xl gap-0 border-none sm:max-w-[95vw] md:max-w-4xl bg-white shadow-2xl">
+                <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[3rem] border-none bg-white shadow-2xl animate-scale-in">
                     {selectedProduct && (
-                        <div className="flex flex-col md:flex-row h-full max-h-[90vh] md:max-h-[85vh]">
+                        <div className="flex flex-col md:flex-row h-full max-h-[90vh]">
                             {/* Left: Image Slider */}
-                            <div className="w-full md:w-[55%] h-[40vh] md:h-auto relative bg-stone-50 min-h-[300px]">
+                            <div className="w-full md:w-[60%] h-[40vh] md:h-auto relative bg-[hsl(var(--muted-light))]">
                                 <ImageSlider
                                     images={selectedProduct.images}
                                     name={selectedProduct.name}
@@ -315,51 +328,51 @@ export default function CatalogPage() {
                                     showControls={true}
                                     allowZoom={true}
                                 />
-                                <div
-                                    className={`absolute top-6 left-6 px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest text-white z-40 shadow-xl ${selectedProduct.available ? 'bg-green-500' : 'bg-red-500'
-                                        }`}
-                                >
-                                    {selectedProduct.available ? 'PRODUCTO DISPONIBLE' : 'AGOTADO MOMENTÁNEAMENTE'}
+                                <div className={cn(
+                                    "absolute top-8 left-8 px-5 py-2 rounded-2xl text-[10px] font-black tracking-[0.2em] text-white z-40 shadow-2xl",
+                                    selectedProduct.available ? "bg-emerald-500" : "bg-red-500"
+                                )}>
+                                    {selectedProduct.available ? "DISPONIBLE AHORA" : "CONSULTAR DISPONIBILIDAD"}
                                 </div>
                             </div>
 
                             {/* Right: Info */}
-                            <div className="w-full md:w-[45%] p-5 md:p-10 flex flex-col justify-between overflow-y-auto flex-1 md:flex-none">
-                                <div className="space-y-6">
-                                    <div className="space-y-2">
+                            <div className="w-full md:w-[40%] p-8 md:p-12 flex flex-col justify-between overflow-y-auto">
+                                <div className="space-y-8">
+                                    <div className="space-y-3">
                                         <div
-                                            className="inline-block px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest mb-2"
-                                            style={{ backgroundColor: `${business.accentColor}15`, color: business.accentColor }}
+                                            className="inline-flex px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest"
+                                            style={{ backgroundColor: `${business.accentColor}10`, color: business.accentColor }}
                                         >
                                             {selectedProduct.categoryName}
                                         </div>
-                                        <DialogTitle className="text-3xl md:text-4xl font-extrabold text-stone-900 leading-[1.1] tracking-tight">
+                                        <DialogTitle className="text-4xl font-black text-[hsl(var(--foreground))] tracking-tighter leading-none" style={{ fontFamily: 'var(--font-display)' }}>
                                             {selectedProduct.name}
                                         </DialogTitle>
                                     </div>
 
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="text-4xl font-black tracking-tighter" style={{ color: business.accentColor }}>
+                                    <div className="pb-8 border-b border-[hsl(var(--border)/0.5)]">
+                                        <p className="text-5xl font-black tracking-tighter" style={{ color: business.accentColor }}>
                                             {formatPrice(selectedProduct.price)}
-                                        </span>
-                                        <span className="text-stone-400 text-sm font-medium">IVA incluido</span>
+                                        </p>
+                                        <p className="text-xs font-bold text-[hsl(var(--muted))] mt-2 uppercase tracking-widest">Precios sujetos a cambio</p>
                                     </div>
 
-                                    <div className="space-y-3 pt-6 border-t border-stone-100">
-                                        <h4 className="text-[10px] font-black text-stone-400 uppercase tracking-[0.2em]">Detalles del Producto</h4>
-                                        <div className="text-stone-600 text-sm md:text-base leading-relaxed whitespace-pre-wrap font-medium">
-                                            {selectedProduct.description || "Este producto no cuenta con una descripción detallada en este momento."}
-                                        </div>
+                                    <div className="space-y-4">
+                                        <h4 className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-[0.3em]">Especificaciones</h4>
+                                        <p className="text-[hsl(var(--foreground))] text-base leading-relaxed font-medium">
+                                            {selectedProduct.description || "Este producto es parte de nuestra colección exclusiva. Contáctanos para más detalles técnicos."}
+                                        </p>
                                     </div>
                                 </div>
 
-                                <div className="mt-10 pt-8 border-t border-stone-100">
+                                <div className="mt-12 space-y-4">
                                     <button
-                                        className="w-full py-5 rounded-2xl text-white font-black text-sm uppercase tracking-widest transition-all active:scale-[0.98] shadow-2xl hover:brightness-110 disabled:opacity-50 disabled:grayscale disabled:active:scale-100 flex items-center justify-center gap-3"
+                                        className="w-full py-6 rounded-[2rem] text-white font-black text-sm uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xl hover:brightness-110 disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3"
                                         style={{ backgroundColor: business.accentColor }}
                                         onClick={() => {
                                             const phoneNumber = business.whatsApp?.replace(/\D/g, '') || '';
-                                            const text = `Hola! 👋 Estoy viendo el catálogo de ${business.name} y me interesa:\n\n*${selectedProduct.name}*\nPrecio: ${formatPrice(selectedProduct.price)}\n\n¿Podrían darme más información?`;
+                                            const text = `Hola! 👋 Vi tu catálogo y me interesa:\n\n*${selectedProduct.name}*\nPrecio: ${formatPrice(selectedProduct.price)}\n\n¿Me podrías dar más información?`;
                                             const wpUrl = phoneNumber
                                                 ? `https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(text)}`
                                                 : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
@@ -367,13 +380,13 @@ export default function CatalogPage() {
                                         }}
                                         disabled={!selectedProduct.available}
                                     >
-                                        <span className="text-xl">💬</span>
-                                        {selectedProduct.available ? 'Me interesa este producto' : 'No disponible'}
+                                        <MessageSquare className="w-5 h-5" />
+                                        {selectedProduct.available ? 'Consultar via WhatsApp' : 'No disponible'}
                                     </button>
-                                    <div className="flex items-center justify-center gap-2 mt-4 opacity-40">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                                        <p className="text-[9px] font-bold text-stone-500 uppercase tracking-tighter">
-                                            Información de stock sincronizada en tiempo real
+                                    <div className="flex items-center justify-center gap-2.5 opacity-40">
+                                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                        <p className="text-[9px] font-black text-[hsl(var(--muted))] uppercase tracking-widest">
+                                            Stock verificado por InventoryPro
                                         </p>
                                     </div>
                                 </div>
@@ -384,17 +397,22 @@ export default function CatalogPage() {
             </Dialog>
 
             {/* Footer */}
-            <footer className="mt-auto py-10 text-center border-t border-stone-100 bg-white/30 backdrop-blur-sm">
-                <div className="max-w-7xl mx-auto px-4">
-                    <p className="text-sm font-medium text-stone-500">
-                        Catálogo oficial de <span className="font-bold text-stone-800">{business.name}</span>
+            <footer className="mt-auto py-20 text-center border-t border-[hsl(var(--border)/0.5)] bg-white/30 backdrop-blur-md">
+                <div className="max-w-7xl mx-auto px-6">
+                    <p className="text-sm font-bold text-[hsl(var(--muted))] uppercase tracking-widest mb-8">
+                        Catálogo oficial de <span className="text-[hsl(var(--foreground))]">{business.name}</span>
                     </p>
-                    <div className="mt-4 flex flex-col items-center gap-1">
-                        <p className="text-[10px] text-stone-400 font-bold tracking-widest uppercase">
-                            Desarrollado por
+                    <div className="flex flex-col items-center gap-3 group cursor-default">
+                        <p className="text-[10px] text-[hsl(var(--muted))] font-black tracking-[0.5em] uppercase opacity-40">
+                            Impulsado por
                         </p>
-                        <div className="font-black text-stone-800 tracking-tighter text-lg">
-                            Inventory<span className="text-stone-400">Pro</span>
+                        <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-[hsl(var(--primary))] text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                <Package className="w-5 h-5" />
+                            </div>
+                            <span className="text-2xl font-black tracking-tighter text-[hsl(var(--foreground))]" style={{ fontFamily: 'var(--font-display)' }}>
+                                Inventory<span className="text-[hsl(var(--primary))] opacity-60">Pro</span>
+                            </span>
                         </div>
                     </div>
                 </div>

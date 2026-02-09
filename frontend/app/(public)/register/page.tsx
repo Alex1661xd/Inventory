@@ -1,23 +1,23 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import Link from 'next/link'
+import { Package, User, Building2, Mail, Lock, CheckCircle2, ArrowRight } from 'lucide-react'
 import { api } from '@/lib/backend'
-import { Eye, EyeOff } from 'lucide-react'
 
 const registerSchema = z.object({
-    userName: z.string().min(2, 'Nombre muy corto'),
-    businessName: z.string().min(3, 'Nombre de negocio muy corto'),
+    name: z.string().min(2, 'El nombre es muy corto'),
+    businessName: z.string().min(2, 'El nombre del negocio es muy corto'),
     email: z.string().email('Email inválido'),
-    password: z.string().min(6, 'Contraseña debe tener al menos 6 caracteres'),
+    password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
 })
 
 type RegisterFormValues = z.infer<typeof registerSchema>
@@ -25,171 +25,170 @@ type RegisterFormValues = z.infer<typeof registerSchema>
 export default function RegisterPage() {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
-    const [showPassword, setShowPassword] = useState(false)
 
     const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormValues>({
-        resolver: zodResolver(registerSchema)
+        resolver: zodResolver(registerSchema),
     })
 
     const onSubmit = async (data: RegisterFormValues) => {
         setLoading(true)
         try {
-            await api.auth.registerBusiness(data)
-
-            toast.success('¡Registro exitoso! Revisa tu email para confirmar (si aplica) o inicia sesión.')
+            await api.auth.registerBusiness({
+                userName: data.name,
+                businessName: data.businessName,
+                email: data.email,
+                password: data.password,
+            })
+            toast.success('¡Registro exitoso! Iniciando sesión...')
             router.push('/login')
-
         } catch (error: any) {
-            toast.error(error.message)
+            toast.error(error.message || 'Error al registrar el negocio')
         } finally {
             setLoading(false)
         }
     }
 
     return (
-        <div className="flex min-h-screen">
-            {/* Left Side - Branding & Illustration */}
-            <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-[hsl(var(--foreground))] via-[hsl(var(--primary-dark))] to-[hsl(var(--secondary))]">
-                <div className="absolute inset-0 opacity-10">
-                    <div className="absolute top-20 left-20 w-64 h-64 bg-white rounded-full blur-3xl animate-float"></div>
-                    <div className="absolute bottom-20 right-20 w-96 h-96 bg-[hsl(var(--accent))] rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }}></div>
+        <div className="flex min-h-screen bg-[hsl(var(--background))]">
+            {/* Left Side - Branding (Desktop Only) */}
+            <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-[hsl(var(--primary))]">
+                {/* Elegant Decorative Elements */}
+                <div className="absolute inset-0 opacity-20">
+                    <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-white rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2 animate-pulse-soft"></div>
+                    <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[hsl(var(--secondary))] rounded-full blur-[100px] translate-y-1/2 -translate-x-1/2"></div>
                 </div>
 
-                <div className="relative z-10 flex flex-col justify-center px-16 text-white">
+                <div className="relative z-10 flex flex-col justify-center px-20 text-white">
                     <div className="animate-slide-in">
-                        <h1 className="text-5xl font-bold mb-6" style={{ fontFamily: 'var(--font-display)' }}>
-                            Gestiona tu Negocio con Inteligencia
-                        </h1>
-                        <p className="text-xl text-white/90 mb-8 leading-relaxed">
-                            Sistema completo para administrar inventario, ventas y catálogo digital.
-                            Todo en un solo lugar, diseñado para el éxito de tu negocio.
-                        </p>
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-3 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-                                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                                    <span className="text-2xl">📦</span>
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-lg">Control de Inventario</h3>
-                                    <p className="text-white/70 text-sm">Gestión en tiempo real de múltiples bodegas</p>
-                                </div>
+                        <Link href="/" className="flex items-center gap-3 mb-16 group cursor-pointer w-fit">
+                            <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                <Package className="w-7 h-7 text-white" />
                             </div>
-                            <div className="flex items-center gap-3 animate-fade-in" style={{ animationDelay: '0.4s' }}>
-                                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                                    <span className="text-2xl">💰</span>
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-lg">Análisis de Ventas</h3>
-                                    <p className="text-white/70 text-sm">Reportes detallados y métricas de rendimiento</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3 animate-fade-in" style={{ animationDelay: '0.6s' }}>
-                                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                                    <span className="text-2xl">🌐</span>
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-lg">Catálogo Digital</h3>
-                                    <p className="text-white/70 text-sm">Presencia online automática y actualizada</p>
-                                </div>
+                            <span className="text-3xl font-black tracking-tighter" style={{ fontFamily: 'var(--font-display)' }}>
+                                Inventory<span className="opacity-60 font-medium">Pro</span>
+                            </span>
+                        </Link>
+
+                        <div className="space-y-8">
+                            <h1 className="text-6xl font-black tracking-tighter leading-tight" style={{ fontFamily: 'var(--font-display)' }}>
+                                Empieza tu <br />
+                                <span className="text-[hsl(var(--secondary))] italic">legado digital.</span>
+                            </h1>
+                            <p className="text-xl text-white/60 leading-relaxed max-w-md font-medium">
+                                Únete a miles de negocios que confían en InventoryPro para escalar su operación con elegancia y control absoluto.
+                            </p>
+
+                            <div className="space-y-4 pt-8">
+                                {[
+                                    "Prueba gratuita de 7 días",
+                                    "Sin necesidad de tarjeta de crédito",
+                                    "Configuración instantánea"
+                                ].map((text, i) => (
+                                    <div key={i} className="flex items-center gap-4 text-white/80 font-bold text-sm uppercase tracking-widest">
+                                        <CheckCircle2 className="w-5 h-5 text-[hsl(var(--secondary))]" />
+                                        <span>{text}</span>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Right Side - Registration Form */}
-            <div className="flex-1 flex items-center justify-center p-8 bg-[hsl(var(--background))]">
+            {/* Right Side - Form */}
+            <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 relative overflow-hidden">
                 <div className="w-full max-w-md animate-scale-in">
-                    <div className="text-center mb-8">
-                        <h2 className="text-3xl font-bold text-[hsl(var(--foreground))] mb-2" style={{ fontFamily: 'var(--font-display)' }}>
-                            Crear Cuenta
+                    <div className="text-center mb-10">
+                        <h2 className="text-4xl font-black text-[hsl(var(--foreground))] mb-3 tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
+                            Crea tu Cuenta
                         </h2>
-                        <p className="text-[hsl(var(--muted))]">Comienza tu transformación digital</p>
+                        <p className="text-[hsl(var(--muted))] font-medium">Empieza a gestionar tu negocio hoy mismo</p>
                     </div>
 
-                    <Card>
-                        <CardContent className="pt-6">
+                    <Card className="border-none shadow-[0_32px_64px_-16px_rgba(0,0,0,0.06)] overflow-hidden bg-[hsl(var(--surface))]">
+                        <CardContent className="p-8 md:p-10">
                             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-                                <div className="space-y-2">
-                                    <Label htmlFor="userName">Tu Nombre</Label>
-                                    <Input
-                                        id="userName"
-                                        placeholder="Juan Pérez"
-                                        {...register('userName')}
-                                        className={errors.userName ? 'border-red-500' : ''}
-                                    />
-                                    {errors.userName && <p className="text-red-600 text-xs font-medium mt-1">{errors.userName.message}</p>}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="font-bold text-[10px] uppercase tracking-widest text-[hsl(var(--muted))]">Nombre</Label>
+                                        <div className="relative">
+                                            <Input
+                                                {...register('name')}
+                                                placeholder="Tu nombre"
+                                                className={`h-12 rounded-xl border-2 pl-10 bg-transparent ${errors.name ? 'border-red-500' : 'border-[hsl(var(--border))]'}`}
+                                            />
+                                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted))]" />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="font-bold text-[10px] uppercase tracking-widest text-[hsl(var(--muted))]">Negocio</Label>
+                                        <div className="relative">
+                                            <Input
+                                                {...register('businessName')}
+                                                placeholder="Nombre negocio"
+                                                className={`h-12 rounded-xl border-2 pl-10 bg-transparent ${errors.businessName ? 'border-red-500' : 'border-[hsl(var(--border))]'}`}
+                                            />
+                                            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted))]" />
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="businessName">Nombre del Negocio</Label>
-                                    <Input
-                                        id="businessName"
-                                        placeholder="Mi Tienda"
-                                        {...register('businessName')}
-                                        className={errors.businessName ? 'border-red-500' : ''}
-                                    />
-                                    {errors.businessName && <p className="text-red-600 text-xs font-medium mt-1">{errors.businessName.message}</p>}
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="email">Email Corporativo</Label>
-                                    <Input
-                                        id="email"
-                                        type="email"
-                                        placeholder="contacto@mitienda.com"
-                                        {...register('email')}
-                                        className={errors.email ? 'border-red-500' : ''}
-                                    />
-                                    {errors.email && <p className="text-red-600 text-xs font-medium mt-1">{errors.email.message}</p>}
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="password">Contraseña</Label>
+                                    <Label className="font-bold text-[10px] uppercase tracking-widest text-[hsl(var(--muted))]">Email Profesional</Label>
                                     <div className="relative">
                                         <Input
-                                            id="password"
-                                            type={showPassword ? 'text' : 'password'}
-                                            placeholder="••••••••"
-                                            {...register('password')}
-                                            className={errors.password ? 'border-red-500 pr-10' : 'pr-10'}
+                                            {...register('email')}
+                                            type="email"
+                                            placeholder="nombre@empresa.com"
+                                            className={`h-12 rounded-xl border-2 pl-10 bg-transparent ${errors.email ? 'border-red-500' : 'border-[hsl(var(--border))]'}`}
                                         />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[rgb(120,115,110)] hover:text-[rgb(25,35,25)] transition-colors"
-                                        >
-                                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                        </button>
+                                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted))]" />
                                     </div>
-                                    {errors.password && <p className="text-red-600 text-xs font-medium mt-1">{errors.password.message}</p>}
                                 </div>
 
-                                <Button type="submit" className="w-full" size="lg" disabled={loading}>
+                                <div className="space-y-2">
+                                    <Label className="font-bold text-[10px] uppercase tracking-widest text-[hsl(var(--muted))]">Contraseña Segura</Label>
+                                    <div className="relative">
+                                        <Input
+                                            {...register('password')}
+                                            type="password"
+                                            placeholder="••••••••"
+                                            className={`h-12 rounded-xl border-2 pl-10 bg-transparent ${errors.password ? 'border-red-500' : 'border-[hsl(var(--border))]'}`}
+                                        />
+                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted))]" />
+                                    </div>
+                                </div>
+
+                                <Button type="submit" className="w-full h-14 md:h-16 text-lg font-black rounded-2xl bg-[hsl(var(--primary))] text-white shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all pt-1" disabled={loading}>
                                     {loading ? (
                                         <span className="flex items-center gap-2">
-                                            <span className="animate-spin">⚙️</span>
-                                            Creando cuenta...
+                                            <span className="animate-spin text-xl">⚙️</span>
+                                            Creando Cuenta...
                                         </span>
                                     ) : (
-                                        'Crear Cuenta'
+                                        <span className="flex items-center gap-2">
+                                            Empezar Gratis <ArrowRight className="w-5 h-5" />
+                                        </span>
                                     )}
                                 </Button>
                             </form>
-
-                            <div className="mt-6 text-center">
-                                <p className="text-sm text-[hsl(var(--muted))]">
-                                    ¿Ya tienes cuenta?{' '}
-                                    <Link href="/login" className="font-semibold text-[hsl(var(--primary))] hover:text-[hsl(var(--primary-dark))] underline-offset-4 hover:underline transition-colors">
-                                        Inicia sesión
-                                    </Link>
-                                </p>
-                            </div>
                         </CardContent>
                     </Card>
 
-                    <p className="text-center text-xs text-[hsl(var(--muted))] mt-6">
-                        Al registrarte, aceptas nuestros términos de servicio y política de privacidad
+                    <div className="mt-8 text-center">
+                        <p className="text-[hsl(var(--muted))] font-medium">
+                            ¿Ya tienes una cuenta?{' '}
+                            <Link
+                                href="/login"
+                                className="font-black text-[hsl(var(--primary))] hover:text-[hsl(var(--primary-dark))] transition-colors underline underline-offset-4"
+                            >
+                                Inicia sesión
+                            </Link>
+                        </p>
+                    </div>
+
+                    <p className="mt-12 text-[10px] text-center text-[hsl(var(--muted))] leading-relaxed px-10">
+                        Al registrarte, aceptas nuestros <Link href="#" className="underline">Términos de Servicio</Link> y <Link href="#" className="underline">Política de Privacidad</Link>.
                     </p>
                 </div>
             </div>
