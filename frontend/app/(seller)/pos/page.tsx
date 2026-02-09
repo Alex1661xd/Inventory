@@ -345,6 +345,9 @@ function POSMobileView(props: {
     onShowCashTransaction: () => void;
     amountReceived: number | string;
     setAmountReceived: (val: number | string) => void;
+    discountApplied: number | string;
+    setDiscountApplied: (val: number | string) => void;
+    subtotal: number;
 }) {
     const {
         mobileStep,
@@ -1490,8 +1493,7 @@ export default function POSPage() {
 
         setProcessing(true)
         try {
-            // Create the FINAL paid invoice
-            await api.invoices.create({
+            const newInvoice = await api.invoices.create({
                 total: grandTotal,
                 discount: parseThousands(String(discountApplied)),
                 status: 'PAID',
@@ -1520,6 +1522,9 @@ export default function POSPage() {
             setMobileStep(1)
             setAmountReceived('')
             setDiscountApplied(0)
+
+            // Redirect to sales history with the new invoice ID to show WhatsApp share
+            router.push(`/sales?newSaleId=${newInvoice.id}`)
         } catch (e: any) {
             toast.error(e.message)
         } finally {
@@ -1619,6 +1624,8 @@ export default function POSPage() {
                     setIsCheckoutOpen={setIsCheckoutOpen}
                     stockMap={stockMap}
                     onCreateNewCustomer={() => setShowCreateCustomer(true)}
+                    amountReceived={amountReceived}
+                    setAmountReceived={setAmountReceived}
                     discountApplied={discountApplied}
                     setDiscountApplied={setDiscountApplied}
                     subtotal={subtotal}

@@ -16,7 +16,7 @@ import {
     DialogDescription,
 } from "@/components/ui/dialog"
 import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
@@ -213,7 +213,18 @@ function SaleDetailsDialog({ saleId, isOpen, onClose, formatCurrency }: { saleId
 
 export default function SalesHistoryPage() {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const [loading, setLoading] = useState(true)
+
+    // Check for auto-open sale detail (from POS redirect)
+    useEffect(() => {
+        const newSaleId = searchParams.get('newSaleId')
+        if (newSaleId) {
+            setDetailId(newSaleId)
+            // Optional: clear the param from URL without refreshing to keep it clean
+            window.history.replaceState({}, '', '/sales')
+        }
+    }, [searchParams])
     const [resumingId, setResumingId] = useState<string | null>(null)
     const [deleteId, setDeleteId] = useState<string | null>(null)
     const [detailId, setDetailId] = useState<string | null>(null)
