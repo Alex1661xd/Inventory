@@ -155,9 +155,17 @@ export default function CatalogPage() {
         if (!slug) return
 
         const fetchCatalog = async () => {
+            // Aseguramos que la URL no termine en slash
+            let backendHost = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000'
+            if (backendHost.endsWith('/')) {
+                backendHost = backendHost.slice(0, -1)
+            }
+            const targetUrl = `${backendHost}/catalog/public/${slug}`
+
             try {
-                const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000'
-                const res = await fetch(`${backendUrl}/catalog/public/${slug}`)
+                const res = await fetch(targetUrl, {
+                    cache: 'no-store'
+                })
 
                 if (!res.ok) {
                     if (res.status === 404) {
@@ -170,9 +178,14 @@ export default function CatalogPage() {
 
                 const data = await res.json()
                 setCatalog(data)
-            } catch (err) {
+            } catch (err: any) {
+                // Si es un error de notFound(), lo dejamos pasar
+                if (err?.digest === 'NEXT_NOT_FOUND' || err?.message === 'NEXT_NOT_FOUND') {
+                    throw err;
+                }
+
                 console.error('Error fetching catalog:', err);
-                console.error('Attempted URL:', `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://inventory-production-6565.up.railway.app'}/catalog/public/${slug}`);
+                console.error('Attempted URL:', targetUrl);
                 setError('Error de conexión')
             } finally {
                 setLoading(false)
