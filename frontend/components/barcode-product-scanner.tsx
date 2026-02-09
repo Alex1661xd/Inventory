@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ImageSlider } from '@/components/ui/image-slider'
+import { cn } from '@/lib/utils'
 
 type StockByWarehouseRow = {
     warehouseId: string
@@ -225,11 +227,14 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
         setLoading(true)
         setShowProductModal(false)
         try {
-            const [ws, p] = await Promise.all([
+            const [ws, simplifiedProduct] = await Promise.all([
                 api.warehouses.list(),
                 api.products.findByBarcode(finalCode),
             ])
             setWarehouses(ws)
+
+            // Get full details to have all images
+            const p = await api.products.get(simplifiedProduct.id, true)
             setProduct(p)
 
             const s = await api.inventory.stock({ productId: p.id })
@@ -368,26 +373,32 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
                 </div>
             )}
 
-            {/* Product Details Modal */}
             {showProductModal && product && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowProductModal(false)}>
                     <Card className="w-full max-w-2xl relative z-10 animate-scale-in max-h-[90vh] flex flex-col border-[hsl(var(--border))]" onClick={(e) => e.stopPropagation()}>
-                        <CardHeader className="border-b border-[hsl(var(--border))] flex flex-row items-center justify-between sticky top-0 bg-[hsl(var(--background))] z-10 rounded-t-xl">
+                        <CardHeader className="shrink-0 border-b border-[hsl(var(--border))] flex flex-row items-center justify-between bg-[hsl(var(--background))] rounded-t-xl py-4">
                             <div>
                                 <CardTitle className="text-xl" style={{ fontFamily: 'var(--font-display)' }}>Detalles del Producto</CardTitle>
                                 <CardDescription>Información detallada y existencias</CardDescription>
                             </div>
-                            <Button variant="ghost" size="icon" onClick={() => setShowProductModal(false)}>✕</Button>
+                            <Button variant="ghost" size="icon" onClick={() => setShowProductModal(false)} className="rounded-full">✕</Button>
                         </CardHeader>
-                        <CardContent className="p-6 overflow-y-auto custom-scrollbar space-y-6">
+
+                        <CardContent className="p-6 overflow-y-auto custom-scrollbar flex-grow space-y-6">
                             <div className="grid md:grid-cols-2 gap-6">
                                 {/* Image Section */}
-                                <div className="aspect-square rounded-2xl overflow-hidden border border-[hsl(var(--border))] shadow-inner flex items-center justify-center bg-[hsl(var(--muted))/0.1]">
-                                    {product.imageUrl ? (
-                                        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <span className="text-6xl">📦</span>
-                                    )}
+                                <div className="aspect-square rounded-2xl overflow-hidden border border-[hsl(var(--border))] shadow-inner flex items-center justify-center bg-[hsl(var(--muted))/0.1] relative group">
+                                    <ImageSlider
+                                        images={product.images && product.images.length > 0 ? product.images : (product.imageUrl ? [product.imageUrl] : [])}
+                                        name={product.name}
+                                        className="w-full h-full"
+                                        imageClassName="object-contain" // Contain to show the full image
+                                        allowZoom={true}
+                                        showControls={true}
+                                    />
+                                    <div className="absolute top-2 right-2 z-20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <span className="bg-black/60 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-sm">🔍 Toca para ampliar</span>
+                                    </div>
                                 </div>
 
                                 {/* Info Section */}
@@ -396,8 +407,8 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
                                     <div className="space-y-1">
                                         <div className="text-xs text-[hsl(var(--muted))] uppercase tracking-widest font-bold">Código / SKU</div>
                                         <div className="flex gap-2 text-sm">
-                                            {product.barcode && <span className="bg-[hsl(var(--muted))/0.1] px-2 py-1 rounded">{product.barcode}</span>}
-                                            {product.sku && <span className="bg-[hsl(var(--muted))/0.1] px-2 py-1 rounded">{product.sku}</span>}
+                                            {product.barcode && <span className="bg-stone-100 px-2 py-1 rounded font-mono text-xs">{product.barcode}</span>}
+                                            {product.sku && <span className="bg-stone-100 px-2 py-1 rounded font-mono text-xs">{product.sku}</span>}
                                         </div>
                                     </div>
 
@@ -406,7 +417,7 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
                                         <div className="text-3xl font-black text-[hsl(var(--primary))]">{formatCurrency(product.salePrice)}</div>
                                     </div>
 
-                                    <div className="p-4 bg-[hsl(var(--foreground))] text-[hsl(var(--background))] rounded-xl flex items-center justify-between">
+                                    <div className="p-4 bg-[hsl(var(--foreground))] text-[hsl(var(--background))] rounded-xl flex items-center justify-between shadow-lg">
                                         <span className="text-sm font-medium">Stock Total</span>
                                         <span className="text-2xl font-black">{totalStock}</span>
                                     </div>
@@ -416,34 +427,35 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
                             {product.description && (
                                 <div className="space-y-2">
                                     <div className="text-xs text-[hsl(var(--muted))] uppercase tracking-widest font-bold">Descripción</div>
-                                    <div className="text-sm p-3 bg-[hsl(var(--muted))/0.05] rounded-lg">
+                                    <div className="text-sm p-4 bg-stone-50 rounded-xl leading-relaxed text-gray-700">
                                         {product.description}
                                     </div>
                                 </div>
                             )}
 
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                                 <div className="text-xs text-[hsl(var(--muted))] uppercase tracking-widest font-bold">Disponibilidad por Almacén</div>
-                                <div className="overflow-x-auto rounded-lg border border-[hsl(var(--border))]">
+                                <div className="overflow-hidden rounded-xl border border-[hsl(var(--border))]">
                                     <table className="w-full">
                                         <thead>
-                                            <tr className="bg-[hsl(var(--muted))/0.05] border-b border-[hsl(var(--border))]">
-                                                <th className="px-4 py-3 text-left text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Almacén</th>
-                                                <th className="px-4 py-3 text-right text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Cant.</th>
+                                            <tr className="bg-stone-50 border-b border-[hsl(var(--border))]">
+                                                <th className="px-4 py-3 text-left text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-widest">Almacén</th>
+                                                <th className="px-4 py-3 text-right text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-widest">Cant.</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-[hsl(var(--border))]">
+                                        <tbody className="divide-y divide-[hsl(var(--border))] bg-white">
                                             {stockByWarehouse.map((r) => (
-                                                <tr key={r.warehouseId}>
-                                                    <td className="px-4 py-3 text-sm font-medium">{r.warehouseName}</td>
+                                                <tr key={r.warehouseId} className="hover:bg-stone-50/50 transition-colors">
+                                                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.warehouseName}</td>
                                                     <td className="px-4 py-3 text-right">
-                                                        <span className={
-                                                            r.quantity > 10
-                                                                ? 'inline-flex min-w-[3rem] justify-center rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 px-3 py-1 text-sm font-black'
+                                                        <span className={cn(
+                                                            "inline-flex min-w-[3rem] justify-center rounded-lg px-3 py-1 text-xs font-black",
+                                                            r.quantity > 5
+                                                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
                                                                 : r.quantity > 0
-                                                                    ? 'inline-flex min-w-[3rem] justify-center rounded-lg bg-amber-50 text-amber-700 border border-amber-100 px-3 py-1 text-sm font-black'
-                                                                    : 'inline-flex min-w-[3rem] justify-center rounded-lg bg-red-50 text-red-700 border border-red-100 px-3 py-1 text-sm font-black'
-                                                        }>
+                                                                    ? 'bg-amber-50 text-amber-700 border border-amber-100'
+                                                                    : 'bg-red-50 text-red-700 border border-red-100'
+                                                        )}>
                                                             {r.quantity}
                                                         </span>
                                                     </td>
@@ -451,7 +463,7 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
                                             ))}
                                             {stockByWarehouse.length === 0 && (
                                                 <tr>
-                                                    <td colSpan={2} className="px-4 py-6 text-center text-sm text-[hsl(var(--muted))]">
+                                                    <td colSpan={2} className="px-4 py-8 text-center text-sm text-[hsl(var(--muted))] italic">
                                                         No hay información de stock disponible
                                                     </td>
                                                 </tr>
