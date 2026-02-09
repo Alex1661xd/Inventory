@@ -156,7 +156,7 @@ export default function CatalogPage() {
 
         const fetchCatalog = async () => {
             try {
-                const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+                const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000'
                 const res = await fetch(`${backendUrl}/catalog/public/${slug}`)
 
                 if (!res.ok) {

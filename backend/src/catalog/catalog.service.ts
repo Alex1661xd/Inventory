@@ -18,7 +18,8 @@ export class CatalogService {
         );
         const tenant = tenants[0];
 
-        if (!tenant || !tenant.catalogEnabled) {
+        const isEnabled = tenant?.catalogEnabled ?? tenant?.catalogenabled ?? true;
+        if (!tenant || !isEnabled) {
             return null;
         }
 
