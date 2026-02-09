@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Query, UseGuards, Req, Redirect, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Query, UseGuards, Req, Redirect, BadRequestException, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { BackupService } from './backup.service';
 import { GetTenantGuard } from '../auth/guards/get-tenant.guard';
 import { Public } from '../auth/decorators/public.decorator';
@@ -45,6 +46,15 @@ export class BackupController {
     async getStatus(@Req() req) {
         const tenantId = req.user.tenantId;
         return await this.backupService.getStatus(tenantId);
+    }
+
+    @Post('restore')
+    @UseGuards(GetTenantGuard)
+    @UseInterceptors(FileInterceptor('file'))
+    async restoreBackup(@Req() req, @UploadedFile() file: any) {
+        if (!file) throw new BadRequestException('Archivo no proporcionado');
+        const tenantId = req.user.tenantId;
+        return await this.backupService.restoreBackup(tenantId, file.buffer);
     }
 
     // --- Endpoints para Super Admin ---

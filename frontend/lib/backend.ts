@@ -495,5 +495,14 @@ export const api = {
         getGlobalAuthUrl: () => backendFetch<{ url: string }>('/backup/global/auth-url'),
         runGlobal: () => backendFetch<{ success: boolean; date: string }>('/backup/global/run', { method: 'POST' }),
         getGlobalStatus: () => backendFetch<{ connected: boolean; email?: string; lastBackupAt?: string }>('/backup/global/status'),
+
+        restore: (file: File) => {
+            const formData = new FormData();
+            formData.append('file', file);
+            return backendFetch<{ success: boolean; message: string }>('/backup/restore', {
+                method: 'POST',
+                body: formData,
+            });
+        },
     }
 };
