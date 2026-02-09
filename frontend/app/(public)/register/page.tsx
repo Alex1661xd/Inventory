@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { Package, User, Building2, Mail, Lock, CheckCircle2, ArrowRight } from 'lucide-react'
+import { Package, User, Building2, Mail, Lock, CheckCircle2, ArrowRight, Eye, EyeOff } from 'lucide-react'
 import { api } from '@/lib/backend'
 
 const registerSchema = z.object({
@@ -18,7 +18,11 @@ const registerSchema = z.object({
     businessName: z.string().min(2, 'El nombre del negocio es muy corto'),
     email: z.string().email('Email inválido'),
     password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+    confirmPassword: z.string().min(6, 'La confirmación es requerida'),
     registrationCode: z.string().min(5, 'Código de invitación inválido'),
+}).refine((data) => data.password === data.confirmPassword, {
+    message: "Las contraseñas no coinciden",
+    path: ["confirmPassword"],
 })
 
 type RegisterFormValues = z.infer<typeof registerSchema>
@@ -26,6 +30,8 @@ type RegisterFormValues = z.infer<typeof registerSchema>
 export default function RegisterPage() {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
+    const [showPassword, setShowPassword] = useState(false)
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
     const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormValues>({
         resolver: zodResolver(registerSchema),
@@ -121,6 +127,7 @@ export default function RegisterPage() {
                                             />
                                             <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted))]" />
                                         </div>
+                                        {errors.name && <span className="text-[10px] text-red-500 font-bold">{errors.name.message}</span>}
                                     </div>
                                     <div className="space-y-2">
                                         <Label className="font-bold text-[10px] uppercase tracking-widest text-[hsl(var(--muted))]">Negocio</Label>
@@ -132,6 +139,7 @@ export default function RegisterPage() {
                                             />
                                             <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted))]" />
                                         </div>
+                                        {errors.businessName && <span className="text-[10px] text-red-500 font-bold">{errors.businessName.message}</span>}
                                     </div>
                                 </div>
 
@@ -146,6 +154,7 @@ export default function RegisterPage() {
                                         />
                                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted))]" />
                                     </div>
+                                    {errors.email && <span className="text-[10px] text-red-500 font-bold">{errors.email.message}</span>}
                                 </div>
 
                                 <div className="space-y-2">
@@ -161,16 +170,47 @@ export default function RegisterPage() {
                                     {errors.registrationCode && <span className="text-xs text-red-500 font-bold">{errors.registrationCode.message}</span>}
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label className="font-bold text-[10px] uppercase tracking-widest text-[hsl(var(--muted))]">Contraseña Segura</Label>
-                                    <div className="relative">
-                                        <Input
-                                            {...register('password')}
-                                            type="password"
-                                            placeholder="••••••••"
-                                            className={`h-12 rounded-xl border-2 pl-10 bg-transparent ${errors.password ? 'border-red-500' : 'border-[hsl(var(--border))]'}`}
-                                        />
-                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted))]" />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="font-bold text-[10px] uppercase tracking-widest text-[hsl(var(--muted))]">Contraseña</Label>
+                                        <div className="relative">
+                                            <Input
+                                                {...register('password')}
+                                                type={showPassword ? 'text' : 'password'}
+                                                placeholder="••••••••"
+                                                className={`h-12 rounded-xl border-2 pl-10 pr-10 bg-transparent ${errors.password ? 'border-red-500' : 'border-[hsl(var(--border))]'}`}
+                                            />
+                                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted))]" />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-colors"
+                                            >
+                                                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                            </button>
+                                        </div>
+                                        {errors.password && <span className="text-[10px] text-red-500 font-bold">{errors.password.message}</span>}
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="font-bold text-[10px] uppercase tracking-widest text-[hsl(var(--muted))]">Confirmar</Label>
+                                        <div className="relative">
+                                            <Input
+                                                {...register('confirmPassword')}
+                                                type={showConfirmPassword ? 'text' : 'password'}
+                                                placeholder="••••••••"
+                                                className={`h-12 rounded-xl border-2 pl-10 pr-10 bg-transparent ${errors.confirmPassword ? 'border-red-500' : 'border-[hsl(var(--border))]'}`}
+                                            />
+                                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted))]" />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-colors"
+                                            >
+                                                {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                            </button>
+                                        </div>
+                                        {errors.confirmPassword && <span className="text-[10px] text-red-500 font-bold">{errors.confirmPassword.message}</span>}
                                     </div>
                                 </div>
 
