@@ -86,10 +86,29 @@ model Tenant {
   purchases   Purchase[]
   purchasePayments PurchasePayment[]
   stockBatches StockBatch[]
+  // Backups
+  backupConfig BackupConfig?
   
   // Código de registro usado para crear este tenant
   registrationCodeId String?
   registrationCode   RegistrationCode? @relation(fields: [registrationCodeId], references: [id])
+}
+
+model BackupConfig {
+  id                String   @id @default(uuid())
+  tenantId          String   @unique
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  
+  googleEmail       String?  // Correo del Drive conectado
+  refreshToken      String?  // Token para renovar acceso sin pedirlo cada vez
+  targetFolderId    String?  // ID de la carpeta en Google Drive
+  
+  isEnabled         Boolean  @default(false)
+  autoBackupEnabled Boolean  @default(true)
+  lastBackupAt      DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 // --------------------------------------

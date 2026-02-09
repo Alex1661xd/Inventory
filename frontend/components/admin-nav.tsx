@@ -42,6 +42,7 @@ const navSections = [
         title: "MI NEGOCIO",
         links: [
             { href: '/dashboard/catalog', label: 'Mi Catálogo', icon: '📖' },
+            { href: '/dashboard/backup', label: 'Respaldos (Drive)', icon: '🛡️' },
         ]
     }
 ]

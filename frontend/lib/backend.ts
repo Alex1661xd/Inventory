@@ -484,6 +484,11 @@ export const api = {
             unban: (id: string) => backendFetch<any>(`/super-admin/tenants/${id}/unban`, { method: 'POST' }),
             deleteData: (id: string, payload: { password: string, confirmation: string }) =>
                 backendFetch<any>(`/super-admin/tenants/${id}/delete-data`, { method: 'POST', json: payload }),
-        }
+        },
+    },
+    backup: {
+        getAuthUrl: () => backendFetch<{ url: string }>('/backup/auth-url'),
+        run: () => backendFetch<{ success: boolean; date: string }>('/backup/run', { method: 'POST' }),
+        getStatus: () => backendFetch<{ connected: boolean; email?: string; lastBackupAt?: string }>('/backup/status'),
     }
 };

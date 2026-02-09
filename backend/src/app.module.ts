@@ -24,9 +24,11 @@ import { RolesGuard } from './auth/guards/roles.guard';
 import { GetTenantGuard } from './auth/guards/get-tenant.guard';
 
 import { SuperAdminModule } from './super-admin/super-admin.module';
+import { BackupModule } from './backup/backup.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
-  imports: [CacheModule, PrismaModule, SupabaseModule, AuthModule, ProductsModule, WarehousesModule, InventoryModule, CategoriesModule, UsersModule, CustomersModule, InvoicesModule, SuppliersModule, CashFlowModule, ExpensesModule, AnalyticsModule, PurchasesModule, CatalogModule, SuperAdminModule],
+  imports: [ScheduleModule.forRoot(), CacheModule, PrismaModule, SupabaseModule, AuthModule, ProductsModule, WarehousesModule, InventoryModule, CategoriesModule, UsersModule, CustomersModule, InvoicesModule, SuppliersModule, CashFlowModule, ExpensesModule, AnalyticsModule, PurchasesModule, CatalogModule, SuperAdminModule, BackupModule],
   controllers: [AppController],
   providers: [
     AppService,
