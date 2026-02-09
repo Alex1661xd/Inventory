@@ -1543,6 +1543,45 @@ export default function POSPage() {
         setMobilePage(1)
     }, [search])
 
+    // GLOBAL BARCODE LISTENER (USB/Bluetooth Scanners)
+    useEffect(() => {
+        let buffer = ''
+        let lastKeyTime = Date.now()
+
+        const handleGlobalKeyDown = (e: KeyboardEvent) => {
+            // Ignore if user is typing in an input field
+            const target = e.target as HTMLElement
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+                return
+            }
+
+            const currentTime = Date.now()
+
+            // If time between keystrokes is too long (>100ms), it's likely manual typing, not a scanner
+            // Scanners type VERY fast
+            if (currentTime - lastKeyTime > 100) {
+                buffer = ''
+            }
+
+            lastKeyTime = currentTime
+
+            if (e.key === 'Enter') {
+                if (buffer.length > 2) { // Minimum length to consider it a barcode
+                    e.preventDefault()
+                    // Create a synthetic event or just call the handler directly if possible?
+                    // Calling handler directly is safer
+                    handleScan(buffer)
+                    buffer = ''
+                }
+            } else if (e.key.length === 1) { // Only printable characters
+                buffer += e.key
+            }
+        }
+
+        window.addEventListener('keydown', handleGlobalKeyDown)
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown)
+    }, [handleScan])
+
     const canProceedToStep2 = selectedCustomer !== null
     const canProceedToStep3 = cart.length > 0
 

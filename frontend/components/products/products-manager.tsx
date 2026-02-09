@@ -12,6 +12,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { cn } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { ImageSlider } from '@/components/ui/image-slider'
 import Link from 'next/link'
 
 type FormState = {
@@ -74,6 +75,9 @@ export function ProductsManager({
     const [imagesToDelete, setImagesToDelete] = useState<string[]>([])
     const [itemToDelete, setItemToDelete] = useState<string | null>(null)
     const [isCostFlipped, setIsCostFlipped] = useState(false)
+    const [isStockFlipped, setIsStockFlipped] = useState(false)
+    const [stockDetails, setStockDetails] = useState<any[]>([])
+    const [loadingStock, setLoadingStock] = useState(false)
 
     const isEditing = useMemo(() => Boolean(editingId), [editingId])
 
@@ -207,20 +211,30 @@ export function ProductsManager({
 
     const handleViewProduct = async (p: Product) => {
         setIsCostFlipped(false)
+        setIsStockFlipped(false)
+        setStockDetails([])
+        setLoadingStock(true)
         // Mostramos lo que tenemos de inmediato
         setViewModal({ product: p, visible: true })
 
-        // Cargamos el detalle completo FORZANDO el refresco de caché
+        // Cargamos el detalle completo y el stock por bodega
         try {
-            const detail = await api.products.get(p.id, true)
+            const [detail, stock] = await Promise.all([
+                api.products.get(p.id, true),
+                api.inventory.stock({ productId: p.id })
+            ])
             setViewModal({ product: detail, visible: true })
+            setStockDetails(stock)
         } catch (e) {
-            console.error('Error fetching product detail:', e)
+            console.error('Error fetching product detail or stock:', e)
+        } finally {
+            setLoadingStock(false)
         }
     }
 
     const closeViewModal = () => {
         setIsCostFlipped(false)
+        setIsStockFlipped(false)
         setViewModal({ product: null, visible: false })
     }
 
@@ -458,6 +472,41 @@ export function ProductsManager({
         }
     }
 
+
+
+    const downloadProductImages = async (product: Product) => {
+        const images = product.images && product.images.length > 0
+            ? product.images
+            : (product.imageUrl ? [product.imageUrl] : [])
+
+        if (images.length === 0) return toast.error('No hay imágenes para descargar')
+
+        try {
+            toast.promise(
+                Promise.all(images.map(async (url, idx) => {
+                    const response = await fetch(url)
+                    const blob = await response.blob()
+                    const blobUrl = URL.createObjectURL(blob)
+                    const link = document.createElement('a')
+                    link.href = blobUrl
+                    link.download = `${product.name.replace(/\s+/g, '-').toLowerCase()}-${idx + 1}.jpg` // Default extension, browser handles content-type usually
+                    document.body.appendChild(link)
+                    link.click()
+                    document.body.removeChild(link)
+                    URL.revokeObjectURL(blobUrl)
+                })),
+                {
+                    loading: 'Preparando descarga...',
+                    success: 'Imágenes descargadas',
+                    error: 'Error al descargar imágenes'
+                }
+            )
+        } catch (e) {
+            console.error(e)
+            toast.error('Error al descargar imágenes')
+        }
+    }
+
     return (
         <div className="space-y-8 animate-fade-in pb-20 md:pb-0">
             {/* Header Section */}
@@ -597,18 +646,14 @@ export function ProductsManager({
                         style={{ animationDelay: `${index * 0.05}s` }}
                     >
                         {/* Product Image */}
-                        <div className="aspect-square w-full rounded-lg bg-gradient-to-br from-[rgb(250,248,245)] to-[rgb(240,235,230)] overflow-hidden mb-3 relative">
-                            {p.imageUrl ? (
-                                <img
-                                    src={p.imageUrl}
-                                    alt={p.name}
-                                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                />
-                            ) : (
-                                <div className="flex h-full w-full items-center justify-center text-gray-300 text-6xl">
-                                    📦
-                                </div>
-                            )}
+                        <div className="aspect-square w-full rounded-lg bg-gradient-to-br from-[rgb(250,248,245)] to-[rgb(240,235,230)] overflow-hidden mb-3 relative group/slider">
+                            <ImageSlider
+                                images={p.images && p.images.length > 0 ? p.images : (p.imageUrl ? [p.imageUrl] : [])}
+                                name={p.name}
+                                interval={3000 + (index * 500)} // Staggered animations
+                                className="h-full w-full"
+                                imageClassName="group-hover:scale-110 transition-transform duration-500"
+                            />
                             <div className="absolute top-2 right-2">
                                 <div className={cn(
                                     "px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider backdrop-blur-md",
@@ -879,12 +924,23 @@ export function ProductsManager({
                         </CardHeader>
                         <CardContent className="p-6 overflow-y-auto custom-scrollbar space-y-6">
                             <div className="grid md:grid-cols-2 gap-8">
-                                <div className="aspect-square rounded-2xl overflow-hidden border border-[rgb(230,225,220)] shadow-inner flex items-center justify-center bg-[rgb(250,248,245)]">
-                                    {viewModal.product.imageUrl ? (
-                                        <img src={viewModal.product.imageUrl} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <span className="text-8xl">📦</span>
-                                    )}
+                                <div className="aspect-square rounded-2xl overflow-hidden border border-[rgb(230,225,220)] shadow-inner flex items-center justify-center bg-[rgb(250,248,245)] relative group">
+                                    <ImageSlider
+                                        images={viewModal.product.images && viewModal.product.images.length > 0 ? viewModal.product.images : (viewModal.product.imageUrl ? [viewModal.product.imageUrl] : [])}
+                                        name={viewModal.product.name}
+                                        showControls={true}
+                                        className="w-full h-full"
+                                        allowZoom={true}
+                                    />
+                                    <Button
+                                        size="icon"
+                                        variant="secondary"
+                                        className="absolute bottom-4 right-4 z-40 h-10 w-10 rounded-full bg-white/90 backdrop-blur shadow-lg hover:bg-white transition-all opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0"
+                                        onClick={() => downloadProductImages(viewModal.product!)}
+                                        title="Descargar imágenes"
+                                    >
+                                        <span className="text-xl">⬇️</span>
+                                    </Button>
                                 </div>
                                 <div className="space-y-4">
                                     <h3 className="text-3xl font-bold text-[rgb(25,35,25)] leading-tight">{viewModal.product.name}</h3>
@@ -913,7 +969,7 @@ export function ProductsManager({
                                                                     Costo Actual
                                                                 </div>
                                                                 <div className="flex items-center gap-1.5 text-[8px] bg-stone-900 text-white px-2 py-0.5 rounded-full font-black animate-pulse-soft">
-                                                                    
+
                                                                     <span className="text-xs">↻</span>
                                                                 </div>
                                                             </div>
@@ -953,10 +1009,57 @@ export function ProductsManager({
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <div className="text-sm font-bold text-[rgb(120,115,110)] uppercase tracking-widest">Estado de Stock</div>
-                                        <div className="p-4 bg-[rgb(25,35,25)] text-white rounded-xl flex items-center justify-between shadow-lg">
-                                            <span className="text-lg">Unidades Totales</span>
-                                            <span className="text-3xl font-black">{viewModal.product.totalStock ?? 0}</span>
+                                        <div className="text-sm font-bold text-[rgb(120,115,110)] uppercase tracking-widest flex justify-between items-center">
+                                            <span>Estado de Stock</span>
+                                            <span className="text-[10px] bg-[rgb(25,35,25)] text-white px-2 py-0.5 rounded-full animate-pulse-soft">Toca para girar</span>
+                                        </div>
+
+                                        <div
+                                            className="relative perspective-1000 cursor-pointer h-[80px] group"
+                                            onClick={() => setIsStockFlipped(!isStockFlipped)}
+                                        >
+                                            <div className={cn(
+                                                "relative w-full h-full transition-all duration-700 preserve-3d",
+                                                isStockFlipped && "rotate-y-180"
+                                            )}>
+                                                {/* Front: Total Stock */}
+                                                <div className="absolute inset-0 backface-hidden p-4 bg-[rgb(25,35,25)] text-white rounded-xl flex items-center justify-between shadow-lg border border-white/10">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-medium opacity-80 uppercase tracking-tighter">Unidades Totales</span>
+                                                        <span className="text-3xl font-black">{viewModal.product.totalStock ?? 0}</span>
+                                                    </div>
+                                                    <div className="text-2xl animate-bounce">📦</div>
+                                                </div>
+
+                                                {/* Back: Stock by Warehouse */}
+                                                <div className="absolute inset-0 backface-hidden rotate-y-180 p-3 bg-stone-900 rounded-xl text-white flex flex-col justify-center border border-stone-700 shadow-xl overflow-hidden">
+                                                    <div className="text-[10px] text-stone-400 font-bold uppercase mb-2 flex justify-between items-center">
+                                                        <span>Disponibilidad por Sede</span>
+                                                        <span className="text-emerald-400">Total: {viewModal.product.totalStock ?? 0}</span>
+                                                    </div>
+
+                                                    <div className="flex flex-col gap-1 overflow-y-auto max-h-[45px] custom-scrollbar pr-1">
+                                                        {loadingStock ? (
+                                                            <div className="flex justify-center py-2">
+                                                                <div className="h-4 w-4 border-2 border-white/20 border-t-white animate-spin rounded-full"></div>
+                                                            </div>
+                                                        ) : stockDetails.length > 0 ? (
+                                                            stockDetails.map((item, i) => (
+                                                                <div key={i} className="flex justify-between items-center bg-white/5 px-2 py-1 rounded border border-white/5 text-[11px]">
+                                                                    <span className="font-medium truncate max-w-[70%]">📍 {item.warehouse?.name || 'Sede Central'}</span>
+                                                                    <span className={cn(
+                                                                        "font-bold",
+                                                                        item.quantity > 5 ? "text-emerald-400" :
+                                                                            item.quantity > 0 ? "text-amber-400" : "text-red-400"
+                                                                    )}>{item.quantity} uds</span>
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <div className="text-center text-[10px] text-stone-500 italic">No hay existencias</div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 

@@ -250,6 +250,46 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
         }
     }, [stopScan])
 
+    // GLOBAL BARCODE LISTENER (USB/Bluetooth Scanners)
+    useEffect(() => {
+        let buffer = ''
+        let lastKeyTime = Date.now()
+
+        const handleGlobalKeyDown = (e: KeyboardEvent) => {
+            // Ignore if user is typing in an input field
+            const target = e.target as HTMLElement
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+                return
+            }
+
+            const currentTime = Date.now()
+
+            // If time between keystrokes is too long (>100ms), it's likely manual typing
+            if (currentTime - lastKeyTime > 100) {
+                buffer = ''
+            }
+
+            lastKeyTime = currentTime
+
+            if (e.key === 'Enter') {
+                if (buffer.length > 2) {
+                    e.preventDefault()
+                    if (onScan) {
+                        onScan(buffer)
+                    } else {
+                        fetchByBarcode(buffer)
+                    }
+                    buffer = ''
+                }
+            } else if (e.key.length === 1) {
+                buffer += e.key
+            }
+        }
+
+        window.addEventListener('keydown', handleGlobalKeyDown)
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown)
+    }, [onScan, fetchByBarcode])
+
     return (
         <div className={className}>
             <Card className="border-[hsl(var(--border))]">

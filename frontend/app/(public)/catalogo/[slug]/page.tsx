@@ -10,6 +10,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import { ImageSlider } from "@/components/ui/image-slider"
 
 interface CatalogProduct {
     id: string
@@ -42,93 +43,7 @@ interface CatalogData {
     availableProducts: number
 }
 
-// Componente para el slider automático de imágenes
-const ImageSlider = ({ images, name, available, interval = 3000, showControls = false }: {
-    images: string[],
-    name: string,
-    available: boolean,
-    interval?: number,
-    showControls?: boolean
-}) => {
-    const [currentIndex, setCurrentIndex] = useState(0)
 
-    useEffect(() => {
-        if (images.length <= 1) return
-        const timer = setInterval(() => {
-            setCurrentIndex((prev) => (prev + 1) % images.length)
-        }, interval)
-        return () => clearInterval(timer)
-    }, [images, interval])
-
-    if (images.length === 0) {
-        return (
-            <div className="w-full h-full flex items-center justify-center text-5xl text-stone-300">
-                📦
-            </div>
-        )
-    }
-
-    return (
-        <div className="relative w-full h-full overflow-hidden">
-            {images.map((img, idx) => (
-                <div
-                    key={`${img}-${idx}`}
-                    className={cn(
-                        "absolute inset-0 transition-opacity duration-1000 ease-in-out",
-                        idx === currentIndex ? "opacity-100 z-10" : "opacity-0 z-0"
-                    )}
-                >
-                    <Image
-                        src={img}
-                        alt={`${name} - Imagen ${idx + 1}`}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    />
-                </div>
-            ))}
-
-            {/* Indicadores de posición */}
-            {images.length > 1 && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
-                    {images.map((_, idx) => (
-                        <button
-                            key={idx}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setCurrentIndex(idx);
-                            }}
-                            className={cn(
-                                "h-1.5 rounded-full transition-all duration-300 shadow-sm",
-                                idx === currentIndex
-                                    ? "bg-white w-6"
-                                    : "bg-white/50 w-1.5 hover:bg-white/80"
-                            )}
-                        />
-                    ))}
-                </div>
-            )}
-
-            {/* Controles laterales (opcional para modal) */}
-            {showControls && images.length > 1 && (
-                <>
-                    <button
-                        className="absolute left-2 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-black/20 text-white hover:bg-black/40 transition-colors"
-                        onClick={(e) => { e.stopPropagation(); setCurrentIndex((prev) => (prev - 1 + images.length) % images.length) }}
-                    >
-                        ‹
-                    </button>
-                    <button
-                        className="absolute right-2 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-black/20 text-white hover:bg-black/40 transition-colors"
-                        onClick={(e) => { e.stopPropagation(); setCurrentIndex((prev) => (prev + 1) % images.length) }}
-                    >
-                        ›
-                    </button>
-                </>
-            )}
-        </div>
-    )
-}
 
 function formatPrice(price: number) {
     return new Intl.NumberFormat('es-CO', {
@@ -345,7 +260,6 @@ export default function CatalogPage() {
                                     <ImageSlider
                                         images={product.images}
                                         name={product.name}
-                                        available={product.available}
                                     />
 
                                     {/* Availability Badge */}
@@ -393,13 +307,13 @@ export default function CatalogPage() {
                     {selectedProduct && (
                         <div className="flex flex-col md:flex-row h-full max-h-[90vh] md:max-h-[85vh]">
                             {/* Left: Image Slider */}
-                            <div className="w-full md:w-[55%] aspect-square md:aspect-auto relative bg-stone-50 min-h-[350px]">
+                            <div className="w-full md:w-[55%] h-[40vh] md:h-auto relative bg-stone-50 min-h-[300px]">
                                 <ImageSlider
                                     images={selectedProduct.images}
                                     name={selectedProduct.name}
-                                    available={selectedProduct.available}
                                     interval={5000}
                                     showControls={true}
+                                    allowZoom={true}
                                 />
                                 <div
                                     className={`absolute top-6 left-6 px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest text-white z-40 shadow-xl ${selectedProduct.available ? 'bg-green-500' : 'bg-red-500'
@@ -410,7 +324,7 @@ export default function CatalogPage() {
                             </div>
 
                             {/* Right: Info */}
-                            <div className="w-full md:w-[45%] p-8 md:p-10 flex flex-col justify-between overflow-y-auto">
+                            <div className="w-full md:w-[45%] p-5 md:p-10 flex flex-col justify-between overflow-y-auto flex-1 md:flex-none">
                                 <div className="space-y-6">
                                     <div className="space-y-2">
                                         <div

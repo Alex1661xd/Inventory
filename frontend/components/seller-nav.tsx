@@ -17,6 +17,7 @@ const navSections = [
         title: "INVENTARIO",
         links: [
             { href: '/products', label: 'Productos', icon: '📦' },
+            { href: '/scanner', label: 'Consultar producto', icon: '🔍' },
             { href: '/transfers', label: 'Traslados', icon: '🚚' },
             { href: '/warehouse', label: 'Mi Sede', icon: '📍' },
         ]
