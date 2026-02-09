@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/client'
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { Eye, EyeOff, Lock, Mail, Package, ArrowRight } from 'lucide-react'
+import { api } from '@/lib/backend'
 
 export default function LoginPage() {
     const router = useRouter()
@@ -17,6 +18,44 @@ export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false)
     const [loading, setLoading] = useState(false)
     const supabase = createClient()
+
+    const performSmartRedirect = async (userId: string) => {
+        try {
+            console.log('Performing smart redirect for user:', userId);
+
+            // Usamos la API del backend para obtener el perfil/rol
+            // Esto es más seguro y evita errores de RLS o red directa con la DB
+            const me = await api.auth.me();
+
+            if (!me) {
+                console.warn('No user profile found');
+                return;
+            }
+
+            console.log('User role identified:', me.role);
+
+            if (me.role === 'SUPER_ADMIN') {
+                router.push('/super-admin')
+            } else if (me.role === 'SELLER') {
+                router.push('/sales')
+            } else {
+                router.push('/dashboard')
+            }
+        } catch (error: any) {
+            console.error('Full redirect error:', error);
+            // Si el backend no responde, intentamos ir al dashboard por defecto
+            // o mostramos error si es algo crítico
+            router.push('/dashboard');
+        }
+    }
+
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            if (user) {
+                performSmartRedirect(user.id)
+            }
+        })
+    }, [])
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -30,23 +69,10 @@ export default function LoginPage() {
 
             if (error) throw error
 
-            // Redirección inteligente basada en rol
-            const { data: userData, error: userError } = await supabase
-                .from('User')
-                .select('role')
-                .eq('id', data.user.id)
-                .single()
-
-            if (userError) throw userError
-
             toast.success('¡Bienvenido de nuevo!')
 
-            if (userData.role === 'SELLER') {
-                router.push('/pos')
-            } else if (userData.role === 'ADMIN' || userData.role === 'SUPER_ADMIN') {
-                router.push('/dashboard')
-            } else {
-                router.push('/dashboard')
+            if (data.user) {
+                await performSmartRedirect(data.user.id)
             }
         } catch (error: any) {
             toast.error(error.message || 'Error al iniciar sesión')

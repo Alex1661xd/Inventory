@@ -471,4 +471,19 @@ export const api = {
             catalogWhatsApp?: string;
         }) => backendFetch<{ success: boolean; message: string; catalogUrl: string }>('/catalog/settings', { method: 'PATCH', json: payload }),
     },
+    superAdmin: {
+        codes: {
+            generate: (count: number, expiresInDays?: number) =>
+                backendFetch<any[]>('/super-admin/codes/generate', { method: 'POST', json: { count, expiresInDays } }),
+            list: () => backendFetch<any[]>('/super-admin/codes'),
+            delete: (id: string) => backendFetch<any>(`/super-admin/codes/${id}`, { method: 'DELETE' }),
+        },
+        tenants: {
+            list: () => backendFetch<any[]>('/super-admin/tenants'),
+            ban: (id: string) => backendFetch<any>(`/super-admin/tenants/${id}/ban`, { method: 'POST' }),
+            unban: (id: string) => backendFetch<any>(`/super-admin/tenants/${id}/unban`, { method: 'POST' }),
+            deleteData: (id: string, payload: { password: string, confirmation: string }) =>
+                backendFetch<any>(`/super-admin/tenants/${id}/delete-data`, { method: 'POST', json: payload }),
+        }
+    }
 };

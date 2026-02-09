@@ -12,16 +12,16 @@ export declare class InventoryController {
     }>;
     findStock(tenantId: string, query: QueryStockDto): Promise<{
         product: {
-            name: string;
             id: string;
+            name: string;
             sku: string | null;
             costPrice: import("@prisma/client/runtime/library").Decimal;
             categoryId: string | null;
             barcode: string | null;
         };
         warehouse: {
-            name: string;
             id: string;
+            name: string;
         };
         id: string;
         warehouseId: string;
@@ -30,17 +30,17 @@ export declare class InventoryController {
     }[]>;
     getKardex(tenantId: string, productId: string, warehouseId?: string): Promise<({
         user: {
-            name: string;
             id: string;
+            name: string;
         } | null;
         warehouse: {
-            name: string;
             id: string;
+            name: string;
         };
     } & {
         id: string;
-        warehouseId: string;
         createdAt: Date;
+        warehouseId: string;
         quantity: number;
         productId: string;
         balanceAfter: number;

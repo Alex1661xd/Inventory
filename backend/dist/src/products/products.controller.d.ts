@@ -6,10 +6,10 @@ export declare class ProductsController {
     constructor(productsService: ProductsService);
     create(tenantId: string, dto: CreateProductDto, userId: string): Promise<{
         isPublic: boolean;
-        name: string;
         id: string;
-        tenantId: string;
         createdAt: Date;
+        name: string;
+        tenantId: string;
         updatedAt: Date;
         description: string | null;
         sku: string | null;
@@ -26,10 +26,10 @@ export declare class ProductsController {
     findOne(tenantId: string, id: string, refresh?: string): Promise<any>;
     update(tenantId: string, id: string, dto: UpdateProductDto): Promise<{
         isPublic: boolean;
-        name: string;
         id: string;
-        tenantId: string;
         createdAt: Date;
+        name: string;
+        tenantId: string;
         updatedAt: Date;
         description: string | null;
         sku: string | null;
@@ -43,10 +43,10 @@ export declare class ProductsController {
     }>;
     remove(tenantId: string, id: string): Promise<{
         isPublic: boolean;
-        name: string;
         id: string;
-        tenantId: string;
         createdAt: Date;
+        name: string;
+        tenantId: string;
         updatedAt: Date;
         description: string | null;
         sku: string | null;

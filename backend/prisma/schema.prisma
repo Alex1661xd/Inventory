@@ -62,6 +62,10 @@ model Tenant {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
+  // Super Admin Control
+  isBanned    Boolean  @default(false) // Si el negocio está baneado
+  bannedAt    DateTime? // Fecha en que se baneó
+  
   // Configuración del Catálogo Público
   catalogDescription  String?  // Descripción que aparece en el catálogo
   catalogBgColor      String   @default("#f5f5f4") // Color de fondo del catálogo
@@ -82,6 +86,28 @@ model Tenant {
   purchases   Purchase[]
   purchasePayments PurchasePayment[]
   stockBatches StockBatch[]
+  
+  // Código de registro usado para crear este tenant
+  registrationCodeId String?
+  registrationCode   RegistrationCode? @relation(fields: [registrationCodeId], references: [id])
+}
+
+// --------------------------------------
+// CÓDIGOS DE REGISTRO (SUPER ADMIN)
+// --------------------------------------
+
+model RegistrationCode {
+  id          String    @id @default(uuid())
+  code        String    @unique
+  isUsed      Boolean   @default(false)
+  usedAt      DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  
+  // Tenant que usó este código
+  tenants     Tenant[]
+  
+  @@index([code])
 }
 
 // --------------------------------------

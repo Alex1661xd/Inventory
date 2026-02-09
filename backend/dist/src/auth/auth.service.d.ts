@@ -7,25 +7,28 @@ export declare class AuthService {
     constructor(supabaseService: SupabaseService, prisma: PrismaService);
     registerBusiness(dto: RegisterBusinessDto): Promise<{
         user: {
+            id: string;
             email: string;
             password: string;
             name: string;
-            id: string;
             role: import("@prisma/client").$Enums.Role;
             tenantId: string;
             warehouseId: string | null;
         };
         tenant: {
-            name: string;
             id: string;
+            name: string;
             slug: string;
             createdAt: Date;
             updatedAt: Date;
+            isBanned: boolean;
+            bannedAt: Date | null;
             catalogDescription: string | null;
             catalogBgColor: string;
             catalogAccentColor: string;
             catalogEnabled: boolean;
             catalogWhatsApp: string | null;
+            registrationCodeId: string | null;
         };
     }>;
 }

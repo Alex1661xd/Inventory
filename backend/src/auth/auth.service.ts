@@ -11,16 +11,38 @@ export class AuthService {
     ) { }
 
     async registerBusiness(dto: RegisterBusinessDto) {
-        // 1. Crear usuario en Supabase Auth
+
+        // 0. Validar Codigo de Registro (SuperAdmin)
+        if (!dto.registrationCode) {
+            throw new BadRequestException('Se requiere un código de invitación para registrarse.');
+        }
+
+        const validCode = await this.prisma.registrationCode.findUnique({
+            where: { code: dto.registrationCode }
+        });
+
+        if (!validCode) {
+            throw new BadRequestException('Código de invitación inválido.');
+        }
+
+        if (validCode.isUsed) {
+            throw new BadRequestException('Este código de invitación ya fue utilizado.');
+        }
+
+        if (validCode.expiresAt && validCode.expiresAt < new Date()) {
+            throw new BadRequestException('El código de invitación ha expirado.');
+        }
+
+        // 1. Crear usuario en Supabase Auth usando el API de ADMIN
+        // Esto permite marcar el email como confirmado automáticamente y evita el límite de envíos (Rate Limit)
         const { data: authData, error: authError } = await this.supabaseService
             .getClient()
-            .auth.signUp({
+            .auth.admin.createUser({
                 email: dto.email,
                 password: dto.password,
-                options: {
-                    data: {
-                        name: dto.userName,
-                    }
+                email_confirm: true, // Salta la confirmación por email
+                user_metadata: {
+                    name: dto.userName,
                 }
             });
 
@@ -45,10 +67,20 @@ export class AuthService {
                     data: {
                         name: dto.businessName,
                         slug: slug,
+                        registrationCodeId: validCode.id, // VINCULAMOS AL CODIGO
                     },
                 });
 
-                // c. Crear User local vinculado
+                // c. Marcar codigo como USADO
+                await tx.registrationCode.update({
+                    where: { id: validCode.id },
+                    data: {
+                        isUsed: true,
+                        usedAt: new Date(),
+                    }
+                });
+
+                // d. Crear User local vinculado
                 const user = await tx.user.create({
                     data: {
                         id: userId, // Mismo ID que Supabase

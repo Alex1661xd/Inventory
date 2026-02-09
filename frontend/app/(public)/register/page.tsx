@@ -18,6 +18,7 @@ const registerSchema = z.object({
     businessName: z.string().min(2, 'El nombre del negocio es muy corto'),
     email: z.string().email('Email inválido'),
     password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+    registrationCode: z.string().min(5, 'Código de invitación inválido'),
 })
 
 type RegisterFormValues = z.infer<typeof registerSchema>
@@ -38,6 +39,7 @@ export default function RegisterPage() {
                 businessName: data.businessName,
                 email: data.email,
                 password: data.password,
+                registrationCode: data.registrationCode
             })
             toast.success('¡Registro exitoso! Iniciando sesión...')
             router.push('/login')
@@ -144,6 +146,19 @@ export default function RegisterPage() {
                                         />
                                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted))]" />
                                     </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label className="font-bold text-[10px] uppercase tracking-widest text-[hsl(var(--muted))]">Código de Invitación</Label>
+                                    <div className="relative">
+                                        <Input
+                                            {...register('registrationCode')}
+                                            placeholder="INV-XXXX-XXXX"
+                                            className={`h-12 rounded-xl border-2 pl-10 font-mono tracking-wider bg-transparent ${errors.registrationCode ? 'border-red-500' : 'border-[hsl(var(--border))]'}`}
+                                        />
+                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted))]" />
+                                    </div>
+                                    {errors.registrationCode && <span className="text-xs text-red-500 font-bold">{errors.registrationCode.message}</span>}
                                 </div>
 
                                 <div className="space-y-2">

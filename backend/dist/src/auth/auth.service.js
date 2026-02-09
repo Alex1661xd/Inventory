@@ -21,15 +21,29 @@ let AuthService = class AuthService {
         this.prisma = prisma;
     }
     async registerBusiness(dto) {
+        if (!dto.registrationCode) {
+            throw new common_1.BadRequestException('Se requiere un código de invitación para registrarse.');
+        }
+        const validCode = await this.prisma.registrationCode.findUnique({
+            where: { code: dto.registrationCode }
+        });
+        if (!validCode) {
+            throw new common_1.BadRequestException('Código de invitación inválido.');
+        }
+        if (validCode.isUsed) {
+            throw new common_1.BadRequestException('Este código de invitación ya fue utilizado.');
+        }
+        if (validCode.expiresAt && validCode.expiresAt < new Date()) {
+            throw new common_1.BadRequestException('El código de invitación ha expirado.');
+        }
         const { data: authData, error: authError } = await this.supabaseService
             .getClient()
-            .auth.signUp({
+            .auth.admin.createUser({
             email: dto.email,
             password: dto.password,
-            options: {
-                data: {
-                    name: dto.userName,
-                }
+            email_confirm: true,
+            user_metadata: {
+                name: dto.userName,
             }
         });
         if (authError || !authData.user) {
@@ -47,7 +61,15 @@ let AuthService = class AuthService {
                     data: {
                         name: dto.businessName,
                         slug: slug,
+                        registrationCodeId: validCode.id,
                     },
+                });
+                await tx.registrationCode.update({
+                    where: { id: validCode.id },
+                    data: {
+                        isUsed: true,
+                        usedAt: new Date(),
+                    }
                 });
                 const user = await tx.user.create({
                     data: {

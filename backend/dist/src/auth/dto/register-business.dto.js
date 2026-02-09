@@ -6,6 +6,7 @@ class RegisterBusinessDto {
     password;
     userName;
     businessName;
+    registrationCode;
 }
 exports.RegisterBusinessDto = RegisterBusinessDto;
 //# sourceMappingURL=register-business.dto.js.map

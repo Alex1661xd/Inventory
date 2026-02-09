@@ -39,7 +39,7 @@ export default async function AdminLayout({
     const role = me?.role;
 
     if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
-        redirect('/pos');
+        redirect('/sales');
     }
 
     const userLabel = (user.user_metadata?.name || user.email) as string;

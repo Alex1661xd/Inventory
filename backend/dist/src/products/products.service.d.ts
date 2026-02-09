@@ -12,10 +12,10 @@ export declare class ProductsService {
     private generateUniqueBarcode;
     create(tenantId: string, dto: CreateProductDto, userId?: string): Promise<{
         isPublic: boolean;
-        name: string;
         id: string;
-        tenantId: string;
         createdAt: Date;
+        name: string;
+        tenantId: string;
         updatedAt: Date;
         description: string | null;
         sku: string | null;
@@ -32,10 +32,10 @@ export declare class ProductsService {
     findByBarcode(tenantId: string, barcode: string): Promise<any>;
     update(tenantId: string, id: string, dto: UpdateProductDto): Promise<{
         isPublic: boolean;
-        name: string;
         id: string;
-        tenantId: string;
         createdAt: Date;
+        name: string;
+        tenantId: string;
         updatedAt: Date;
         description: string | null;
         sku: string | null;
@@ -49,10 +49,10 @@ export declare class ProductsService {
     }>;
     remove(tenantId: string, id: string): Promise<{
         isPublic: boolean;
-        name: string;
         id: string;
-        tenantId: string;
         createdAt: Date;
+        name: string;
+        tenantId: string;
         updatedAt: Date;
         description: string | null;
         sku: string | null;

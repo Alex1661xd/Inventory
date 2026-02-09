@@ -23,8 +23,10 @@ import { CatalogModule } from './catalog/catalog.module';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { GetTenantGuard } from './auth/guards/get-tenant.guard';
 
+import { SuperAdminModule } from './super-admin/super-admin.module';
+
 @Module({
-  imports: [CacheModule, PrismaModule, SupabaseModule, AuthModule, ProductsModule, WarehousesModule, InventoryModule, CategoriesModule, UsersModule, CustomersModule, InvoicesModule, SuppliersModule, CashFlowModule, ExpensesModule, AnalyticsModule, PurchasesModule, CatalogModule],
+  imports: [CacheModule, PrismaModule, SupabaseModule, AuthModule, ProductsModule, WarehousesModule, InventoryModule, CategoriesModule, UsersModule, CustomersModule, InvoicesModule, SuppliersModule, CashFlowModule, ExpensesModule, AnalyticsModule, PurchasesModule, CatalogModule, SuperAdminModule],
   controllers: [AppController],
   providers: [
     AppService,

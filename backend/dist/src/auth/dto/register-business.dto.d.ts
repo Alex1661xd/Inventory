@@ -3,4 +3,5 @@ export declare class RegisterBusinessDto {
     password: string;
     userName: string;
     businessName: string;
+    registrationCode: string;
 }
