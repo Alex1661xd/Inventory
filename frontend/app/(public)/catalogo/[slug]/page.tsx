@@ -352,7 +352,7 @@ export default function CatalogPage() {
 
             {/* Product Modal */}
             <Dialog open={!!selectedProduct} onOpenChange={(open) => !open && setSelectedProduct(null)}>
-                <DialogContent className="w-screen h-screen md:h-auto md:max-w-5xl p-0 overflow-hidden rounded-none md:rounded-[3rem] border-none bg-white shadow-none md:shadow-2xl animate-scale-in flex flex-col">
+                <DialogContent className="w-screen h-screen md:h-auto md:max-w-5xl p-0 overflow-hidden rounded-none md:rounded-[3rem] border-none bg-white shadow-none md:shadow-2xl animate-scale-in flex flex-col [&>button]:top-[calc(1rem+env(safe-area-inset-top))] md:[&>button]:top-8 [&>button]:right-6 [&>button]:bg-white/80 [&>button]:backdrop-blur-md [&>button]:rounded-full [&>button]:p-2 [&>button]:shadow-xl">
                     {selectedProduct && (
                         <div className="flex flex-col md:flex-row h-full md:max-h-[90vh]">
                             {/* Left: Image Slider */}
@@ -365,7 +365,7 @@ export default function CatalogPage() {
                                     allowZoom={true}
                                 />
                                 <div className={cn(
-                                    "absolute top-8 left-8 px-5 py-2 rounded-2xl text-[10px] font-black tracking-[0.2em] text-white z-40 shadow-2xl",
+                                    "absolute top-6 left-6 md:top-8 md:left-8 px-4 py-1.5 md:px-5 md:py-2 rounded-2xl text-[10px] font-black tracking-[0.2em] text-white z-40 shadow-2xl mt-[env(safe-area-inset-top)]",
                                     selectedProduct.available ? "bg-emerald-500" : "bg-red-500"
                                 )}>
                                     {selectedProduct.available ? "DISPONIBLE AHORA" : "CONSULTAR DISPONIBILIDAD"}
