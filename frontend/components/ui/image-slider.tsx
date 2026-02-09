@@ -45,8 +45,41 @@ export function ImageSlider({
         )
     }
 
+    const [touchStart, setTouchStart] = useState<number | null>(null)
+    const [touchEnd, setTouchEnd] = useState<number | null>(null)
+
+    // Distancia mínima para considerar un swipe
+    const minSwipeDistance = 50
+
+    const onTouchStart = (e: React.TouchEvent) => {
+        setTouchEnd(null)
+        setTouchStart(e.targetTouches[0].clientX)
+    }
+
+    const onTouchMove = (e: React.TouchEvent) => {
+        setTouchEnd(e.targetTouches[0].clientX)
+    }
+
+    const onTouchEnd = () => {
+        if (!touchStart || !touchEnd) return
+        const distance = touchStart - touchEnd
+        const isLeftSwipe = distance > minSwipeDistance
+        const isRightSwipe = distance < -minSwipeDistance
+
+        if (isLeftSwipe) {
+            setCurrentIndex((prev) => (prev + 1) % images.length)
+        } else if (isRightSwipe) {
+            setCurrentIndex((prev) => (prev - 1 + images.length) % images.length)
+        }
+    }
+
     const sliderContent = (
-        <div className="relative w-full h-full overflow-hidden group">
+        <div
+            className="relative w-full h-full overflow-hidden group touch-pan-y"
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+        >
             {images.map((img, idx) => (
                 <div
                     key={`${img}-${idx}`}
