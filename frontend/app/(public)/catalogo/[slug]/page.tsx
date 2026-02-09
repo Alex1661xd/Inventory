@@ -64,6 +64,12 @@ export default function CatalogPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [showOnlyAvailable, setShowOnlyAvailable] = useState(false)
     const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null)
+    const [currentPage, setCurrentPage] = useState(1)
+    const itemsPerPage = 20
+
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [selectedCategory, searchQuery, showOnlyAvailable])
 
     useEffect(() => {
         if (!slug) return
@@ -251,7 +257,7 @@ export default function CatalogPage() {
             </div>
 
             {/* Products Grid */}
-            <main className="max-w-7xl mx-auto px-4 py-8 flex-grow">
+            <main className="max-w-7xl mx-auto px-4 py-8 flex-grow w-full">
                 {filteredProducts.length === 0 ? (
                     <div className="text-center py-24 animate-scale-in">
                         <div className="w-24 h-24 bg-[hsl(var(--muted-light))] rounded-full flex items-center justify-center mx-auto mb-6">
@@ -261,61 +267,86 @@ export default function CatalogPage() {
                         <p className="text-[hsl(var(--muted))] font-medium mt-2">Intenta ajustar tus filtros de búsqueda.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-                        {filteredProducts.map((product) => (
-                            <div
-                                key={product.id}
-                                onClick={() => setSelectedProduct(product)}
-                                className={cn(
-                                    "group bg-white rounded-2xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer",
-                                    !product.available && "opacity-70"
-                                )}
-                            >
-                                {/* Product Image (Slider) */}
-                                <div className="relative aspect-square bg-stone-100 overflow-hidden">
-                                    <ImageSlider
-                                        images={product.images}
-                                        name={product.name}
-                                    />
-
-                                    {/* Availability Badge */}
-                                    <div
-                                        className={cn(
-                                            "absolute top-2 right-2 px-2 py-1 rounded-full text-[10px] md:text-xs font-medium backdrop-blur-sm z-30",
-                                            product.available
-                                                ? "bg-green-500/90 text-white"
-                                                : "bg-red-500/90 text-white"
-                                        )}
-                                    >
-                                        {product.available ? '✓ Disponible' : '✕ Agotado'}
-                                    </div>
-
-                                    {/* Category Tag */}
-                                    <div className="absolute bottom-2 left-2 px-2 py-1 rounded-full text-[10px] md:text-xs font-medium bg-black/50 text-white backdrop-blur-sm z-30">
-                                        {product.categoryName}
-                                    </div>
-                                </div>
-
-                                {/* Product Info */}
-                                <div className="p-3 md:p-4">
-                                    <h3 className="font-semibold text-stone-800 line-clamp-2 text-sm md:text-base leading-tight">
-                                        {product.name}
-                                    </h3>
-                                    {product.description && (
-                                        <p className="mt-1 text-xs text-stone-500 line-clamp-2">
-                                            {product.description}
-                                        </p>
+                    <>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                            {filteredProducts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((product) => (
+                                <div
+                                    key={product.id}
+                                    onClick={() => setSelectedProduct(product)}
+                                    className={cn(
+                                        "group bg-white rounded-2xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer",
+                                        !product.available && "opacity-70"
                                     )}
-                                    <p
-                                        className="mt-2 text-lg md:text-xl font-bold"
-                                        style={{ color: business.accentColor }}
-                                    >
-                                        {formatPrice(product.price)}
-                                    </p>
+                                >
+                                    {/* Product Image (Slider) */}
+                                    <div className="relative aspect-square bg-stone-100 overflow-hidden">
+                                        <ImageSlider
+                                            images={product.images}
+                                            name={product.name}
+                                        />
+
+                                        {/* Availability Badge */}
+                                        <div
+                                            className={cn(
+                                                "absolute top-2 right-2 px-2 py-1 rounded-full text-[10px] md:text-xs font-medium backdrop-blur-sm z-30",
+                                                product.available
+                                                    ? "bg-green-500/90 text-white"
+                                                    : "bg-red-500/90 text-white"
+                                            )}
+                                        >
+                                            {product.available ? '✓ Disponible' : '✕ Agotado'}
+                                        </div>
+
+                                        {/* Category Tag */}
+                                        <div className="absolute bottom-2 left-2 px-2 py-1 rounded-full text-[10px] md:text-xs font-medium bg-black/50 text-white backdrop-blur-sm z-30">
+                                            {product.categoryName}
+                                        </div>
+                                    </div>
+
+                                    {/* Product Info */}
+                                    <div className="p-3 md:p-4">
+                                        <h3 className="font-semibold text-stone-800 line-clamp-2 text-sm md:text-base leading-tight">
+                                            {product.name}
+                                        </h3>
+                                        {product.description && (
+                                            <p className="mt-1 text-xs text-stone-500 line-clamp-2">
+                                                {product.description}
+                                            </p>
+                                        )}
+                                        <p
+                                            className="mt-2 text-lg md:text-xl font-bold"
+                                            style={{ color: business.accentColor }}
+                                        >
+                                            {formatPrice(product.price)}
+                                        </p>
+                                    </div>
                                 </div>
+                            ))}
+                        </div>
+
+                        {/* Pagination */}
+                        {filteredProducts.length > itemsPerPage && (
+                            <div className="mt-12 flex justify-center gap-2">
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                    className="px-4 py-2 rounded-xl bg-white border border-stone-200 text-sm font-bold disabled:opacity-50 hover:bg-stone-50 transition-colors"
+                                >
+                                    Anterior
+                                </button>
+                                <span className="px-4 py-2 text-sm font-medium text-stone-500 flex items-center">
+                                    Página {currentPage} de {Math.ceil(filteredProducts.length / itemsPerPage)}
+                                </span>
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredProducts.length / itemsPerPage), p + 1))}
+                                    disabled={currentPage === Math.ceil(filteredProducts.length / itemsPerPage)}
+                                    className="px-4 py-2 rounded-xl bg-white border border-stone-200 text-sm font-bold disabled:opacity-50 hover:bg-stone-50 transition-colors"
+                                >
+                                    Siguiente
+                                </button>
                             </div>
-                        ))}
-                    </div>
+                        )}
+                    </>
                 )}
             </main>
 
@@ -422,6 +453,6 @@ export default function CatalogPage() {
                     </div>
                 </div>
             </footer>
-        </div>
+        </div >
     )
 }
