@@ -123,58 +123,178 @@ export class BackupService {
     }
 
     private async collectTenantData(tenantId: string) {
-        // Obtenemos todo lo relevante
-        const [products, customers, invoices, expenses, suppliers, stockMovements] = await Promise.all([
-            this.prisma.product.findMany({ where: { tenantId } }),
+        // Obtenemos todo lo relevante para un respaldo total
+        const [
+            products,
+            customers,
+            invoices,
+            expenses,
+            suppliers,
+            stockMovements,
+            warehouses,
+            categories,
+            stocks,
+            cashShifts,
+            purchases
+        ] = await Promise.all([
+            this.prisma.product.findMany({ where: { tenantId }, include: { category: true } }),
             this.prisma.customer.findMany({ where: { tenantId } }),
-            this.prisma.invoice.findMany({ where: { tenantId }, include: { items: true } }),
-            this.prisma.expense.findMany({ where: { tenantId } }),
+            this.prisma.invoice.findMany({ where: { tenantId }, include: { items: { include: { product: true } }, customer: true } }),
+            this.prisma.expense.findMany({ where: { tenantId }, include: { supplier: true } }),
             this.prisma.supplier.findMany({ where: { tenantId } }),
             this.prisma.stockMovement.findMany({
                 where: { product: { tenantId } },
                 include: { product: true, warehouse: true }
             }),
+            this.prisma.warehouse.findMany({ where: { tenantId } }),
+            this.prisma.category.findMany({ where: { tenantId } }),
+            this.prisma.stock.findMany({ where: { product: { tenantId } }, include: { product: true, warehouse: true } }),
+            this.prisma.cashShift.findMany({ where: { tenantId }, include: { seller: true } }),
+            this.prisma.purchase.findMany({ where: { tenantId }, include: { supplier: true, items: { include: { product: true } } } }),
         ]);
 
-        return { products, customers, invoices, expenses, suppliers, stockMovements };
+        return {
+            products,
+            customers,
+            invoices,
+            expenses,
+            suppliers,
+            stockMovements,
+            warehouses,
+            categories,
+            stocks,
+            cashShifts,
+            purchases
+        };
     }
 
     private async createExcelWorkbook(data: any) {
         const workbook = new ExcelJS.Workbook();
 
-        // Hoja de Productos
+        // 1. Hoja de Productos
         const prodSheet = workbook.addWorksheet('Productos');
         prodSheet.columns = [
             { header: 'ID', key: 'id' },
             { header: 'Nombre', key: 'name' },
+            { header: 'Categoría', key: 'categoryName' },
             { header: 'SKU', key: 'sku' },
             { header: 'Código de Barras', key: 'barcode' },
             { header: 'Precio Costo', key: 'costPrice' },
             { header: 'Precio Venta', key: 'salePrice' },
+            { header: 'Estado', key: 'active' },
         ];
-        prodSheet.addRows(data.products);
+        prodSheet.addRows(data.products.map(p => ({
+            ...p,
+            categoryName: p.category?.name || 'N/A',
+            active: p.active ? 'Activo' : 'Inactivo'
+        })));
 
-        // Hoja de Ventas
+        // 2. Hoja de Inventario Actual (Por Bodega)
+        const invSheet = workbook.addWorksheet('Stock por Almacén');
+        invSheet.columns = [
+            { header: 'Producto', key: 'productName' },
+            { header: 'SKU', key: 'sku' },
+            { header: 'Almacén', key: 'warehouseName' },
+            { header: 'Cantidad', key: 'quantity' },
+        ];
+        invSheet.addRows(data.stocks.map(s => ({
+            productName: s.product.name,
+            sku: s.product.sku,
+            warehouseName: s.warehouse.name,
+            quantity: s.quantity
+        })));
+
+        // 3. Hoja de Ventas
         const salesSheet = workbook.addWorksheet('Ventas');
         salesSheet.columns = [
+            { header: 'ID Factura', key: 'invoiceNumber' },
             { header: 'Fecha', key: 'createdAt' },
-            { header: 'Total', key: 'total' },
-            { header: 'Estado', key: 'status' },
+            { header: 'Cliente', key: 'customerName' },
+            { header: 'Subtotal', key: 'total' }, // Simplificado, podrías calcular subtotal real si guardas IVA
+            { header: 'Descuento', key: 'discount' },
+            { header: 'Total', key: 'netTotal' },
             { header: 'Método Pago', key: 'paymentMethod' },
+            { header: 'Estado', key: 'status' },
         ];
-        salesSheet.addRows(data.invoices);
+        salesSheet.addRows(data.invoices.map(i => ({
+            ...i,
+            customerName: i.customer?.name || 'Cliente General',
+            netTotal: Number(i.total) - Number(i.discount)
+        })));
 
-        // Hoja de Clientes
+        // 4. Hoja de Gastos
+        const expSheet = workbook.addWorksheet('Gastos');
+        expSheet.columns = [
+            { header: 'Fecha', key: 'date' },
+            { header: 'Categoría', key: 'category' },
+            { header: 'Descripción', key: 'description' },
+            { header: 'Monto', key: 'amount' },
+            { header: 'Proveedor', key: 'supplierName' },
+        ];
+        expSheet.addRows(data.expenses.map(e => ({
+            ...e,
+            supplierName: e.supplier?.name || 'N/A'
+        })));
+
+        // 5. Hoja de Compras
+        const purSheet = workbook.addWorksheet('Compras a Proveedores');
+        purSheet.columns = [
+            { header: 'Nº Compra', key: 'purchaseNumber' },
+            { header: 'Fecha', key: 'date' },
+            { header: 'Proveedor', key: 'supplierName' },
+            { header: 'Total', key: 'total' },
+            { header: 'Pagado', key: 'amountPaid' },
+            { header: 'Estado', key: 'status' },
+        ];
+        purSheet.addRows(data.purchases.map(p => ({
+            ...p,
+            supplierName: p.supplier?.name || 'Desconocido'
+        })));
+
+        // 6. Hoja de Clientes
         const custSheet = workbook.addWorksheet('Clientes');
         custSheet.columns = [
             { header: 'Nombre', key: 'name' },
             { header: 'Email', key: 'email' },
             { header: 'Teléfono', key: 'phone' },
             { header: 'Documento', key: 'docNumber' },
+            { header: 'Dirección', key: 'address' },
         ];
         custSheet.addRows(data.customers);
 
-        // Se pueden añadir más hojas...
+        // 7. Hoja de Kardex (Movimientos)
+        const kardexSheet = workbook.addWorksheet('Kardex de Inventario');
+        kardexSheet.columns = [
+            { header: 'Fecha', key: 'createdAt' },
+            { header: 'Producto', key: 'productName' },
+            { header: 'Almacén', key: 'warehouseName' },
+            { header: 'Tipo', key: 'type' },
+            { header: 'Cantidad', key: 'quantity' },
+            { header: 'Saldo Después', key: 'balanceAfter' },
+            { header: 'Referencia', key: 'reference' },
+        ];
+        kardexSheet.addRows(data.stockMovements.map(m => ({
+            ...m,
+            productName: m.product.name,
+            warehouseName: m.warehouse.name
+        })));
+
+        // 8. Hoja de Arqueos de Caja
+        const cashSheet = workbook.addWorksheet('Cierres de Caja');
+        cashSheet.columns = [
+            { header: 'Apertura', key: 'openingTime' },
+            { header: 'Cierre', key: 'closingTime' },
+            { header: 'Cajero', key: 'sellerName' },
+            { header: 'Base Inicial', key: 'initialAmount' },
+            { header: 'Monto Sistema', key: 'systemAmount' },
+            { header: 'Monto Real', key: 'finalAmount' },
+            { header: 'Diferencia', key: 'difference' },
+            { header: 'Estado', key: 'status' },
+        ];
+        cashSheet.addRows(data.cashShifts.map(s => ({
+            ...s,
+            sellerName: s.seller.name
+        })));
 
         return workbook;
     }
