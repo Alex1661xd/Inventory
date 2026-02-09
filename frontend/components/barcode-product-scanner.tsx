@@ -233,11 +233,12 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
             ])
             setWarehouses(ws)
 
-            // Get full details to have all images
-            const p = await api.products.get(simplifiedProduct.id, true)
+            // Parallelize full details and stock, using cache for speed
+            const [p, s] = await Promise.all([
+                api.products.get(simplifiedProduct.id),
+                api.inventory.stock({ productId: simplifiedProduct.id })
+            ])
             setProduct(p)
-
-            const s = await api.inventory.stock({ productId: p.id })
             setStockRows(s)
             setShowProductModal(true)
         } catch (e: any) {
@@ -374,7 +375,7 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
             )}
 
             {showProductModal && product && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowProductModal(false)}>
+                <div className="fixed inset-0 z-[40] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowProductModal(false)}>
                     <Card className="w-full max-w-2xl relative z-10 animate-scale-in max-h-[90vh] flex flex-col border-[hsl(var(--border))]" onClick={(e) => e.stopPropagation()}>
                         <CardHeader className="shrink-0 border-b border-[hsl(var(--border))] flex flex-row items-center justify-between bg-[hsl(var(--background))] rounded-t-xl py-4">
                             <div>
@@ -427,7 +428,7 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
                             {product.description && (
                                 <div className="space-y-2">
                                     <div className="text-xs text-[hsl(var(--muted))] uppercase tracking-widest font-bold">Descripción</div>
-                                    <div className="text-sm p-4 bg-stone-50 rounded-xl leading-relaxed text-gray-700">
+                                    <div className="text-sm p-4 bg-[rgb(245,245,240)] rounded-xl leading-relaxed text-gray-700 border border-[rgb(230,230,220)]">
                                         {product.description}
                                     </div>
                                 </div>
