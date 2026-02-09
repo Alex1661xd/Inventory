@@ -58,9 +58,16 @@ enum CashTransactionType {
 model Tenant {
   id          String   @id @default(uuid())
   name        String
-  slug        String   @unique // Para la url del catalogo: miapp.com/muebles-mama
+  slug        String   @unique // Para la url del catalogo: miapp.com/catalogo/muebles-mama
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  // Configuración del Catálogo Público
+  catalogDescription  String?  // Descripción que aparece en el catálogo
+  catalogBgColor      String   @default("#f5f5f4") // Color de fondo del catálogo
+  catalogAccentColor  String   @default("#292524") // Color de acento (encabezado, botones)
+  catalogEnabled      Boolean  @default(true) // Si el catálogo está activo
+  catalogWhatsApp     String?  // Número de WhatsApp para consultas directas
   
   // Relaciones: Todo lo de abajo pertenece a un Tenant
   users       User[]

@@ -182,7 +182,11 @@ export class InvoicesService {
             include: {
                 customer: true,
                 seller: true,
-                items: true
+                items: {
+                    include: {
+                        product: true
+                    }
+                }
             },
             orderBy: { createdAt: 'desc' }
         });

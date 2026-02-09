@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { format, isToday, isThisMonth, subDays, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useMemo } from 'react'
-import { Play, Trash2, RefreshCw, ShoppingBag, Clock, CheckCircle2, Loader2, Eye, User, Wallet, Calendar, Package, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Play, Trash2, RefreshCw, ShoppingBag, Clock, CheckCircle2, Loader2, Eye, User, Wallet, Calendar, Package, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react'
 import {
     Dialog,
     DialogContent,
@@ -160,7 +160,23 @@ function SaleDetailsDialog({ saleId, isOpen, onClose, formatCurrency }: { saleId
                             </div>
                         </div>
 
-                        <div className="p-4 bg-white border-t border-gray-100 flex justify-end">
+                        <div className="p-4 bg-white border-t border-gray-100 flex justify-end gap-3">
+                            {sale.customer?.phone && (
+                                <Button
+                                    onClick={() => {
+                                        const phoneNumber = sale.customer.phone.replace(/\D/g, '')
+                                        const itemsList = sale.items?.map((item: any) =>
+                                            `- ${item.product?.name || 'Producto'} x${item.quantity}: ${formatCurrency(item.unitPrice * item.quantity)}`
+                                        ).join('\n')
+                                        const text = `Hola ${sale.customer.name}! 👋\n\nTe envío el detalle de tu compra:\n\n*Factura:* #${sale.id.slice(-6).toUpperCase()}\n*Fecha:* ${format(new Date(sale.createdAt), "d 'de' MMMM, yyyy", { locale: es })}\n\n*Productos:*\n${itemsList}\n\n*Total a pagar:* ${formatCurrency(sale.total)}\n\n¡Gracias por tu compra! 😊`
+                                        window.open(`https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(text)}`, '_blank')
+                                    }}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+                                >
+                                    <MessageCircle className="h-4 w-4" />
+                                    Enviar por WhatsApp
+                                </Button>
+                            )}
                             <Button variant="outline" onClick={onClose} className="px-8 border-gray-200 hover:bg-gray-50">Cerrar</Button>
                         </div>
                     </div>
@@ -608,16 +624,37 @@ function SaleCard({ sale, formatCurrency, calculatePendingTotal, onResume, onDel
                             </div>
                         )}
 
-                        {!isPending && (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-9 w-9 text-gray-500 hover:text-gray-900 border border-transparent hover:border-gray-200 transition-all bg-gray-50"
-                                onClick={() => onViewDetails(sale.id)}
-                            >
-                                <Eye className="h-4 w-4" />
-                            </Button>
-                        )}
+                        <div className="flex items-center gap-2">
+                            {sale.customer?.phone && (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-9 w-9 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border border-transparent hover:border-emerald-100 transition-all bg-emerald-50/50"
+                                    title="Enviar por WhatsApp"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        const phoneNumber = sale.customer.phone.replace(/\D/g, '')
+                                        const itemsList = sale.items?.map((item: any) =>
+                                            `- ${item.product?.name || 'Producto'} x${item.quantity}: ${formatCurrency(item.unitPrice * item.quantity)}`
+                                        ).join('\n')
+                                        const text = `Hola ${sale.customer.name}! 👋\n\nTe envío el detalle de tu compra:\n\n*Factura:* #${sale.id.slice(-6).toUpperCase()}\n*Fecha:* ${format(new Date(sale.createdAt), "d 'de' MMMM, yyyy", { locale: es })}\n\n*Productos:*\n${itemsList}\n\n*Total:* ${formatCurrency(total)}\n\n¡Gracias por preferirnos! 😊`
+                                        window.open(`https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(text)}`, '_blank')
+                                    }}
+                                >
+                                    <MessageCircle className="h-4 w-4" />
+                                </Button>
+                            )}
+                            {!isPending && (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-9 w-9 text-gray-500 hover:text-gray-900 border border-transparent hover:border-gray-200 transition-all bg-gray-50"
+                                    onClick={() => onViewDetails(sale.id)}
+                                >
+                                    <Eye className="h-4 w-4" />
+                                </Button>
+                            )}
+                        </div>
                     </div>
                 </div>
             </CardContent>

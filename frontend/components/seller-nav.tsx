@@ -20,6 +20,12 @@ const navSections = [
             { href: '/transfers', label: 'Traslados', icon: '🚚' },
             { href: '/warehouse', label: 'Mi Sede', icon: '📍' },
         ]
+    },
+    {
+        title: "MI NEGOCIO",
+        links: [
+            { href: '/catalog', label: 'Ver Catálogo', icon: '📖' },
+        ]
     }
 ]
 

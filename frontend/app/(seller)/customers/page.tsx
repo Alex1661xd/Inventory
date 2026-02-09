@@ -8,6 +8,28 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+
+const COUNTRIES = [
+    { code: '57', name: 'Colombia', flag: '🇨🇴' },
+    { code: '58', name: 'Venezuela', flag: '🇻🇪' },
+    { code: '34', name: 'España', flag: '🇪🇸' },
+    { code: '1', name: 'USA/Canadá', flag: '🇺🇸' },
+    { code: '52', name: 'México', flag: '🇲🇽' },
+    { code: '507', name: 'Panamá', flag: '🇵🇦' },
+    { code: '593', name: 'Ecuador', flag: '🇪🇨' },
+    { code: '51', name: 'Perú', flag: '🇵🇪' },
+    { code: '54', name: 'Argentina', flag: '🇦🇷' },
+    { code: '56', name: 'Chile', flag: '🇨🇱' },
+    { code: '506', name: 'Costa Rica', flag: '🇨🇷' },
+    { code: '502', name: 'Guatemala', flag: '🇬🇹' },
+]
 
 interface Customer {
     id: string
@@ -33,6 +55,8 @@ export default function CustomersPage() {
         docNumber: '',
         address: ''
     })
+    const [countryCode, setCountryCode] = useState('57')
+    const [localPhone, setLocalPhone] = useState('')
 
     useEffect(() => {
         loadCustomers()
@@ -53,7 +77,19 @@ export default function CustomersPage() {
     const startCreate = () => {
         setEditingId(null)
         setFormData({ name: '', email: '', phone: '', docNumber: '', address: '' })
+        setCountryCode('57')
+        setLocalPhone('')
         setShowForm(true)
+    }
+
+    const parsePhone = (phone: string) => {
+        if (!phone) return { code: '57', local: '' }
+        const matched = COUNTRIES.sort((a, b) => b.code.length - a.code.length)
+            .find(c => phone.startsWith(c.code))
+        if (matched) {
+            return { code: matched.code, local: phone.slice(matched.code.length) }
+        }
+        return { code: '57', local: phone }
     }
 
     const startEdit = (customer: Customer) => {
@@ -65,21 +101,27 @@ export default function CustomersPage() {
             docNumber: customer.docNumber || '',
             address: customer.address || ''
         })
+        const parsed = parsePhone(customer.phone || '')
+        setCountryCode(parsed.code)
+        setLocalPhone(parsed.local)
         setShowForm(true)
     }
 
     const handleSubmit = async () => {
         if (!formData.name.trim()) return toast.error('El nombre es obligatorio')
         if (!formData.docNumber.trim()) return toast.error('El documento es obligatorio')
-        if (!formData.phone.trim()) return toast.error('El teléfono es obligatorio')
+        if (!localPhone.trim()) return toast.error('El teléfono es obligatorio')
+
+        const finalPhone = `${countryCode}${localPhone.replace(/\D/g, '')}`
+        const submissionData = { ...formData, phone: finalPhone }
 
         setSaving(true)
         try {
             if (editingId) {
-                await api.customers.update(editingId, formData)
+                await api.customers.update(editingId, submissionData)
                 toast.success('Cliente actualizado')
             } else {
-                await api.customers.create(formData)
+                await api.customers.create(submissionData)
                 toast.success('Cliente creado')
             }
             resetForm()
@@ -256,11 +298,26 @@ export default function CustomersPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Teléfono <span className="text-red-500">*</span></Label>
-                                    <Input
-                                        value={formData.phone}
-                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                        placeholder="Ej. 3001234567"
-                                    />
+                                    <div className="flex gap-2">
+                                        <Select value={countryCode} onValueChange={setCountryCode}>
+                                            <SelectTrigger className="w-[120px]">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent className="z-[60]">
+                                                {COUNTRIES.map(c => (
+                                                    <SelectItem key={c.code} value={c.code}>
+                                                        {c.flag} +{c.code}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Input
+                                            value={localPhone}
+                                            onChange={(e) => setLocalPhone(e.target.value)}
+                                            placeholder="3001234567"
+                                            className="flex-1"
+                                        />
+                                    </div>
                                 </div>
                                 <div className="space-y-2 md:col-span-2">
                                     <Label>Correo Electrónico</Label>

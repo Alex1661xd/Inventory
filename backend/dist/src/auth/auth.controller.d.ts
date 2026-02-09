@@ -27,6 +27,11 @@ export declare class AuthController {
             slug: string;
             createdAt: Date;
             updatedAt: Date;
+            catalogDescription: string | null;
+            catalogBgColor: string;
+            catalogAccentColor: string;
+            catalogEnabled: boolean;
+            catalogWhatsApp: string | null;
         };
     }>;
 }

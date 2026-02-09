@@ -15,6 +15,28 @@ import { BrowserMultiFormatReader } from '@zxing/browser'
 import { NotFoundException } from '@zxing/library'
 import { Label } from '@/components/ui/label'
 import { CashOpenDialog, CashCloseDialog, CashTransactionDialog } from '@/components/pos/cash-control'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+
+const COUNTRIES = [
+    { code: '57', name: 'Colombia', flag: '🇨🇴' },
+    { code: '58', name: 'Venezuela', flag: '🇻🇪' },
+    { code: '34', name: 'España', flag: '🇪🇸' },
+    { code: '1', name: 'USA/Canadá', flag: '🇺🇸' },
+    { code: '52', name: 'México', flag: '🇲🇽' },
+    { code: '507', name: 'Panamá', flag: '🇵🇦' },
+    { code: '593', name: 'Ecuador', flag: '🇪🇨' },
+    { code: '51', name: 'Perú', flag: '🇵🇪' },
+    { code: '54', name: 'Argentina', flag: '🇦🇷' },
+    { code: '56', name: 'Chile', flag: '🇨🇱' },
+    { code: '506', name: 'Costa Rica', flag: '🇨🇷' },
+    { code: '502', name: 'Guatemala', flag: '🇬🇹' },
+]
 
 interface CartItem extends Product {
     quantity: number
@@ -1107,6 +1129,7 @@ export default function POSPage() {
     const [newCustomerName, setNewCustomerName] = useState('')
     const [newCustomerDoc, setNewCustomerDoc] = useState('')
     const [newCustomerPhone, setNewCustomerPhone] = useState('')
+    const [newCustomerCountryCode, setNewCustomerCountryCode] = useState('57')
     const [creatingCustomer, setCreatingCustomer] = useState(false)
 
     // Camera scanner state
@@ -1720,11 +1743,26 @@ export default function POSPage() {
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Teléfono <span className="text-red-500">*</span></label>
-                                <Input
-                                    placeholder="Ej: 3001234567"
-                                    value={newCustomerPhone}
-                                    onChange={(e) => setNewCustomerPhone(e.target.value)}
-                                />
+                                <div className="flex gap-2">
+                                    <Select value={newCustomerCountryCode} onValueChange={setNewCustomerCountryCode}>
+                                        <SelectTrigger className="w-[120px]">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent className="z-[60]">
+                                            {COUNTRIES.map(c => (
+                                                <SelectItem key={c.code} value={c.code}>
+                                                    {c.flag} +{c.code}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Input
+                                        placeholder="Ej: 3001234567"
+                                        value={newCustomerPhone}
+                                        onChange={(e) => setNewCustomerPhone(e.target.value)}
+                                        className="flex-1"
+                                    />
+                                </div>
                             </div>
                             <div className="flex gap-2 pt-2">
                                 <Button
@@ -1760,7 +1798,7 @@ export default function POSPage() {
                                             const created = await api.customers.create({
                                                 name: newCustomerName.trim(),
                                                 docNumber: newCustomerDoc.trim(),
-                                                phone: newCustomerPhone.trim()
+                                                phone: `${newCustomerCountryCode}${newCustomerPhone.replace(/\D/g, '')}`
                                             })
                                             setSelectedCustomer(created)
                                             setShowCreateCustomer(false)

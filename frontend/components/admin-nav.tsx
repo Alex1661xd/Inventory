@@ -37,6 +37,12 @@ const navSections = [
             { href: '/dashboard/customers', label: 'Clientes', icon: '👤' },
             { href: '/dashboard/categories', label: 'Categorías', icon: '📁' }
         ]
+    },
+    {
+        title: "MI NEGOCIO",
+        links: [
+            { href: '/dashboard/catalog', label: 'Mi Catálogo', icon: '📖' },
+        ]
     }
 ]
 

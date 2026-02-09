@@ -426,4 +426,23 @@ export const api = {
         create: (payload: { supplierId: string; warehouseId?: string; date?: string; items: { productId: string; quantity: number; costPrice: number }[] }) =>
             backendFetch<Purchase>('/purchases', { method: 'POST', json: payload }),
     },
+    catalog: {
+        getSettings: () => backendFetch<{
+            name: string;
+            slug: string;
+            catalogDescription: string;
+            catalogBgColor: string;
+            catalogAccentColor: string;
+            catalogEnabled: boolean;
+            catalogWhatsApp: string;
+            catalogUrl: string;
+        }>('/catalog/settings'),
+        updateSettings: (payload: {
+            catalogDescription?: string;
+            catalogBgColor?: string;
+            catalogAccentColor?: string;
+            catalogEnabled?: boolean;
+            catalogWhatsApp?: string;
+        }) => backendFetch<{ success: boolean; message: string; catalogUrl: string }>('/catalog/settings', { method: 'PATCH', json: payload }),
+    },
 };
