@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, notFound } from 'next/navigation'
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import {
@@ -161,7 +161,7 @@ export default function CatalogPage() {
 
                 if (!res.ok) {
                     if (res.status === 404) {
-                        setError('Catálogo no encontrado')
+                        notFound()
                     } else {
                         setError('Error al cargar el catálogo')
                     }
