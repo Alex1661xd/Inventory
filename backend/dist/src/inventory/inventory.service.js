@@ -101,6 +101,40 @@ let InventoryService = class InventoryService {
                     },
                 });
             }
+            let pendingToMove = dto.quantity;
+            const batches = await tx.stockBatch.findMany({
+                where: {
+                    productId: dto.productId,
+                    warehouseId: dto.fromWarehouseId,
+                    remainingQuantity: { gt: 0 }
+                },
+                orderBy: { entryDate: 'asc' }
+            });
+            for (const batch of batches) {
+                if (pendingToMove <= 0)
+                    break;
+                const qtyFromBatch = Math.min(batch.remainingQuantity, pendingToMove);
+                await tx.stockBatch.update({
+                    where: { id: batch.id },
+                    data: { remainingQuantity: { decrement: qtyFromBatch } }
+                });
+                await tx.stockBatch.create({
+                    data: {
+                        tenantId,
+                        productId: dto.productId,
+                        warehouseId: dto.toWarehouseId,
+                        initialQuantity: qtyFromBatch,
+                        remainingQuantity: qtyFromBatch,
+                        costPrice: batch.costPrice,
+                        entryDate: batch.entryDate,
+                        purchaseItemId: batch.purchaseItemId
+                    }
+                });
+                pendingToMove -= qtyFromBatch;
+            }
+            if (pendingToMove > 0) {
+                throw new common_1.BadRequestException(`Integridad FIFO: No se encontraron suficientes lotes para transferir en ${fromWarehouse.name}`);
+            }
             await tx.stockMovement.create({
                 data: {
                     type: client_1.StockMovementType.TRANSFER_IN,
@@ -108,7 +142,7 @@ let InventoryService = class InventoryService {
                     balanceAfter: destUpdated.quantity,
                     productId: dto.productId,
                     warehouseId: dto.toWarehouseId,
-                    notes: `Transferencia desde ${fromWarehouse.name}`,
+                    notes: `Transferencia desde ${fromWarehouse.name} (Lotes FIFO movidos)`,
                     userId: userId || null,
                 }
             });
@@ -276,17 +310,15 @@ let InventoryService = class InventoryService {
         });
     }
     async getValuation(tenantId) {
-        const stocks = await this.prisma.stock.findMany({
+        const batches = await this.prisma.stockBatch.findMany({
             where: {
-                product: {
-                    tenantId,
-                    active: true
-                }
+                tenantId,
+                remainingQuantity: { gt: 0 },
+                product: { active: true }
             },
             include: {
                 product: {
                     select: {
-                        costPrice: true,
                         salePrice: true
                     }
                 },
@@ -302,17 +334,18 @@ let InventoryService = class InventoryService {
         let totalValue = 0;
         let totalItems = 0;
         const warehouseMap = new Map();
-        stocks.forEach(s => {
-            const cost = s.quantity * Number(s.product.costPrice);
-            const value = s.quantity * Number(s.product.salePrice);
+        batches.forEach(b => {
+            const cost = Number(b.remainingQuantity) * Number(b.costPrice);
+            const value = Number(b.remainingQuantity) * Number(b.product.salePrice);
+            const qty = Number(b.remainingQuantity);
             totalCost += cost;
             totalValue += value;
-            totalItems += s.quantity;
-            const wh = warehouseMap.get(s.warehouseId) || { name: s.warehouse.name, cost: 0, value: 0, items: 0 };
+            totalItems += qty;
+            const wh = warehouseMap.get(b.warehouseId) || { name: b.warehouse.name, cost: 0, value: 0, items: 0 };
             wh.cost += cost;
             wh.value += value;
-            wh.items += s.quantity;
-            warehouseMap.set(s.warehouseId, wh);
+            wh.items += qty;
+            warehouseMap.set(b.warehouseId, wh);
         });
         const warehouseBreakdown = Array.from(warehouseMap.entries()).map(([id, data]) => ({
             id,

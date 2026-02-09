@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../cache/cache.service';
-import { startOfDay, endOfDay, subDays, differenceInDays, addDays, parseISO } from 'date-fns';
+import { startOfDay, endOfDay, subDays, differenceInDays, addDays, parseISO, subHours, addHours } from 'date-fns';
 
 @Injectable()
 export class AnalyticsService {
@@ -17,8 +17,9 @@ export class AnalyticsService {
         if (cachedData) return cachedData;
 
         // Ajuste de fechas para incluir el día completo (00:00:00 a 23:59:59)
-        const startDate = from ? startOfDay(parseISO(from)) : startOfDay(subDays(new Date(), 30));
-        const endDate = to ? endOfDay(parseISO(to)) : endOfDay(new Date());
+        // Se aplica un offset de -5 horas (aprox) para alinear UTC con la hora local de LATAM
+        const startDate = from ? addHours(startOfDay(parseISO(from)), 5) : startOfDay(subDays(new Date(), 30));
+        const endDate = to ? addHours(endOfDay(parseISO(to)), 5) : endOfDay(new Date());
 
         // 1. Obtener todas las facturas pagas del periodo
         const invoices = await this.prisma.invoice.findMany({
@@ -58,7 +59,7 @@ export class AnalyticsService {
         });
         const totalExpenses = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
 
-        // 3. Obtener todos los productos para identificar "Productos Hueso"
+        // 3. Obtener todos los productos para identificar "Productos Hueso" con valoración FIFO
         const allProducts = await this.prisma.product.findMany({
             where: { tenantId, active: true },
             select: {
@@ -69,6 +70,14 @@ export class AnalyticsService {
                 inventory: {
                     select: {
                         quantity: true
+                    }
+                },
+                // @ts-ignore
+                stockBatches: {
+                    where: { remainingQuantity: { gt: 0 } },
+                    select: {
+                        remainingQuantity: true,
+                        costPrice: true
                     }
                 }
             }
@@ -83,7 +92,7 @@ export class AnalyticsService {
         const days = differenceInDays(endDate, startDate);
         for (let i = 0; i <= days; i++) {
             const d = addDays(startDate, i);
-            const dateStr = d.toISOString().split('T')[0];
+            const dateStr = subHours(d, 5).toISOString().split('T')[0];
             salesByDayMap.set(dateStr, { date: dateStr, total: 0, profit: 0 });
         }
 
@@ -91,13 +100,13 @@ export class AnalyticsService {
         const productStatsMap = new Map<string, { name: string, quantity: number, revenue: number, profit: number }>();
 
         // Ventas por Vendedor
-        const sellerStatsMap = new Map<string, { name: string, total: number, salesCount: number }>();
+        const sellerStatsMap = new Map<string, { name: string, total: number, profit: number, salesCount: number }>();
 
         // Ventas por Almacén
-        const warehouseStatsMap = new Map<string, { name: string, total: number, salesCount: number }>();
+        const warehouseStatsMap = new Map<string, { name: string, total: number, profit: number, salesCount: number }>();
 
         // Ventas por Categoría
-        const categoryStatsMap = new Map<string, { name: string, total: number }>();
+        const categoryStatsMap = new Map<string, { name: string, total: number, profit: number }>();
 
         // Ventas por Método de Pago
         const paymentMethodStatsMap = new Map<string, { name: string, total: number }>();
@@ -105,15 +114,21 @@ export class AnalyticsService {
         const soldProductIds = new Set<string>();
 
         invoices.forEach(inv => {
-            const dateKey = inv.createdAt.toISOString().split('T')[0];
+            // Ajustamos la fecha de la factura al "día local" para la agrupación en la gráfica
+            const localDate = subHours(new Date(inv.createdAt), 5);
+            const dateKey = localDate.toISOString().split('T')[0];
             const dayStat = salesByDayMap.get(dateKey);
+
+            const totalItemsPrice = inv.items.reduce((acc, item) => acc + (item.quantity * Number(item.unitPrice)), 0);
+            const discountFactor = totalItemsPrice > 0 ? (Number(inv.total) / totalItemsPrice) : 1;
 
             let invoiceRevenue = Number(inv.total);
             let invoiceCost = 0;
 
             inv.items.forEach(item => {
                 soldProductIds.add(item.productId);
-                const itemRevenue = item.quantity * Number(item.unitPrice);
+                // Aplicamos el factor de descuento real de la factura a cada ítem
+                const itemRevenue = (item.quantity * Number(item.unitPrice)) * discountFactor;
 
                 // Si la factura tiene totalCost (FIFO), usarlo. Si no, usar el costPrice actual (retrocompatibilidad)
                 // @ts-ignore
@@ -129,8 +144,9 @@ export class AnalyticsService {
 
                 // Estadísticas por Categoría
                 const catName = item.product.category?.name || 'Sin Categoría';
-                const cStat = categoryStatsMap.get(catName) || { name: catName, total: 0 };
+                const cStat = categoryStatsMap.get(catName) || { name: catName, total: 0, profit: 0 };
                 cStat.total += itemRevenue;
+                cStat.profit += (itemRevenue - itemCost);
                 categoryStatsMap.set(catName, cStat);
             });
 
@@ -139,8 +155,9 @@ export class AnalyticsService {
                 dayStat.profit += (invoiceRevenue - invoiceCost);
             }
 
-            const sStat = sellerStatsMap.get(inv.sellerId) || { name: inv.seller.name, total: 0, salesCount: 0 };
+            const sStat = sellerStatsMap.get(inv.sellerId) || { name: inv.seller.name, total: 0, profit: 0, salesCount: 0 };
             sStat.total += invoiceRevenue;
+            sStat.profit += (invoiceRevenue - invoiceCost);
             sStat.salesCount += 1;
             sellerStatsMap.set(inv.sellerId, sStat);
 
@@ -148,8 +165,9 @@ export class AnalyticsService {
             const wId = warehouse?.id || 'unassigned';
             const wName = warehouse?.name || 'Sin Almacén';
 
-            const wStat = warehouseStatsMap.get(wId) || { name: wName, total: 0, salesCount: 0 };
+            const wStat = warehouseStatsMap.get(wId) || { name: wName, total: 0, profit: 0, salesCount: 0 };
             wStat.total += invoiceRevenue;
+            wStat.profit += (invoiceRevenue - invoiceCost);
             wStat.salesCount += 1;
             warehouseStatsMap.set(wId, wStat);
 
@@ -181,13 +199,23 @@ export class AnalyticsService {
 
         // Identificar Productos Hueso (con stock > 0 pero 0 ventas en 30 días)
         const deadStock = allProducts
-            .map(p => ({
-                id: p.id,
-                name: p.name,
-                sku: p.sku,
-                stock: p.inventory.reduce((acc, curr) => acc + curr.quantity, 0),
-                value: p.inventory.reduce((acc, curr) => acc + curr.quantity, 0) * Number(p.costPrice)
-            }))
+            .map(p => {
+                const totalStock = p.inventory.reduce((acc, curr) => acc + curr.quantity, 0);
+                // Valoración FIFO: suma de (cantidad * costo) de cada lote
+                // @ts-ignore
+                const fifoValue = (p.stockBatches || []).reduce((acc, b) => acc + (b.remainingQuantity * Number(b.costPrice)), 0);
+
+                // Fallback a costPrice actual si no hay lotes (para productos antiguos de antes de FIFO)
+                const finalValue = fifoValue > 0 ? fifoValue : (totalStock * Number(p.costPrice));
+
+                return {
+                    id: p.id,
+                    name: p.name,
+                    sku: p.sku,
+                    stock: totalStock,
+                    value: finalValue
+                };
+            })
             .filter(p => !soldProductIds.has(p.id) && p.stock > 0)
             .sort((a, b) => b.value - a.value)
             .slice(0, 5);

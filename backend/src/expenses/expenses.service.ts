@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../cache/cache.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
-import { startOfDay, endOfDay, parseISO } from 'date-fns';
+import { startOfDay, endOfDay, parseISO, addHours } from 'date-fns';
 
 @Injectable()
 export class ExpensesService {
@@ -107,8 +107,8 @@ export class ExpensesService {
 
     // Resumen para el P&L
     async getSummary(tenantId: string, startDateStr: string, endDateStr: string) {
-        const startDate = startOfDay(parseISO(startDateStr));
-        const endDate = endOfDay(parseISO(endDateStr));
+        const startDate = addHours(startOfDay(parseISO(startDateStr)), 5);
+        const endDate = addHours(endOfDay(parseISO(endDateStr)), 5);
 
         const expenses = await this.prisma.expense.groupBy({
             by: ['category'],
@@ -142,8 +142,8 @@ export class ExpensesService {
         const cached = await this.cacheService.get<any>(cacheKey);
         if (cached) return cached;
 
-        const startDate = startOfDay(parseISO(startDateStr));
-        const endDate = endOfDay(parseISO(endDateStr));
+        const startDate = addHours(startOfDay(parseISO(startDateStr)), 5);
+        const endDate = addHours(endOfDay(parseISO(endDateStr)), 5);
 
         // Total de ventas
         const salesResult = await this.prisma.invoice.aggregate({

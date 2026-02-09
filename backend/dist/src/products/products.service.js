@@ -95,6 +95,17 @@ let ProductsService = class ProductsService {
                             quantity: initialStock,
                         },
                     });
+                    await tx.stockBatch.create({
+                        data: {
+                            tenantId,
+                            productId: product.id,
+                            warehouseId: initialWarehouseId,
+                            initialQuantity: initialStock,
+                            remainingQuantity: initialStock,
+                            costPrice: dto.costPrice ?? 0,
+                            entryDate: new Date(),
+                        }
+                    });
                     await tx.stockMovement.create({
                         data: {
                             type: client_1.StockMovementType.INITIAL,
@@ -102,7 +113,7 @@ let ProductsService = class ProductsService {
                             balanceAfter: initialStock,
                             productId: product.id,
                             warehouseId: initialWarehouseId,
-                            notes: 'Inventario inicial al crear el producto',
+                            notes: 'Inventario inicial al crear el producto (Lote FIFO created)',
                             userId: userId || null,
                         }
                     });

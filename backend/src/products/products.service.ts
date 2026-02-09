@@ -103,6 +103,19 @@ export class ProductsService {
                         },
                     });
 
+                    // IMPORTANTE: Crear lote FIFO para el stock inicial
+                    await tx.stockBatch.create({
+                        data: {
+                            tenantId,
+                            productId: product.id,
+                            warehouseId: initialWarehouseId,
+                            initialQuantity: initialStock,
+                            remainingQuantity: initialStock,
+                            costPrice: dto.costPrice ?? 0,
+                            entryDate: new Date(),
+                        }
+                    });
+
                     // Record initial stock in Kardex
                     await tx.stockMovement.create({
                         data: {
@@ -111,7 +124,7 @@ export class ProductsService {
                             balanceAfter: initialStock,
                             productId: product.id,
                             warehouseId: initialWarehouseId,
-                            notes: 'Inventario inicial al crear el producto',
+                            notes: 'Inventario inicial al crear el producto (Lote FIFO created)',
                             userId: userId || null,
                         }
                     });

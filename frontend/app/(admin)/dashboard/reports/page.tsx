@@ -312,7 +312,10 @@ export default function ReportsPage() {
                                         fontSize: '12px',
                                         fontWeight: '700'
                                     }}
-                                    formatter={(value: any) => [`$${formatThousands(value)}`, 'Total Ventas']}
+                                    formatter={(value: any, name: any, props: any) => [
+                                        `$${formatThousands(value)} venta ($${formatThousands(props.payload.profit)} util.)`,
+                                        'Rendimiento'
+                                    ]}
                                 />
                                 <Bar dataKey="total" radius={[0, 4, 4, 0]}>
                                     {data.topSellers.map((entry, index) => (
@@ -365,7 +368,10 @@ export default function ReportsPage() {
                                             fontSize: '12px',
                                             fontWeight: '700'
                                         }}
-                                        formatter={(value: any) => [`$${formatThousands(value)}`, 'Ventas']}
+                                        formatter={(value: any, name: any, props: any) => [
+                                            `$${formatThousands(value)} venta ($${formatThousands(props.payload.profit)} util.)`,
+                                            'Rendimiento'
+                                        ]}
                                     />
                                 </PieChart>
                             </ResponsiveContainer>
@@ -414,7 +420,10 @@ export default function ReportsPage() {
                                             fontSize: '12px',
                                             fontWeight: '700'
                                         }}
-                                        formatter={(value: any) => [`$${formatThousands(value)}`, 'Ingresos']}
+                                        formatter={(value: any, name: any, props: any) => [
+                                            `$${formatThousands(value)} venta ($${formatThousands(props.payload.profit)} util.)`,
+                                            'Rendimiento'
+                                        ]}
                                     />
                                     <Bar dataKey="total" radius={[0, 4, 4, 0]}>
                                         {data.categoryStats.map((_, index) => (

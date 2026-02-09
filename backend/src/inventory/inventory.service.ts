@@ -102,6 +102,51 @@ export class InventoryService {
                 });
             }
 
+            // --- LÓGICA FIFO PARA TRANSFERENCIAS ---
+            let pendingToMove = dto.quantity;
+            const batches = await tx.stockBatch.findMany({
+                where: {
+                    productId: dto.productId,
+                    warehouseId: dto.fromWarehouseId,
+                    remainingQuantity: { gt: 0 }
+                },
+                orderBy: { entryDate: 'asc' }
+            });
+
+            for (const batch of batches) {
+                if (pendingToMove <= 0) break;
+                const qtyFromBatch = Math.min(batch.remainingQuantity, pendingToMove);
+
+                // 1. Restar del lote origen
+                await tx.stockBatch.update({
+                    where: { id: batch.id },
+                    data: { remainingQuantity: { decrement: qtyFromBatch } }
+                });
+
+                // 2. Crear lote en destino (manteniendo costo y fecha original)
+                // Usamos un nuevo lote para evitar mezclar fechas si ya hay lotes en destino
+                await tx.stockBatch.create({
+                    data: {
+                        tenantId,
+                        productId: dto.productId,
+                        warehouseId: dto.toWarehouseId,
+                        initialQuantity: qtyFromBatch,
+                        remainingQuantity: qtyFromBatch,
+                        costPrice: batch.costPrice,
+                        entryDate: batch.entryDate,
+                        // Si el lote original tenía una compra asociada, la mantenemos
+                        purchaseItemId: batch.purchaseItemId
+                    }
+                });
+
+                pendingToMove -= qtyFromBatch;
+            }
+
+            // Si después de recorrer lotes aún falta stock, hay un error de integridad
+            if (pendingToMove > 0) {
+                throw new BadRequestException(`Integridad FIFO: No se encontraron suficientes lotes para transferir en ${fromWarehouse.name}`);
+            }
+
             // Record Incoming Movement
             await tx.stockMovement.create({
                 data: {
@@ -110,7 +155,7 @@ export class InventoryService {
                     balanceAfter: destUpdated.quantity,
                     productId: dto.productId,
                     warehouseId: dto.toWarehouseId,
-                    notes: `Transferencia desde ${fromWarehouse.name}`,
+                    notes: `Transferencia desde ${fromWarehouse.name} (Lotes FIFO movidos)`,
                     userId: userId || null,
                 }
             });
@@ -305,18 +350,16 @@ export class InventoryService {
     }
 
     async getValuation(tenantId: string) {
-        const stocks = await this.prisma.stock.findMany({
+        // Obtenemos los lotes activos (con stock) para el cálculo FIFO
+        const batches = await this.prisma.stockBatch.findMany({
             where: {
-                product: {
-                    tenantId,
-                    // @ts-ignore
-                    active: true
-                }
+                tenantId,
+                remainingQuantity: { gt: 0 },
+                product: { active: true }
             },
             include: {
                 product: {
                     select: {
-                        costPrice: true,
                         salePrice: true
                     }
                 },
@@ -334,19 +377,20 @@ export class InventoryService {
         let totalItems = 0;
         const warehouseMap = new Map<string, { name: string, cost: number, value: number, items: number }>();
 
-        stocks.forEach(s => {
-            const cost = s.quantity * Number(s.product.costPrice);
-            const value = s.quantity * Number(s.product.salePrice);
+        batches.forEach(b => {
+            const cost = Number(b.remainingQuantity) * Number(b.costPrice);
+            const value = Number(b.remainingQuantity) * Number(b.product.salePrice);
+            const qty = Number(b.remainingQuantity);
 
             totalCost += cost;
             totalValue += value;
-            totalItems += s.quantity;
+            totalItems += qty;
 
-            const wh = warehouseMap.get(s.warehouseId) || { name: s.warehouse.name, cost: 0, value: 0, items: 0 };
+            const wh = warehouseMap.get(b.warehouseId) || { name: b.warehouse.name, cost: 0, value: 0, items: 0 };
             wh.cost += cost;
             wh.value += value;
-            wh.items += s.quantity;
-            warehouseMap.set(s.warehouseId, wh);
+            wh.items += qty;
+            warehouseMap.set(b.warehouseId, wh);
         });
 
         const warehouseBreakdown = Array.from(warehouseMap.entries()).map(([id, data]) => ({
