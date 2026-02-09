@@ -171,6 +171,8 @@ export default function CatalogPage() {
                 const data = await res.json()
                 setCatalog(data)
             } catch (err) {
+                console.error('Error fetching catalog:', err);
+                console.error('Attempted URL:', `${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://inventory-production-6565.up.railway.app'}/catalog/public/${slug}`);
                 setError('Error de conexión')
             } finally {
                 setLoading(false)
