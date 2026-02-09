@@ -352,9 +352,9 @@ export default function CatalogPage() {
 
             {/* Product Modal */}
             <Dialog open={!!selectedProduct} onOpenChange={(open) => !open && setSelectedProduct(null)}>
-                <DialogContent className="max-w-5xl p-0 overflow-hidden rounded-[3rem] border-none bg-white shadow-2xl animate-scale-in">
+                <DialogContent className="w-screen h-screen md:h-auto md:max-w-5xl p-0 overflow-hidden rounded-none md:rounded-[3rem] border-none bg-white shadow-none md:shadow-2xl animate-scale-in flex flex-col">
                     {selectedProduct && (
-                        <div className="flex flex-col md:flex-row h-full max-h-[90vh]">
+                        <div className="flex flex-col md:flex-row h-full md:max-h-[90vh]">
                             {/* Left: Image Slider */}
                             <div className="w-full md:w-[60%] h-[40vh] md:h-auto relative bg-[hsl(var(--muted-light))]">
                                 <ImageSlider
