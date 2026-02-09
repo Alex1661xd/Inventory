@@ -197,7 +197,9 @@ export class BackupService {
             throw new NotFoundException('Google Drive no está conectado para el Super Admin');
         }
 
-        const tenants = await this.prisma.tenant.findMany();
+        const tenants = await this.prisma.tenant.findMany({
+            where: { isBanned: false }
+        });
         const drive = this.getDriveClient(config.refreshToken);
 
         // 1. Crear carpeta raíz del día
