@@ -71,11 +71,25 @@ export type PurchaseItem = {
     };
 };
 
+export type PurchasePayment = {
+    id: string;
+    amount: number;
+    date: string;
+    notes?: string | null;
+    createdById: string;
+    createdBy?: { name: string };
+};
+
 export type Purchase = {
     id: string;
     purchaseNumber: number;
+    subtotal: number;
+    additionalCosts: number;
     total: number;
+    amountPaid: number;
     status: PurchaseStatus;
+    isPaid: boolean;
+    notes?: string | null;
     date: string;
     supplierId: string;
     supplier: {
@@ -91,9 +105,11 @@ export type Purchase = {
     };
     warehouseId?: string | null;
     items: PurchaseItem[];
+    payments?: PurchasePayment[];
     createdAt: string;
     _count?: {
         items: number;
+        payments: number;
     };
 };
 
@@ -423,8 +439,18 @@ export const api = {
             return backendFetch<Purchase[]>(`/purchases${query ? `?${query}` : ''}`);
         },
         get: (id: string) => backendFetch<Purchase>(`/purchases/${id}`),
-        create: (payload: { supplierId: string; warehouseId?: string; date?: string; items: { productId: string; quantity: number; costPrice: number }[] }) =>
-            backendFetch<Purchase>('/purchases', { method: 'POST', json: payload }),
+        create: (payload: {
+            supplierId: string;
+            warehouseId?: string;
+            date?: string;
+            items: { productId: string; quantity: number; costPrice: number }[];
+            additionalCosts?: number;
+            isPaid?: boolean;
+            notes?: string;
+        }) => backendFetch<Purchase>('/purchases', { method: 'POST', json: payload }),
+        pay: (id: string) => backendFetch<Purchase>(`/purchases/${id}/pay`, { method: 'PATCH' }),
+        addPayment: (id: string, payload: { amount: number; notes?: string }) =>
+            backendFetch<PurchasePayment>(`/purchases/${id}/payments`, { method: 'POST', json: payload }),
     },
     catalog: {
         getSettings: () => backendFetch<{

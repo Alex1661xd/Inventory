@@ -376,6 +376,9 @@ function POSMobileView(props: {
         onShowCashTransaction,
         amountReceived,
         setAmountReceived,
+        discountApplied,
+        setDiscountApplied,
+        subtotal
     } = props;
 
     const stepLabels = [
@@ -698,11 +701,29 @@ function POSMobileView(props: {
                                     </div>
                                 </div>
 
-                                {/* Total */}
-                                <div className="pt-3 border-t">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-lg font-semibold">TOTAL</span>
-                                        <span className="text-3xl font-bold text-gray-900">
+                                {/* Subtotal y Descuento */}
+                                <div className="space-y-3 pt-3 border-t">
+                                    <div className="flex justify-between items-center text-sm text-gray-500">
+                                        <span>Subtotal</span>
+                                        <span>${formatThousands(subtotal)}</span>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-sm font-medium">Descuento aplicado</Label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                                            <Input
+                                                type="text"
+                                                inputMode="numeric"
+                                                className="pl-8 h-11 text-lg"
+                                                placeholder="0"
+                                                value={discountApplied === 0 ? '' : discountApplied}
+                                                onChange={(e) => setDiscountApplied(formatThousands(e.target.value))}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
+                                        <span className="text-lg font-bold">TOTAL NETO</span>
+                                        <span className="text-3xl font-black text-gray-900">
                                             ${formatThousands(grandTotal)}
                                         </span>
                                     </div>
@@ -836,6 +857,11 @@ function POSDesktopView(props: {
     onShowCashControl: () => void;
     onShowCashTransaction: () => void;
     onCreateNewCustomer: () => void;
+    amountReceived: string | number;
+    setAmountReceived: (val: string | number) => void;
+    discountApplied: string | number;
+    setDiscountApplied: (val: string | number) => void;
+    subtotal: number;
 }) {
     const {
         loading,
@@ -859,6 +885,9 @@ function POSDesktopView(props: {
         onShowCashControl,
         onShowCashTransaction,
         onCreateNewCustomer,
+        discountApplied,
+        setDiscountApplied,
+        subtotal
     } = props;
 
     return (
@@ -1051,15 +1080,36 @@ function POSDesktopView(props: {
 
                 {/* Cart Footer */}
                 <div className="border-t bg-gray-50 p-4 space-y-3">
-                    <div className="flex justify-between items-center">
-                        <span className="text-lg font-semibold">TOTAL:</span>
-                        <span className="text-3xl font-bold text-gray-900">
+                    <div className="space-y-2 pb-2">
+                        <div className="flex justify-between text-sm text-gray-500">
+                            <span>Subtotal</span>
+                            <span>${formatThousands(subtotal)}</span>
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Descuento</Label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                                <Input
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="0"
+                                    value={discountApplied === 0 ? '' : discountApplied}
+                                    onChange={(e) => setDiscountApplied(formatThousands(e.target.value))}
+                                    className="pl-7 h-10 font-medium"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-between items-center border-t pt-2">
+                        <span className="text-lg font-semibold text-gray-700">TOTAL:</span>
+                        <span className="text-3xl font-black text-gray-900">
                             ${formatThousands(grandTotal)}
                         </span>
                     </div>
                     <Button
                         size="lg"
-                        className="w-full h-14 text-lg font-bold"
+                        className="w-full h-14 text-lg font-bold shadow-lg"
                         disabled={cart.length === 0 || !selectedCustomer}
                         onClick={() => setIsCheckoutOpen(true)}
                     >
@@ -1108,6 +1158,7 @@ export default function POSPage() {
     const [processing, setProcessing] = useState(false)
     const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'TRANSFER' | 'OTHER'>('CASH')
     const [amountReceived, setAmountReceived] = useState<number | string>('')
+    const [discountApplied, setDiscountApplied] = useState<number | string>(0)
     const [warehouseId, setWarehouseId] = useState<string>('')
     const [stockMap, setStockMap] = useState<StockMap>({})
     const [showScanner, setShowScanner] = useState(false)
@@ -1330,7 +1381,8 @@ export default function POSPage() {
         ))
     }
 
-    const grandTotal = cart.reduce((acc, item) => acc + (Number(item.salePrice) * item.quantity), 0)
+    const subtotal = cart.reduce((acc, item) => acc + (Number(item.salePrice) * item.quantity), 0)
+    const grandTotal = Math.max(0, subtotal - parseThousands(String(discountApplied)))
 
     const handleScan = (code: string) => {
         const found = products.find(p => p.barcode === code)
@@ -1374,6 +1426,7 @@ export default function POSPage() {
             // Create a NEW pending invoice
             await api.invoices.create({
                 total: grandTotal,
+                discount: parseThousands(String(discountApplied)),
                 status: 'PENDING',
                 paymentMethod: 'CASH', // Default for pending
                 customerId: selectedCustomer?.id,
@@ -1440,6 +1493,7 @@ export default function POSPage() {
             // Create the FINAL paid invoice
             await api.invoices.create({
                 total: grandTotal,
+                discount: parseThousands(String(discountApplied)),
                 status: 'PAID',
                 paymentMethod,
                 customerId: selectedCustomer.id,
@@ -1465,6 +1519,7 @@ export default function POSPage() {
             setIsCheckoutOpen(false)
             setMobileStep(1)
             setAmountReceived('')
+            setDiscountApplied(0)
         } catch (e: any) {
             toast.error(e.message)
         } finally {
@@ -1537,6 +1592,9 @@ export default function POSPage() {
                     onShowCashTransaction={() => setShowCashTransaction(true)}
                     amountReceived={amountReceived}
                     setAmountReceived={setAmountReceived}
+                    discountApplied={discountApplied}
+                    setDiscountApplied={setDiscountApplied}
+                    subtotal={subtotal}
                 />
             ) : (
                 <POSDesktopView
@@ -1561,6 +1619,9 @@ export default function POSPage() {
                     setIsCheckoutOpen={setIsCheckoutOpen}
                     stockMap={stockMap}
                     onCreateNewCustomer={() => setShowCreateCustomer(true)}
+                    discountApplied={discountApplied}
+                    setDiscountApplied={setDiscountApplied}
+                    subtotal={subtotal}
                 />
             )}
 

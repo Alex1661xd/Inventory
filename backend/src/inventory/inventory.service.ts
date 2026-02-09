@@ -19,7 +19,7 @@ export class InventoryService {
         }
 
         const [product, fromWarehouse, toWarehouse] = await Promise.all([
-            this.prisma.product.findFirst({ where: { id: dto.productId, tenantId }, select: { id: true, name: true } }),
+            this.prisma.product.findFirst({ where: { id: dto.productId, tenantId, active: true }, select: { id: true, name: true } }),
             this.prisma.warehouse.findFirst({ where: { id: dto.fromWarehouseId, tenantId }, select: { id: true, name: true } }),
             this.prisma.warehouse.findFirst({ where: { id: dto.toWarehouseId, tenantId }, select: { id: true, name: true } }),
         ]);
@@ -128,7 +128,7 @@ export class InventoryService {
         }
 
         const [product, warehouse] = await Promise.all([
-            this.prisma.product.findFirst({ where: { id: dto.productId, tenantId }, select: { id: true } }),
+            this.prisma.product.findFirst({ where: { id: dto.productId, tenantId, active: true }, select: { id: true } }),
             this.prisma.warehouse.findFirst({ where: { id: dto.warehouseId, tenantId }, select: { id: true } }),
         ]);
 

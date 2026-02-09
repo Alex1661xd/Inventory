@@ -60,7 +60,7 @@ export class AnalyticsService {
 
         // 3. Obtener todos los productos para identificar "Productos Hueso"
         const allProducts = await this.prisma.product.findMany({
-            where: { tenantId },
+            where: { tenantId, active: true },
             select: {
                 id: true,
                 name: true,

@@ -248,7 +248,7 @@ let ProductsService = class ProductsService {
     }
     async update(tenantId, id, dto) {
         const exists = await this.prisma.product.findFirst({
-            where: { id, tenantId },
+            where: { id, tenantId, active: true },
             select: { id: true },
         });
         if (!exists)

@@ -114,15 +114,34 @@ export default function PurchaseDetailPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="bg-[hsl(var(--primary))] text-white border-none shadow-md rounded-3xl overflow-hidden">
-                    <CardHeader className="bg-white/10 py-4">
-                        <CardTitle className="text-xs font-black uppercase opacity-80 tracking-widest">Total Inversión</CardTitle>
+                <Card className={`${purchase.isPaid ? 'bg-[hsl(var(--primary))]' : 'bg-amber-600'} text-white border-none shadow-md rounded-3xl overflow-hidden`}>
+                    <CardHeader className="bg-white/10 py-4 pb-1">
+                        <CardTitle className="text-[10px] font-black uppercase opacity-80 tracking-widest flex justify-between items-center">
+                            Estado Financiero
+                            <span className="bg-white text-black px-2 py-0.5 rounded-full text-[8px]">
+                                {purchase.isPaid ? 'PAGADO' : 'PENDIENTE'}
+                            </span>
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-4 flex flex-col justify-end">
-                        <div className="text-3xl font-black italic tracking-tighter self-end">
-                            ${formatThousands(Number(purchase.total))}
+                    <CardContent className="pt-4 flex flex-col gap-2">
+                        <div className="flex justify-between items-end border-b border-white/20 pb-2">
+                            <span className="text-[10px] font-black opacity-80 uppercase tracking-widest">Total Factura</span>
+                            <div className="text-2xl font-black italic tracking-tighter">
+                                ${formatThousands(Number(purchase.total))}
+                            </div>
                         </div>
-                        <p className="text-[10px] font-bold opacity-60 text-right mt-1 uppercase">Facturado con entrada a bodega</p>
+                        <div className="flex justify-between items-end border-b border-white/20 pb-2">
+                            <span className="text-[10px] font-black opacity-80 uppercase tracking-widest">Abonado</span>
+                            <div className="text-xl font-bold italic tracking-tighter text-emerald-300">
+                                ${formatThousands(Number(purchase.amountPaid))}
+                            </div>
+                        </div>
+                        <div className="flex justify-between items-end pt-1">
+                            <span className="text-[10px] font-black opacity-80 uppercase tracking-widest">Saldo Restante</span>
+                            <div className="text-2xl font-black italic tracking-tighter text-amber-200">
+                                ${formatThousands(Number(purchase.total) - Number(purchase.amountPaid))}
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
@@ -179,39 +198,116 @@ export default function PurchaseDetailPage() {
                         </table>
                     </div>
                 </CardContent>
+                {/* Tabla Footer para Subtotal y Flete */}
+                <div className="bg-[hsl(var(--surface-elevated))] border-t border-[hsl(var(--border))] p-6 flex flex-col items-end gap-2">
+                    <div className="flex justify-between w-full max-w-[300px] items-center text-sm font-medium text-[hsl(var(--muted))]">
+                        <span className="uppercase tracking-widest text-[10px] font-black">Subtotal (Items):</span>
+                        <span className="text-[hsl(var(--foreground))] font-bold">${formatThousands(Number(purchase.subtotal))}</span>
+                    </div>
+                    {Number(purchase.additionalCosts) > 0 && (
+                        <div className="flex justify-between w-full max-w-[300px] items-center text-sm font-medium text-blue-600">
+                            <span className="uppercase tracking-widest text-[10px] font-black">Gastos Adicionales / Flete:</span>
+                            <span className="font-bold">+ ${formatThousands(Number(purchase.additionalCosts))}</span>
+                        </div>
+                    )}
+                    <div className="flex justify-between w-full max-w-[300px] items-center pt-2 mt-2 border-t border-dashed border-[hsl(var(--border))]">
+                        <span className="uppercase tracking-widest text-xs font-black text-[hsl(var(--primary))]">Inversión Final:</span>
+                        <span className="text-2xl font-black text-[hsl(var(--foreground))] italic tracking-tighter">
+                            ${formatThousands(Number(purchase.total))}
+                        </span>
+                    </div>
+                </div>
             </Card>
 
-            {/* Impact Summary */}
-            <div className="grid gap-6 md:grid-cols-2">
-                <Card className="bg-emerald-50 border-emerald-100 border-2 rounded-3xl p-6 relative overflow-hidden group">
-                    <div className="absolute right-[-20px] top-[-20px] text-emerald-100 h-32 w-32 group-hover:scale-110 transition-transform duration-500">
-                        <TrendingUp className="h-full w-full" />
-                    </div>
-                    <div className="relative">
-                        <h4 className="text-emerald-800 font-black uppercase text-xs tracking-widest flex items-center gap-2 mb-4">
-                            <span className="p-1.5 bg-emerald-500 text-white rounded-lg"><TrendingUp className="h-4 w-4" /></span>
-                            Impacto en Inventario
-                        </h4>
-                        <p className="text-emerald-700 text-sm font-medium leading-relaxed">
-                            Se ha incrementado el stock en las bodegas correspondientes y se ha actualizado el <span className="font-bold underline decoration-emerald-300">Precio de Costo</span> de estos productos para cálculos precisos de utilidad en el POS.
-                        </p>
-                    </div>
+            {/* Payment History and Impact Sections */}
+            <div className="grid gap-8 lg:grid-cols-2">
+                {/* Payment History */}
+                <Card className="shadow-lg border-[hsl(var(--border))] overflow-hidden rounded-3xl">
+                    <CardHeader className="bg-[hsl(var(--surface-elevated))] border-b border-[hsl(var(--border))]">
+                        <CardTitle className="text-lg font-bold flex items-center gap-2 uppercase tracking-tighter">
+                            <DollarSign className="h-5 w-5 text-amber-500" />
+                            Historial de Pagos / Abonos
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0 max-h-[400px] overflow-y-auto">
+                        {!purchase.payments || purchase.payments.length === 0 ? (
+                            <div className="p-10 text-center space-y-3">
+                                <div className="text-4xl">🧾</div>
+                                <p className="text-sm font-bold text-[hsl(var(--muted))] italic">No hay pagos registrados aún para esta compra.</p>
+                            </div>
+                        ) : (
+                            <table className="w-full text-left">
+                                <thead className="sticky top-0 bg-[hsl(var(--background))] border-b border-[hsl(var(--border))] z-10">
+                                    <tr>
+                                        <th className="px-6 py-4 text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-widest">Fecha</th>
+                                        <th className="px-6 py-4 text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-widest">Monto</th>
+                                        <th className="px-6 py-4 text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-widest">Observación</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-[hsl(var(--border))]">
+                                    {purchase.payments.map((payment, idx) => (
+                                        <tr key={idx} className="hover:bg-[hsl(var(--surface-elevated))] transition-colors">
+                                            <td className="px-6 py-4">
+                                                <div className="text-xs font-bold text-[hsl(var(--foreground))]">
+                                                    {format(new Date(payment.date), 'dd/MM/yyyy HH:mm')}
+                                                </div>
+                                                <div className="text-[9px] text-[hsl(var(--muted))] uppercase font-medium mt-0.5">
+                                                    Reg: {payment.createdBy?.name || 'Sistema'}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="font-black text-emerald-700 text-base">
+                                                    ${formatThousands(Number(payment.amount))}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <p className="text-xs text-[hsl(var(--muted))] font-medium line-clamp-2 italic">
+                                                    {payment.notes || 'Pago sin notas'}
+                                                </p>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </CardContent>
                 </Card>
 
-                <Card className="bg-amber-50 border-amber-100 border-2 rounded-3xl p-6 relative overflow-hidden group">
-                    <div className="absolute right-[-20px] top-[-20px] text-amber-100 h-32 w-32 group-hover:scale-110 transition-transform duration-500">
-                        <DollarSign className="h-full w-full" />
-                    </div>
-                    <div className="relative">
-                        <h4 className="text-amber-800 font-black uppercase text-xs tracking-widest flex items-center gap-2 mb-4">
-                            <span className="p-1.5 bg-amber-500 text-white rounded-lg"><ArrowRight className="h-4 w-4" /></span>
-                            Impacto en Finanzas
-                        </h4>
-                        <p className="text-amber-700 text-sm font-medium leading-relaxed">
-                            Esta operación generó un <span className="font-bold underline decoration-amber-300">Gasto Automático</span> bajo la categoría de inventario por un valor de <span className="font-black text-amber-900">${formatThousands(Number(purchase.total))}</span>.
-                        </p>
-                    </div>
-                </Card>
+                {/* Impacts */}
+                <div className="space-y-6">
+                    <Card className="bg-emerald-50 border-emerald-100 border-2 rounded-3xl p-6 relative overflow-hidden group">
+                        <div className="absolute right-[-20px] top-[-20px] text-emerald-100 h-32 w-32 group-hover:scale-110 transition-transform duration-500">
+                            <TrendingUp className="h-full w-full" />
+                        </div>
+                        <div className="relative">
+                            <h4 className="text-emerald-800 font-black uppercase text-xs tracking-widest flex items-center gap-2 mb-3">
+                                <span className="p-1.5 bg-emerald-500 text-white rounded-lg"><TrendingUp className="h-4 w-4" /></span>
+                                Inventario
+                            </h4>
+                            <p className="text-emerald-700 text-xs font-medium leading-relaxed">
+                                Se ha incrementado el stock y actualizado el <span className="font-bold underline decoration-emerald-300">Precio de Costo</span> de estos productos para cálculos de utilidad.
+                            </p>
+                        </div>
+                    </Card>
+
+                    <Card className="bg-amber-50 border-amber-100 border-2 rounded-3xl p-6 relative overflow-hidden group">
+                        <div className="absolute right-[-20px] top-[-20px] text-amber-100 h-32 w-32 group-hover:scale-110 transition-transform duration-500">
+                            <DollarSign className="h-full w-full" />
+                        </div>
+                        <div className="relative">
+                            <h4 className="text-amber-800 font-black uppercase text-xs tracking-widest flex items-center gap-2 mb-3">
+                                <span className="p-1.5 bg-amber-500 text-white rounded-lg"><ArrowRight className="h-4 w-4" /></span>
+                                Finanzas
+                            </h4>
+                            <p className="text-amber-700 text-xs font-medium leading-relaxed">
+                                {purchase.isPaid
+                                    ? `Esta compra está totalmente liquidada. Se registraron gastos por $${formatThousands(Number(purchase.total))}.`
+                                    : `Compra pendiente de liquidar. Se han abonado $${formatThousands(Number(purchase.amountPaid))} hasta la fecha.`
+                                }
+                            </p>
+                        </div>
+                    </Card>
+                </div>
             </div>
         </div>
     )

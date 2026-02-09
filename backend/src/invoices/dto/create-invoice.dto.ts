@@ -21,6 +21,10 @@ export class CreateInvoiceDto {
     @IsNotEmpty()
     total: number;
 
+    @IsNumber()
+    @IsOptional()
+    discount?: number;
+
     @IsEnum(InvoiceStatus)
     @IsOptional()
     status?: InvoiceStatus = InvoiceStatus.PAID;

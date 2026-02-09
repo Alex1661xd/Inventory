@@ -80,6 +80,7 @@ model Tenant {
   cashShifts  CashShift[]
   expenses    Expense[]
   purchases   Purchase[]
+  purchasePayments PurchasePayment[]
   stockBatches StockBatch[]
 }
 
@@ -108,6 +109,7 @@ model User {
   expenses  Expense[] // Gastos registrados por este usuario
   stockMovements StockMovement[] // Movimientos de inventario realizados
   purchases   Purchase[]
+  purchasePayments PurchasePayment[]
 
   @@index([tenantId])
   @@index([warehouseId])
@@ -264,6 +266,7 @@ model Invoice {
   id              String        @id @default(uuid())
   invoiceNumber   Int           @default(autoincrement()) // Consecutivo (1, 2, 3...)
   total           Decimal
+  discount        Decimal       @default(0)
   status          InvoiceStatus @default(PAID)
   paymentMethod   PaymentMethod
   
@@ -434,8 +437,13 @@ enum PurchaseStatus {
 model Purchase {
   id              String         @id @default(uuid())
   purchaseNumber  Int            @default(autoincrement())
-  total           Decimal
+  subtotal        Decimal        @default(0) // Suma de items
+  additionalCosts Decimal        @default(0) // Fletes, seguros, etc.
+  total           Decimal        // subtotal + additionalCosts
   status          PurchaseStatus @default(COMPLETED)
+  amountPaid      Decimal        @default(0)
+  isPaid          Boolean        @default(true) // Si está totalmente pagada
+  notes           String?
   
   // Fechas (Importante para que tu papá vea el flujo diario)
   date            DateTime       @default(now()) 
@@ -453,6 +461,7 @@ model Purchase {
   warehouseId     String? // Bodega a la que entró la mercancía
   
   items           PurchaseItem[]
+  payments        PurchasePayment[]
   
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -460,6 +469,24 @@ model Purchase {
   @@index([tenantId])
   @@index([supplierId])
   @@index([date])
+}
+
+model PurchasePayment {
+  id          String   @id @default(uuid())
+  amount      Decimal
+  date        DateTime @default(now())
+  notes       String?
+  
+  purchaseId  String
+  purchase    Purchase @relation(fields: [purchaseId], references: [id])
+  
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+
+  createdAt   DateTime @default(now())
 }
 
 model PurchaseItem {

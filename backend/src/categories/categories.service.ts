@@ -84,7 +84,7 @@ export class CategoriesService {
 
     // Check if category has products
     const productCount = await this.prisma.product.count({
-      where: { categoryId: id },
+      where: { categoryId: id, active: true },
     });
 
     if (productCount > 0) {

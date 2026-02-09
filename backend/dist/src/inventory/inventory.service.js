@@ -26,7 +26,7 @@ let InventoryService = class InventoryService {
             throw new common_1.BadRequestException('Source and destination warehouses must be different');
         }
         const [product, fromWarehouse, toWarehouse] = await Promise.all([
-            this.prisma.product.findFirst({ where: { id: dto.productId, tenantId }, select: { id: true, name: true } }),
+            this.prisma.product.findFirst({ where: { id: dto.productId, tenantId, active: true }, select: { id: true, name: true } }),
             this.prisma.warehouse.findFirst({ where: { id: dto.fromWarehouseId, tenantId }, select: { id: true, name: true } }),
             this.prisma.warehouse.findFirst({ where: { id: dto.toWarehouseId, tenantId }, select: { id: true, name: true } }),
         ]);
@@ -122,7 +122,7 @@ let InventoryService = class InventoryService {
             throw new common_1.BadRequestException('quantityDelta must be a non-zero integer');
         }
         const [product, warehouse] = await Promise.all([
-            this.prisma.product.findFirst({ where: { id: dto.productId, tenantId }, select: { id: true } }),
+            this.prisma.product.findFirst({ where: { id: dto.productId, tenantId, active: true }, select: { id: true } }),
             this.prisma.warehouse.findFirst({ where: { id: dto.warehouseId, tenantId }, select: { id: true } }),
         ]);
         if (!product)

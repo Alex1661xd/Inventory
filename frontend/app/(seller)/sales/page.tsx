@@ -160,6 +160,26 @@ function SaleDetailsDialog({ saleId, isOpen, onClose, formatCurrency }: { saleId
                             </div>
                         </div>
 
+                        {/* Summary Section */}
+                        <div className="p-6 bg-white border-t border-gray-100 flex flex-col items-end gap-2 text-sm">
+                            <div className="flex justify-between w-full max-w-[200px] text-gray-500">
+                                <span>Subtotal</span>
+                                <span>{formatCurrency(Number(sale.total) + Number(sale.discount || 0))}</span>
+                            </div>
+                            {Number(sale.discount || 0) > 0 && (
+                                <div className="flex justify-between w-full max-w-[200px] text-red-500 font-medium">
+                                    <span>Descuento</span>
+                                    <span>-{formatCurrency(Number(sale.discount))}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between w-full max-w-[240px] pt-4 mt-2 border-t-2 border-gray-900 border-dashed">
+                                <span className="text-lg font-bold text-gray-900 uppercase tracking-tighter">Total Neto</span>
+                                <span className="text-2xl font-black text-gray-900 leading-none">
+                                    {formatCurrency(Number(sale.total))}
+                                </span>
+                            </div>
+                        </div>
+
                         <div className="p-4 bg-white border-t border-gray-100 flex justify-end gap-3">
                             {sale.customer?.phone && (
                                 <Button
@@ -168,7 +188,12 @@ function SaleDetailsDialog({ saleId, isOpen, onClose, formatCurrency }: { saleId
                                         const itemsList = sale.items?.map((item: any) =>
                                             `- ${item.product?.name || 'Producto'} x${item.quantity}: ${formatCurrency(item.unitPrice * item.quantity)}`
                                         ).join('\n')
-                                        const text = `Hola ${sale.customer.name}! 👋\n\nTe envío el detalle de tu compra:\n\n*Factura:* #${sale.id.slice(-6).toUpperCase()}\n*Fecha:* ${format(new Date(sale.createdAt), "d 'de' MMMM, yyyy", { locale: es })}\n\n*Productos:*\n${itemsList}\n\n*Total a pagar:* ${formatCurrency(sale.total)}\n\n¡Gracias por tu compra! 😊`
+                                        const total = Number(sale.total)
+                                        const discount = Number(sale.discount || 0)
+                                        const subtotal = total + discount
+                                        const discountText = discount > 0 ? `\n\n*Subtotal:* ${formatCurrency(subtotal)}\n*Descuento:* -${formatCurrency(discount)}` : ''
+
+                                        const text = `Hola ${sale.customer.name}! 👋\n\nTe envío el detalle de tu compra:\n\n*Factura:* #${sale.id.slice(-6).toUpperCase()}\n*Fecha:* ${format(new Date(sale.createdAt), "d 'de' MMMM, yyyy", { locale: es })}\n\n*Productos:*\n${itemsList}${discountText}\n\n*Total a pagar:* ${formatCurrency(total)}\n\n¡Gracias por tu compra! 😊`
                                         window.open(`https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(text)}`, '_blank')
                                     }}
                                     className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
@@ -637,7 +662,11 @@ function SaleCard({ sale, formatCurrency, calculatePendingTotal, onResume, onDel
                                         const itemsList = sale.items?.map((item: any) =>
                                             `- ${item.product?.name || 'Producto'} x${item.quantity}: ${formatCurrency(item.unitPrice * item.quantity)}`
                                         ).join('\n')
-                                        const text = `Hola ${sale.customer.name}! 👋\n\nTe envío el detalle de tu compra:\n\n*Factura:* #${sale.id.slice(-6).toUpperCase()}\n*Fecha:* ${format(new Date(sale.createdAt), "d 'de' MMMM, yyyy", { locale: es })}\n\n*Productos:*\n${itemsList}\n\n*Total:* ${formatCurrency(total)}\n\n¡Gracias por preferirnos! 😊`
+                                        const discount = Number(sale.discount || 0)
+                                        const subtotal = total + discount
+                                        const discountText = discount > 0 ? `\n\n*Subtotal:* ${formatCurrency(subtotal)}\n*Descuento:* -${formatCurrency(discount)}` : ''
+
+                                        const text = `Hola ${sale.customer.name}! 👋\n\nTe envío el detalle de tu compra:\n\n*Factura:* #${sale.id.slice(-6).toUpperCase()}\n*Fecha:* ${format(new Date(sale.createdAt), "d 'de' MMMM, yyyy", { locale: es })}\n\n*Productos:*\n${itemsList}${discountText}\n\n*Total:* ${formatCurrency(total)}\n\n¡Gracias por preferirnos! 😊`
                                         window.open(`https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(text)}`, '_blank')
                                     }}
                                 >

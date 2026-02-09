@@ -312,7 +312,7 @@ export class ProductsService {
 
     async update(tenantId: string, id: string, dto: UpdateProductDto) {
         const exists = await this.prisma.product.findFirst({
-            where: { id, tenantId },
+            where: { id, tenantId, active: true },
             select: { id: true },
         });
 

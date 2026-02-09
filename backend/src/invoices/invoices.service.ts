@@ -51,14 +51,14 @@ export class InvoicesService {
                         },
                         include: {
                             product: {
-                                select: { name: true }
+                                select: { name: true, active: true }
                             }
                         }
                     });
 
-                    if (!stockRecord) {
+                    if (!stockRecord || !stockRecord.product || !stockRecord.product.active) {
                         throw new BadRequestException(
-                            `El producto con ID "${item.productId}" no tiene stock registrado en este almacén.`
+                            `El producto con ID "${item.productId}" no existe o está desactivado.`
                         );
                     }
 
@@ -81,6 +81,7 @@ export class InvoicesService {
                     customerId: dto.customerId,
                     amountReceived: dto.amountReceived,
                     amountReturned: dto.amountReturned,
+                    discount: dto.discount || 0,
                     items: {
                         create: dto.items.map(item => ({
                             productId: item.productId,
@@ -90,11 +91,11 @@ export class InvoicesService {
                     }
                 },
                 include: { items: true }
-            });
+            } as any);
 
             // 3. Decrement Stock (FIFO Logic) + Kardex
             if (dto.status === 'PAID') {
-                for (const invoiceItem of invoice.items) {
+                for (const invoiceItem of (invoice as any).items) {
                     let pendingToSubtract = invoiceItem.quantity;
                     let calculatedTotalCost = 0;
 

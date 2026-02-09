@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Request, Query, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Request, Query, Param, Patch } from '@nestjs/common';
 import { PurchasesService } from './purchases.service';
 import { CreatePurchaseDto } from './dto/create-purchase.dto';
 import { GetTenantGuard } from '../auth/guards/get-tenant.guard';
@@ -33,5 +33,24 @@ export class PurchasesController {
     @Get(':id')
     findOne(@GetTenantId() tenantId: string, @Param('id') id: string) {
         return this.purchasesService.findOne(tenantId, id);
+    }
+
+    @Patch(':id/pay')
+    markAsPaid(
+        @GetTenantId() tenantId: string,
+        @Request() req,
+        @Param('id') id: string
+    ) {
+        return this.purchasesService.markAsPaid(tenantId, req.user.id, id);
+    }
+
+    @Post(':id/payments')
+    async addPayment(
+        @GetTenantId() tenantId: string,
+        @Request() req,
+        @Param('id') id: string,
+        @Body() body: { amount: number; notes?: string }
+    ) {
+        return this.purchasesService.addPayment(tenantId, req.user.id, id, body.amount, body.notes);
     }
 }

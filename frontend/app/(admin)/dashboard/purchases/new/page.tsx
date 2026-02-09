@@ -39,6 +39,9 @@ export default function NewPurchasePage() {
     const [selectedWarehouse, setSelectedWarehouse] = useState('')
     const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0])
     const [items, setItems] = useState<PurchaseLineItem[]>([])
+    const [additionalCosts, setAdditionalCosts] = useState(0)
+    const [isPaid, setIsPaid] = useState(true)
+    const [notes, setNotes] = useState('')
     const [loading, setLoading] = useState(false)
 
     // Product search
@@ -109,7 +112,8 @@ export default function NewPurchasePage() {
         setItems(newItems)
     }
 
-    const total = items.reduce((sum, item) => sum + (item.quantity * item.costPrice), 0)
+    const itemsSubtotal = items.reduce((sum, item) => sum + (item.quantity * item.costPrice), 0)
+    const total = itemsSubtotal + Number(additionalCosts || 0)
 
     const handleSave = async () => {
         if (!selectedSupplier) return toast.error('Selecciona un proveedor')
@@ -123,6 +127,9 @@ export default function NewPurchasePage() {
                 supplierId: selectedSupplier,
                 warehouseId: selectedWarehouse,
                 date: purchaseDate,
+                additionalCosts: Number(additionalCosts),
+                isPaid,
+                notes,
                 items: items.map(i => ({
                     productId: i.productId,
                     quantity: i.quantity,
@@ -212,6 +219,62 @@ export default function NewPurchasePage() {
                                         className="pl-10 h-11 rounded-xl border-[hsl(var(--border))]"
                                         value={purchaseDate}
                                         onChange={(e) => setPurchaseDate(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-[hsl(var(--border))] space-y-5">
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-black text-[hsl(var(--muted))] uppercase">Condición de Pago</Label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Button
+                                            type="button"
+                                            variant={isPaid ? 'default' : 'outline'}
+                                            onClick={() => setIsPaid(true)}
+                                            className={`rounded-xl h-11 font-bold ${isPaid ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
+                                        >
+                                            <DollarSign className="w-4 h-4 mr-2" />
+                                            Contado
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant={!isPaid ? 'default' : 'outline'}
+                                            onClick={() => setIsPaid(false)}
+                                            className={`rounded-xl h-11 font-bold ${!isPaid ? 'bg-amber-600 hover:bg-amber-700' : ''}`}
+                                        >
+                                            <Calendar className="w-4 h-4 mr-2" />
+                                            Crédito
+                                        </Button>
+                                    </div>
+                                    <p className="text-[10px] text-[hsl(var(--muted))] font-medium italic mt-1">
+                                        {isPaid ? 'Se generará un gasto automático por el total.' : 'No genera gasto ahora. Se pagará después.'}
+                                    </p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-black text-[hsl(var(--muted))] uppercase italic flex justify-between">
+                                        Fletes / Otros Gastos
+                                        <span className="text-[hsl(var(--primary))]">${formatThousands(additionalCosts || 0)}</span>
+                                    </Label>
+                                    <div className="relative">
+                                        <Truck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted))]" />
+                                        <Input
+                                            type="number"
+                                            className="pl-10 h-11 rounded-xl border-[hsl(var(--border))] font-bold"
+                                            placeholder="Ej: 50.00"
+                                            value={additionalCosts || ''}
+                                            onChange={(e) => setAdditionalCosts(parseFloat(e.target.value) || 0)}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-black text-[hsl(var(--muted))] uppercase">Notas Adicionales</Label>
+                                    <textarea
+                                        className="w-full rounded-xl border border-[hsl(var(--border))] bg-white p-3 text-sm font-medium focus:ring-2 focus:ring-[hsl(var(--primary))] outline-none min-h-[80px]"
+                                        placeholder="Detalles sobre el crédito o flete..."
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
                                     />
                                 </div>
                             </div>

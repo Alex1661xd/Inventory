@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsString, IsArray, ValidateNested, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, IsArray, ValidateNested, IsOptional, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class PurchaseItemDto {
@@ -32,4 +32,16 @@ export class CreatePurchaseDto {
     @ValidateNested({ each: true })
     @Type(() => PurchaseItemDto)
     items: PurchaseItemDto[];
+
+    @IsOptional()
+    @IsNumber()
+    additionalCosts?: number;
+
+    @IsOptional()
+    @IsBoolean()
+    isPaid?: boolean;
+
+    @IsOptional()
+    @IsString()
+    notes?: string;
 }

@@ -67,7 +67,7 @@ let CategoriesService = class CategoriesService {
     async remove(id, tenantId) {
         await this.findOne(id, tenantId);
         const productCount = await this.prisma.product.count({
-            where: { categoryId: id },
+            where: { categoryId: id, active: true },
         });
         if (productCount > 0) {
             throw new Error('Cannot delete category with associated products');

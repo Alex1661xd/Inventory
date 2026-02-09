@@ -12,8 +12,25 @@ export class PurchasesService {
     ) { }
 
     async create(tenantId: string, userId: string, dto: CreatePurchaseDto) {
-        // Calcular total de la compra
-        const total = dto.items.reduce((sum, item) => sum + (item.costPrice * item.quantity), 0);
+        // Calcular total de la compra y validar productos activos
+        const subtotal = dto.items.reduce((sum, item) => sum + (item.costPrice * item.quantity), 0);
+        const additionalCosts = dto.additionalCosts || 0;
+        const total = subtotal + additionalCosts;
+        const isPaid = dto.isPaid ?? true;
+
+        // Validar que los productos existan y estén activos
+        const productIds = dto.items.map(item => item.productId);
+        const activeProducts = await this.prisma.product.count({
+            where: {
+                id: { in: productIds },
+                tenantId,
+                active: true
+            }
+        });
+
+        if (activeProducts !== productIds.length) {
+            throw new BadRequestException('Uno o más productos no existen o están inactivos');
+        }
 
         const purchaseResult = await this.prisma.$transaction(async (tx) => {
             // 1. Crear la Compra
@@ -23,7 +40,12 @@ export class PurchasesService {
                     supplierId: dto.supplierId,
                     buyerId: userId,
                     warehouseId: dto.warehouseId,
+                    subtotal,
+                    additionalCosts,
                     total,
+                    amountPaid: isPaid ? total : 0,
+                    isPaid,
+                    notes: dto.notes,
                     date: dto.date ? new Date(dto.date) : new Date(),
                     items: {
                         create: dto.items.map(item => ({
@@ -32,13 +54,27 @@ export class PurchasesService {
                             costPrice: item.costPrice,
                         }))
                     }
-                },
+                } as any,
                 include: {
                     items: true,
                     supplier: true,
                     buyer: { select: { name: true } }
                 }
             });
+
+            // Si es de contado, registrar el pago inicial
+            if (isPaid) {
+                await tx.purchasePayment.create({
+                    data: {
+                        tenantId,
+                        purchaseId: purchase.id,
+                        amount: total,
+                        createdById: userId,
+                        notes: 'Pago inicial (Contado)',
+                        date: purchase.date
+                    }
+                });
+            }
 
             // 2. Procesar cada producto
             for (const item of purchase.items) {
@@ -51,7 +87,6 @@ export class PurchasesService {
 
                 // B. Actualizar Stock Global + Crear Lote (StockBatch) para FIFO
                 if (purchase.warehouseId) {
-                    // Actualizar el saldo global (para consultas rápidas)
                     const stock = await tx.stock.upsert({
                         where: {
                             productId_warehouseId: {
@@ -69,7 +104,6 @@ export class PurchasesService {
                         }
                     });
 
-                    // CREAR LOTE PARA FIFO
                     await tx.stockBatch.create({
                         data: {
                             tenantId,
@@ -79,24 +113,18 @@ export class PurchasesService {
                             initialQuantity: item.quantity,
                             remainingQuantity: item.quantity,
                             costPrice: item.costPrice,
-                            // entryDate: purchase.date,
-                            // FIX: Si la fecha es 'hoy', usamos new Date() para preservar la hora exacta y que salga de primero.
-                            // Si es otra fecha, usamos esa fecha a las 00:00 pero le sumamos la hora actual para desempatar también.
                             entryDate: (() => {
                                 const now = new Date();
                                 const pDate = new Date(purchase.date);
-                                // Verificar si es el mismo día (ignorando hora)
                                 if (pDate.toISOString().split('T')[0] === now.toISOString().split('T')[0]) {
                                     return now;
                                 }
-                                // Si es fecha pasada/futura, le ponemos la hora actual para que quede al final del día
                                 pDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
                                 return pDate;
                             })()
                         }
                     });
 
-                    // C. Registrar Movimiento (Kardex)
                     await tx.stockMovement.create({
                         data: {
                             productId: item.productId,
@@ -112,18 +140,25 @@ export class PurchasesService {
                 }
             }
 
-            // 3. Crear Gasto Automático
-            await tx.expense.create({
-                data: {
-                    tenantId,
-                    amount: total,
-                    description: `Reabastecimiento de inventario - Compra #${purchase.purchaseNumber}`,
-                    category: ExpenseCategory.INVENTORY,
-                    supplierId: dto.supplierId,
-                    createdById: userId,
-                    date: purchase.date
+            // 3. Crear Gasto Automático (SOLO SI ES DE CONTADO)
+            if (isPaid) {
+                let description = `Reabastecimiento de inventario - Compra #${purchase.purchaseNumber}`;
+                if (additionalCosts > 0) {
+                    description += ` (Costo Base: ${subtotal} + Gastos Adicionales/Flete: ${additionalCosts})`;
                 }
-            });
+
+                await tx.expense.create({
+                    data: {
+                        tenantId,
+                        amount: total,
+                        description,
+                        category: ExpenseCategory.INVENTORY,
+                        supplierId: dto.supplierId,
+                        createdById: userId,
+                        date: purchase.date
+                    }
+                });
+            }
 
             return purchase;
         });
@@ -187,8 +222,84 @@ export class PurchasesService {
                             select: { name: true, sku: true }
                         }
                     }
+                },
+                payments: {
+                    orderBy: { date: 'desc' },
+                    include: { createdBy: { select: { name: true } } }
                 }
             }
         });
+    }
+
+    async addPayment(tenantId: string, userId: string, id: string, amount: number, notes?: string) {
+        const purchase = await this.prisma.purchase.findFirst({
+            where: { id, tenantId },
+            include: { supplier: true }
+        });
+
+        if (!purchase) throw new BadRequestException('Compra no encontrada');
+
+        const currentPaid = Number(purchase.amountPaid || 0);
+        const total = Number(purchase.total);
+        if (currentPaid + amount > total + 0.01) {
+            throw new BadRequestException(`El pago ($${amount}) excede el saldo pendiente ($${(total - currentPaid).toFixed(2)})`);
+        }
+
+        return this.prisma.$transaction(async (tx) => {
+            // 1. Crear el registro de pago
+            const payment = await tx.purchasePayment.create({
+                data: {
+                    tenantId,
+                    purchaseId: id,
+                    amount,
+                    createdById: userId,
+                    notes: notes || 'Abono a compra',
+                    date: new Date()
+                }
+            });
+
+            // 2. Actualizar la compra
+            const newAmountPaid = currentPaid + amount;
+            const isFullyPaid = newAmountPaid >= total - 0.01;
+
+            await tx.purchase.update({
+                where: { id },
+                data: {
+                    amountPaid: newAmountPaid,
+                    isPaid: isFullyPaid
+                }
+            });
+
+            // 3. Crear Gasto
+            await tx.expense.create({
+                data: {
+                    tenantId,
+                    amount,
+                    description: `Pago a Proveedor: ${purchase.supplier.name} - Compra #${purchase.purchaseNumber} ${isFullyPaid ? '(Total)' : '(Abono)'}`,
+                    category: ExpenseCategory.INVENTORY,
+                    supplierId: purchase.supplierId,
+                    createdById: userId,
+                    date: new Date()
+                }
+            });
+
+            await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'expenses', '*'));
+            await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'analytics', '*'));
+
+            return payment;
+        });
+    }
+
+    async markAsPaid(tenantId: string, userId: string, id: string) {
+        const purchase = await this.prisma.purchase.findFirst({
+            where: { id, tenantId }
+        });
+
+        if (!purchase) throw new BadRequestException('Compra no encontrada');
+        const pending = Number(purchase.total) - Number(purchase.amountPaid || 0);
+
+        if (pending <= 0) throw new BadRequestException('La compra ya está totalmente pagada');
+
+        return this.addPayment(tenantId, userId, id, pending, 'Pago total de saldo pendiente');
     }
 }
