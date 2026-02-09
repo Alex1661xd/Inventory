@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Cloud, CheckCircle2, XCircle, RefreshCw, Database, Download } from 'lucide-react'
+import { Cloud, CheckCircle2, XCircle, RefreshCw, Database, Download, Clock } from 'lucide-react'
 import { api } from '@/lib/backend'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -145,6 +145,11 @@ export default function GlobalBackupPage() {
                                         : 'Nunca'}
                                 </span>
                             </div>
+                        </div>
+
+                        <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center gap-2 text-blue-600 dark:text-blue-400 text-xs font-medium mb-4">
+                            <Clock className="w-4 h-4" />
+                            <span>Proceso automático: Todos los días a las 03:00 AM</span>
                         </div>
 
                         <Button

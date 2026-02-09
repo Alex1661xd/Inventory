@@ -8,9 +8,9 @@ export declare class AuthService {
     registerBusiness(dto: RegisterBusinessDto): Promise<{
         user: {
             id: string;
+            name: string;
             email: string;
             password: string;
-            name: string;
             role: import("@prisma/client").$Enums.Role;
             tenantId: string;
             warehouseId: string | null;

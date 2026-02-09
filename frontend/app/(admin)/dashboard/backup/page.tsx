@@ -146,6 +146,13 @@ export default function BackupPage() {
                                     </div>
                                 </div>
 
+                                <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center gap-3 text-blue-700">
+                                    <Clock className="w-5 h-5" />
+                                    <p className="text-sm font-medium">
+                                        <strong>Próximo respaldo automático:</strong> Mañana a las 03:00 AM.
+                                    </p>
+                                </div>
+
                                 <div className="flex flex-wrap gap-4 pt-4 border-t border-[hsl(var(--border))]">
                                     <Button
                                         onClick={handleRunBackup}

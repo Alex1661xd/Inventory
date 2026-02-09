@@ -1,12 +1,13 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { google } from 'googleapis';
 import * as ExcelJS from 'exceljs';
 import { Stream } from 'stream';
-import { Cron } from '@nestjs/schedule';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class BackupService {
+    private readonly logger = new Logger(BackupService.name);
     private oauth2Client;
 
     constructor(private prisma: PrismaService) {
@@ -158,6 +159,35 @@ export class BackupService {
         return { success: true, date: new Date() };
     }
 
+    @Cron('0 3 * * *')
+    async handleAutomaticBackup() {
+        this.logger.log('Iniciando ciclo de respaldos automáticos de las 3:00 AM');
+
+        // 1. Ejecutar Respaldo Global (Copia para Super Admin)
+        try {
+            await this.runGlobalBackup();
+            this.logger.log('✅ Respaldo GLOBAL automático completado');
+        } catch (error) {
+            this.logger.error('❌ Error en respaldo GLOBAL automático:', error.message);
+        }
+
+        // 2. Ejecutar Respaldos Individuales (Copia para cada Negocio en su propio Drive)
+        const configs = await this.prisma.backupConfig.findMany({
+            where: { isEnabled: true, refreshToken: { not: null } }
+        });
+
+        this.logger.log(`Iniciando respaldos individuales para ${configs.length} negocios...`);
+
+        for (const config of configs) {
+            try {
+                await this.runBackup(config.tenantId);
+                this.logger.log(`✅ Respaldo individual completado para tenant: ${config.tenantId}`);
+            } catch (error) {
+                this.logger.error(`❌ Error en respaldo individual para ${config.tenantId}:`, error.message);
+            }
+        }
+    }
+
     async runGlobalBackup() {
         const config = await this.prisma.globalBackupConfig.findUnique({
             where: { id: 'global-config' }
@@ -172,7 +202,7 @@ export class BackupService {
 
         // 1. Crear carpeta raíz del día
         const dateStr = new Date().toISOString().split('T')[0];
-        const rootFolderId = await this.ensureFolderExists(drive, config.targetFolderId, 'SYSTEM_BACKUPS');
+        const rootFolderId = await this.ensureFolderExists(drive, config.targetFolderId || '', 'SYSTEM_BACKUPS');
 
         // Actualizar folder raíz si es nuevo
         if (rootFolderId !== config.targetFolderId) {
@@ -426,9 +456,9 @@ export class BackupService {
         return workbook;
     }
 
-    async restoreBackup(tenantId: string, fileBuffer: Buffer) {
+    async restoreBackup(tenantId: string, fileBuffer: any) {
         const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.load(fileBuffer);
+        await workbook.xlsx.load(fileBuffer as any);
 
         // 1. Mapear hojas a objetos de datos
         const products = this.readSheet(workbook, 'Productos');
@@ -515,18 +545,18 @@ export class BackupService {
         const sheet = workbook.getWorksheet(sheetName);
         if (!sheet) return [];
 
-        const results = [];
-        const headers = [];
+        const results: any[] = [];
+        const headers: string[] = [];
 
         // Obtener cabeceras de la primera fila
         sheet.getRow(1).eachCell((cell, colNumber) => {
-            headers[colNumber] = cell.value?.toString().replace(/ /g, '_');
+            headers[colNumber] = cell.value?.toString().replace(/ /g, '_') || `Col_${colNumber}`;
         });
 
         // Leer filas
         sheet.eachRow((row, rowNumber) => {
             if (rowNumber === 1) return; // Saltar cabecera
-            const obj = {};
+            const obj: Record<string, any> = {};
             row.eachCell((cell, colNumber) => {
                 obj[headers[colNumber]] = cell.value;
             });
