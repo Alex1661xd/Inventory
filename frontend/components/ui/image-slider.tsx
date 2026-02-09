@@ -28,7 +28,7 @@ export function ImageSlider({
     const [isZoomOpen, setIsZoomOpen] = useState(false)
 
     useEffect(() => {
-        if (images.length <= 1) return
+        if (images.length <= 1 || interval === 0) return
         const timer = setInterval(() => {
             if (!isZoomOpen) {
                 setCurrentIndex((prev) => (prev + 1) % images.length)

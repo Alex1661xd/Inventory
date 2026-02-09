@@ -396,6 +396,7 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
                                         imageClassName="object-contain" // Contain to show the full image
                                         allowZoom={true}
                                         showControls={true}
+                                        interval={0}
                                     />
                                     <div className="absolute top-2 right-2 z-20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
                                         <span className="bg-black/60 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-sm">🔍 Toca para ampliar</span>
