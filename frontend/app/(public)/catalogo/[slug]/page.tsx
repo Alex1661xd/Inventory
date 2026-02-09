@@ -414,10 +414,10 @@ export default function CatalogPage() {
                                                 : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
                                             window.open(wpUrl, '_blank');
                                         }}
-                                        disabled={!selectedProduct.available}
+                                        disabled={false}
                                     >
                                         <MessageSquare className="w-5 h-5" />
-                                        {selectedProduct.available ? 'Consultar via WhatsApp' : 'No disponible'}
+                                        {selectedProduct.available ? 'Consultar via WhatsApp' : 'Consultar Disponibilidad'}
                                     </button>
                                     <div className="flex items-center justify-center gap-2.5 opacity-40">
                                         <CheckCircle2 className="w-4 h-4 text-emerald-500" />
