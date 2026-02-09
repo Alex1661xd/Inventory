@@ -161,8 +161,8 @@ export default function CatalogPage() {
                 className="sticky top-0 z-50 shadow-2xl transition-all duration-300"
                 style={{ backgroundColor: business.accentColor }}
             >
-                <div className="max-w-7xl mx-auto px-6 py-6 lg:py-8">
-                    <div className="text-center space-y-3">
+                <div className="max-w-7xl mx-auto px-6 py-4 md:py-6">
+                    <div className="text-center space-y-2">
                         <h1 className="text-3xl md:text-5xl font-black text-white tracking-tighter" style={{ fontFamily: 'var(--font-display)' }}>
                             {business.name}
                         </h1>
@@ -176,8 +176,8 @@ export default function CatalogPage() {
             </header>
 
             {/* Search & Filters */}
-            <div className="sticky top-[86px] md:top-[124px] z-40 bg-white/70 backdrop-blur-xl border-b border-[hsl(var(--border)/0.5)] shadow-sm">
-                <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="sticky top-[68px] md:top-[88px] z-40 bg-white/70 backdrop-blur-xl border-b border-[hsl(var(--border)/0.5)] shadow-sm">
+                <div className="max-w-7xl mx-auto px-4 py-3 md:py-4">
                     <div className="flex flex-col md:flex-row gap-4 items-center">
                         {/* Search */}
                         <div className="w-full md:flex-1 relative group">
@@ -251,7 +251,7 @@ export default function CatalogPage() {
             </div>
 
             {/* Products Grid */}
-            <main className="max-w-7xl mx-auto px-6 py-12 flex-grow">
+            <main className="max-w-7xl mx-auto px-4 py-8 flex-grow">
                 {filteredProducts.length === 0 ? (
                     <div className="text-center py-24 animate-scale-in">
                         <div className="w-24 h-24 bg-[hsl(var(--muted-light))] rounded-full flex items-center justify-center mx-auto mb-6">
@@ -261,52 +261,57 @@ export default function CatalogPage() {
                         <p className="text-[hsl(var(--muted))] font-medium mt-2">Intenta ajustar tus filtros de búsqueda.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                        {filteredProducts.map((product, i) => (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                        {filteredProducts.map((product) => (
                             <div
                                 key={product.id}
                                 onClick={() => setSelectedProduct(product)}
                                 className={cn(
-                                    "group bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden transition-all duration-500 hover:shadow-[0_48px_96px_-16px_rgba(0,0,0,0.12)] hover:-translate-y-3 cursor-pointer animate-slide-in",
-                                    !product.available && "opacity-60 grayscale-[0.4]"
+                                    "group bg-white rounded-2xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer",
+                                    !product.available && "opacity-70"
                                 )}
-                                style={{ animationDelay: `${i * 0.05}s` }}
                             >
-                                {/* Product Image */}
-                                <div className="relative aspect-[4/5] bg-[hsl(var(--muted-light))] overflow-hidden">
+                                {/* Product Image (Slider) */}
+                                <div className="relative aspect-square bg-stone-100 overflow-hidden">
                                     <ImageSlider
                                         images={product.images}
                                         name={product.name}
                                     />
 
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                    {/* Availability Badge */}
+                                    <div
+                                        className={cn(
+                                            "absolute top-2 right-2 px-2 py-1 rounded-full text-[10px] md:text-xs font-medium backdrop-blur-sm z-30",
+                                            product.available
+                                                ? "bg-green-500/90 text-white"
+                                                : "bg-red-500/90 text-white"
+                                        )}
+                                    >
+                                        {product.available ? '✓ Disponible' : '✕ Agotado'}
+                                    </div>
 
-                                    <div className={cn(
-                                        "absolute top-4 right-4 px-3 py-1.5 rounded-xl text-[9px] font-black tracking-widest uppercase z-30 shadow-lg transition-transform group-hover:scale-105",
-                                        product.available ? "bg-emerald-500 text-white" : "bg-red-500 text-white"
-                                    )}>
-                                        {product.available ? "En Stock" : "Agotado"}
+                                    {/* Category Tag */}
+                                    <div className="absolute bottom-2 left-2 px-2 py-1 rounded-full text-[10px] md:text-xs font-medium bg-black/50 text-white backdrop-blur-sm z-30">
+                                        {product.categoryName}
                                     </div>
                                 </div>
 
                                 {/* Product Info */}
-                                <div className="p-8 space-y-4">
-                                    <div className="space-y-1">
-                                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[hsl(var(--muted))]">
-                                            {product.categoryName}
-                                        </div>
-                                        <h3 className="text-xl font-black text-[hsl(var(--foreground))] tracking-tight group-hover:text-[hsl(var(--primary))] transition-colors line-clamp-1">
-                                            {product.name}
-                                        </h3>
-                                    </div>
-                                    <div className="flex items-center justify-between pt-2">
-                                        <p className="text-2xl font-black tracking-tighter" style={{ color: business.accentColor }}>
-                                            {formatPrice(product.price)}
+                                <div className="p-3 md:p-4">
+                                    <h3 className="font-semibold text-stone-800 line-clamp-2 text-sm md:text-base leading-tight">
+                                        {product.name}
+                                    </h3>
+                                    {product.description && (
+                                        <p className="mt-1 text-xs text-stone-500 line-clamp-2">
+                                            {product.description}
                                         </p>
-                                        <div className="w-10 h-10 rounded-full bg-[hsl(var(--muted-light))] flex items-center justify-center group-hover:bg-[hsl(var(--primary))] group-hover:text-white transition-all">
-                                            <ArrowUpRight className="w-5 h-5" />
-                                        </div>
-                                    </div>
+                                    )}
+                                    <p
+                                        className="mt-2 text-lg md:text-xl font-bold"
+                                        style={{ color: business.accentColor }}
+                                    >
+                                        {formatPrice(product.price)}
+                                    </p>
                                 </div>
                             </div>
                         ))}

@@ -120,16 +120,15 @@ export function ImageSlider({
                 <Dialog open={isZoomOpen} onOpenChange={setIsZoomOpen}>
                     <DialogContent className="max-w-[95vw] h-[90vh] p-0 border-none bg-black/95">
                         <div className="w-full h-full flex items-center justify-center relative">
-                            {/* Close button is handled by DialogContent default, but we can customize or add extra controls if needed */}
                             <div className="w-full h-full">
                                 <ImageSlider
                                     images={images}
                                     name={name}
-                                    interval={0} // Disable ease-in-out auto-play for zoom view if desired, or keep it
+                                    interval={0}
                                     showControls={true}
                                     className="w-full h-full"
-                                    imageClassName="object-contain" // Use contain for full view
-                                    allowZoom={false} // Prevent infinite recursion
+                                    imageClassName="object-contain"
+                                    allowZoom={false}
                                 />
                             </div>
                         </div>
@@ -140,8 +139,8 @@ export function ImageSlider({
     }
 
     return (
-        <div className={cn("relative w-full h-full overflow-hidden", className)}>
-            {sliderContent.props.children}
+        <div className={cn("w-full h-full", className)}>
+            {sliderContent}
         </div>
     )
 }
