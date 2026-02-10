@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { toast } from 'sonner'
 import { formatThousands, parseThousands, cn } from '@/lib/utils'
-import { Plus, Trash2, Receipt, TrendingUp, TrendingDown, DollarSign, Calendar, Filter, PiggyBank, Building2, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Trash2, Receipt, TrendingUp, TrendingDown, DollarSign, Calendar, Filter, PiggyBank, Building2, Loader2, ChevronLeft, ChevronRight, Eye, ArrowRight } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
@@ -25,6 +25,8 @@ const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
     TAXES: 'Impuestos',
     INSURANCE: 'Seguros',
     OTHER: 'Otros',
+    //@ts-ignore
+    CASH_REGISTER: 'Gastos de Caja',
 }
 
 const CATEGORY_ICONS: Record<ExpenseCategory, string> = {
@@ -38,6 +40,8 @@ const CATEGORY_ICONS: Record<ExpenseCategory, string> = {
     TAXES: '🏛️',
     INSURANCE: '🛡️',
     OTHER: '📋',
+    //@ts-ignore
+    CASH_REGISTER: '🏧',
 }
 
 type ProfitLossData = {
@@ -119,6 +123,8 @@ export default function ExpensesPage() {
     const [currentPage, setCurrentPage] = useState(1)
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
     const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null)
+    const [showBreakdown, setShowBreakdown] = useState(false)
+    const [breakdownCategory, setBreakdownCategory] = useState<string | null>(null)
     const itemsPerPage = 10
 
     useEffect(() => {
@@ -439,14 +445,29 @@ export default function ExpensesPage() {
                                 </div>
 
                                 {profitLoss.operatingExpenses.byCategory.map((cat) => (
-                                    <div key={cat.category} className="flex justify-between items-center p-4 hover:bg-gray-50 pl-8">
-                                        <span className="text-gray-600 flex items-center gap-2">
-                                            {CATEGORY_ICONS[cat.category as ExpenseCategory] || '📋'}
-                                            {CATEGORY_LABELS[cat.category as ExpenseCategory] || cat.category}
-                                        </span>
-                                        <span className="text-red-600">
-                                            -${formatThousands(cat.total)}
-                                        </span>
+                                    <div
+                                        key={cat.category}
+                                        className="flex justify-between items-center p-4 hover:bg-slate-100 pl-8 cursor-pointer group transition-colors"
+                                        onClick={() => {
+                                            setBreakdownCategory(cat.category);
+                                            setShowBreakdown(true);
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-gray-600 flex items-center gap-2">
+                                                {CATEGORY_ICONS[cat.category as ExpenseCategory] || '📋'}
+                                                {CATEGORY_LABELS[cat.category as ExpenseCategory] || cat.category}
+                                            </span>
+                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[10px] font-bold text-blue-600 uppercase tracking-widest">
+                                                <Eye className="w-3 h-3" /> Ver detalle
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <span className="text-red-600 font-bold">
+                                                -${formatThousands(cat.total)}
+                                            </span>
+                                            <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition-colors" />
+                                        </div>
                                     </div>
                                 ))}
 
@@ -521,14 +542,16 @@ export default function ExpensesPage() {
                                                     -${formatThousands(expense.amount)}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                                        onClick={() => handleDelete(expense.id)}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
+                                                    {expense.category !== 'CASH_REGISTER' && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                            onClick={() => handleDelete(expense.id)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -687,6 +710,77 @@ export default function ExpensesPage() {
                     cancelText="No, mantener"
                     variant="destructive"
                 />
+
+                {/* Dialog de Desglose de Gastos */}
+                <Dialog open={showBreakdown} onOpenChange={setShowBreakdown}>
+                    <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden border-none shadow-2xl">
+                        <DialogHeader className="p-6 bg-slate-900 text-white">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-white/10 rounded-lg">
+                                    <Eye className="w-5 h-5 text-blue-400" />
+                                </div>
+                                <div>
+                                    <DialogTitle className="text-xl font-bold">Desglose de Gastos</DialogTitle>
+                                    <DialogDescription className="text-slate-400 font-medium">
+                                        {breakdownCategory && (CATEGORY_LABELS[breakdownCategory as ExpenseCategory] || breakdownCategory)}
+                                    </DialogDescription>
+                                </div>
+                            </div>
+                        </DialogHeader>
+                        <div className="max-h-[60vh] overflow-y-auto">
+                            <Table>
+                                <TableHeader className="bg-slate-50 sticky top-0">
+                                    <TableRow>
+                                        <TableHead className="font-bold text-slate-500">Fecha</TableHead>
+                                        <TableHead className="font-bold text-slate-500">Descripción</TableHead>
+                                        <TableHead className="text-right font-bold text-slate-500">Monto</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {expenses
+                                        .filter(e => e.category === breakdownCategory)
+                                        .map((e) => (
+                                            <TableRow key={e.id} className="hover:bg-slate-50/50">
+                                                <TableCell className="text-xs text-slate-500 font-medium">
+                                                    {new Date(e.date).toLocaleDateString('es-CO')}
+                                                </TableCell>
+                                                <TableCell className="text-sm font-semibold text-slate-700">
+                                                    {e.description}
+                                                    {/* @ts-ignore */}
+                                                    {e.isCashTransaction && (
+                                                        <span className="ml-2 px-1.5 py-0.5 rounded bg-amber-100 text-[9px] text-amber-700 font-black uppercase tracking-tighter">
+                                                            Turno de Caja
+                                                        </span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-right font-black text-red-600">
+                                                    -${formatThousands(e.amount)}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    {expenses.filter(e => e.category === breakdownCategory).length === 0 && (
+                                        <TableRow>
+                                            <TableCell colSpan={3} className="h-24 text-center text-slate-400">
+                                                No hay ítems registrados en este período
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                        <div className="p-4 bg-slate-50 border-t flex justify-end items-center gap-4">
+                            <div className="text-right">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Categoría</p>
+                                <p className="text-xl font-black text-slate-900">
+                                    ${formatThousands(expenses.filter(e => e.category === breakdownCategory).reduce((acc, curr) => acc + Number(curr.amount), 0))}
+                                </p>
+                            </div>
+                            <Button variant="default" className="bg-slate-900 hover:bg-slate-800 rounded-xl px-6" onClick={() => setShowBreakdown(false)}>
+                                Cerrar
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
             </div>
         </>
     )

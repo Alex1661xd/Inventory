@@ -44,27 +44,75 @@ export class ExpensesService {
         category?: string;
     }) {
         const where: any = { tenantId };
+        const cashWhere: any = { type: 'EXPENSE', shift: { tenantId } };
 
         if (filters?.startDate || filters?.endDate) {
             where.date = {};
-            if (filters.startDate) where.date.gte = startOfDay(parseISO(filters.startDate));
-            if (filters.endDate) where.date.lte = endOfDay(parseISO(filters.endDate));
-        }
-
-        if (filters?.category) {
-            where.category = filters.category;
-        }
-
-        return this.prisma.expense.findMany({
-            where,
-            orderBy: { date: 'desc' },
-            include: {
-                supplier: true,
-                createdBy: {
-                    select: { id: true, name: true }
-                }
+            cashWhere.createdAt = {};
+            if (filters.startDate) {
+                where.date.gte = startOfDay(parseISO(filters.startDate));
+                cashWhere.createdAt.gte = startOfDay(parseISO(filters.startDate));
             }
-        });
+            if (filters.endDate) {
+                where.date.lte = endOfDay(parseISO(filters.endDate));
+                cashWhere.createdAt.lte = endOfDay(parseISO(filters.endDate));
+            }
+        }
+
+        const [generalExpenses, cashTransactions] = await Promise.all([
+            this.prisma.expense.findMany({
+                where: {
+                    ...where,
+                    // Si se filtra por una categoría específica y no es Caja, filtrar los generales
+                    category: filters?.category && filters.category !== 'CASH_REGISTER' ? filters.category : where.category
+                },
+                orderBy: { date: 'desc' },
+                include: {
+                    supplier: true,
+                    createdBy: {
+                        select: { id: true, name: true }
+                    }
+                }
+            }),
+            // Solo buscar gastos de caja si no hay filtro de categoría o el filtro es Caja
+            (!filters?.category || filters.category === 'CASH_REGISTER')
+                ? this.prisma.cashTransaction.findMany({
+                    where: cashWhere,
+                    include: {
+                        shift: {
+                            include: {
+                                seller: {
+                                    select: { id: true, name: true }
+                                }
+                            }
+                        }
+                    },
+                    orderBy: { createdAt: 'desc' }
+                })
+                : Promise.resolve([])
+        ]);
+
+        // Mapear transacciones de caja al formato de Gasto
+        const mappedCash = cashTransactions.map(ct => ({
+            id: ct.id,
+            amount: ct.amount,
+            description: ct.reason,
+            category: 'CASH_REGISTER',
+            date: ct.createdAt,
+            tenantId,
+            supplierId: null,
+            supplier: null,
+            createdById: ct.shift.sellerId,
+            createdBy: ct.shift.seller,
+            createdAt: ct.createdAt,
+            updatedAt: ct.createdAt,
+            isCashTransaction: true // Flag para identificar que viene de caja (y no se puede borrar desde aquí tal vez?)
+        }));
+
+        const allExpenses = [...generalExpenses, ...mappedCash]
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        return allExpenses;
     }
 
     async findOne(tenantId: string, id: string) {
@@ -105,12 +153,12 @@ export class ExpensesService {
         return result;
     }
 
-    // Resumen para el P&L
     async getSummary(tenantId: string, startDateStr: string, endDateStr: string) {
         const startDate = addHours(startOfDay(parseISO(startDateStr)), 5);
         const endDate = addHours(endOfDay(parseISO(endDateStr)), 5);
 
-        const expenses = await this.prisma.expense.groupBy({
+        // 1. Obtener gastos generales agrupados por categoría
+        const generalExpenses = await this.prisma.expense.groupBy({
             by: ['category'],
             where: {
                 tenantId,
@@ -124,13 +172,43 @@ export class ExpensesService {
             }
         });
 
-        const totalExpenses = expenses.reduce((sum, e) => sum + Number(e._sum.amount || 0), 0);
+        // 2. Obtener gastos de caja (CashTransaction type EXPENSE)
+        const cashExpenses = await this.prisma.cashTransaction.findMany({
+            where: {
+                type: 'EXPENSE',
+                createdAt: {
+                    gte: startDate,
+                    lte: endDate,
+                },
+                shift: {
+                    tenantId
+                }
+            },
+            select: {
+                amount: true
+            }
+        });
+
+        const totalCashExpenses = cashExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+        const byCategory = generalExpenses.map(e => ({
+            category: e.category,
+            total: Number(e._sum.amount || 0)
+        }));
+
+        // Si hay gastos de caja, los agregamos como una "categoría" especial para que el frontend los muestre
+        if (totalCashExpenses > 0) {
+            byCategory.push({
+                //@ts-ignore
+                category: 'CASH_REGISTER',
+                total: totalCashExpenses
+            });
+        }
+
+        const totalExpenses = byCategory.reduce((sum, e) => sum + e.total, 0);
 
         return {
-            byCategory: expenses.map(e => ({
-                category: e.category,
-                total: Number(e._sum.amount || 0)
-            })),
+            byCategory,
             totalExpenses
         };
     }

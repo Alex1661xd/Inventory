@@ -77,13 +77,23 @@ async function main() {
         });
         console.log(`✅ Movimientos de stock eliminados: ${movementResult.count}`);
 
-        // 3. Eliminar Facturas (Padres)
-        console.log('3/4: Eliminando facturas (Invoice)...');
+        // 3. Eliminar Movimientos de Caja (CashTransaction)
+        console.log('3/5: Eliminando movimientos de caja (CashTransaction)...');
+        const cashTxResult = await prisma.cashTransaction.deleteMany({});
+        console.log(`✅ Movimientos de caja eliminados: ${cashTxResult.count}`);
+
+        // 4. Eliminar Turnos de Caja (CashShift)
+        console.log('4/5: Eliminando turnos de caja (CashShift)...');
+        const shiftResult = await prisma.cashShift.deleteMany({});
+        console.log(`✅ Turnos de caja eliminados: ${shiftResult.count}`);
+
+        // 5. Eliminar Facturas (Padres)
+        console.log('5/5: Eliminando facturas (Invoice)...');
         const invoiceResult = await prisma.invoice.deleteMany({});
         console.log(`✅ Facturas eliminadas: ${invoiceResult.count}`);
 
-        // 4. Reiniciar el contador (secuencia) de facturas
-        console.log('4/4: Reiniciando contador de facturas...');
+        // 6. Reiniciar el contador (secuencia) de facturas
+        console.log('6/6: Reiniciando contador de facturas...');
         try {
             await prisma.$executeRawUnsafe('ALTER SEQUENCE "Invoice_invoiceNumber_seq" RESTART WITH 1;');
             console.log('✅ Contador reiniciado a 1.');

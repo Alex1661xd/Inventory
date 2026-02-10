@@ -50,14 +50,26 @@ export class AnalyticsService {
             },
         });
 
-        // 2. Obtener gastos del periodo
-        const expenses = await this.prisma.expense.findMany({
-            where: {
-                tenantId,
-                date: { gte: startDate, lte: addDays(endDate, 1) },
-            },
-        });
-        const totalExpenses = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
+        // 2. Obtener gastos del periodo (Gastos generales + Gastos registrados por caja)
+        const [expenses, cashExpenses] = await Promise.all([
+            this.prisma.expense.findMany({
+                where: {
+                    tenantId,
+                    date: { gte: startDate, lte: addDays(endDate, 1) },
+                },
+            }),
+            this.prisma.cashTransaction.findMany({
+                where: {
+                    type: 'EXPENSE',
+                    createdAt: { gte: startDate, lte: endDate },
+                    shift: { tenantId }
+                }
+            })
+        ]);
+
+        const totalGeneralExpenses = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
+        const totalCashExpenses = cashExpenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
+        const totalExpenses = totalGeneralExpenses + totalCashExpenses;
 
         // 3. Obtener todos los productos para identificar "Productos Hueso" con valoración FIFO
         const allProducts = await this.prisma.product.findMany({
