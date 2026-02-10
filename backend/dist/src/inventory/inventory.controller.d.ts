@@ -17,6 +17,7 @@ export declare class InventoryController {
             barcode: string | null;
             sku: string | null;
             costPrice: import("@prisma/client/runtime/library").Decimal;
+            salePrice: import("@prisma/client/runtime/library").Decimal;
             categoryId: string | null;
         };
         warehouse: {

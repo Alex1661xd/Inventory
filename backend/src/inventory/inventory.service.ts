@@ -319,7 +319,7 @@ export class InventoryService {
         const stocks = await this.prisma.stock.findMany({
             where,
             include: {
-                product: { select: { id: true, name: true, barcode: true, sku: true, costPrice: true, categoryId: true } },
+                product: { select: { id: true, name: true, barcode: true, sku: true, costPrice: true, salePrice: true, categoryId: true } },
                 warehouse: { select: { id: true, name: true } },
             },
             orderBy: { product: { name: 'asc' } },

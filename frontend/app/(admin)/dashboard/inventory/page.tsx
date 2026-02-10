@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { KardexModal } from '@/components/inventory/KardexModal'
+import { ProductStatsModal } from '@/components/inventory/ProductStatsModal'
 import { formatThousands } from '@/lib/utils'
 import type { InventoryValuation } from '@/lib/backend'
 
@@ -20,6 +21,7 @@ interface AggregatedStock {
         barcode?: string | null
         sku?: string | null
         costPrice?: string | null
+        salePrice?: string | null
         categoryId?: string | null
     } | null
     warehouseQuantities: Record<string, number>
@@ -56,6 +58,11 @@ export default function InventoryPage() {
     const [showFilters, setShowFilters] = useState(false)
     const [selectedKardexProduct, setSelectedKardexProduct] = useState<{ id: string, name: string, warehouseId?: string } | null>(null)
     const [valuation, setValuation] = useState<InventoryValuation | null>(null)
+
+    // Product Stats State
+    const [selectedStatsProduct, setSelectedStatsProduct] = useState<{ id: string, name: string, sku?: string | null, costPrice?: string | null, salePrice?: string | null, totalStock?: number } | null>(null)
+    const [productStats, setProductStats] = useState<any>(null)
+    const [loadingStats, setLoadingStats] = useState(false)
 
     const loadData = async () => {
         setLoading(true)
@@ -211,6 +218,28 @@ export default function InventoryPage() {
             warehouseBreakdown: [wh]
         };
     }, [valuation, selectedWarehouse]);
+
+    const handleViewStats = async (product: AggregatedStock['product'], totalStock: number) => {
+        if (!product) return;
+        setSelectedStatsProduct({
+            id: product.id,
+            name: product.name,
+            sku: product.sku,
+            costPrice: product.costPrice,
+            salePrice: product.salePrice,
+            totalStock
+        });
+        setLoadingStats(true);
+        setProductStats(null);
+        try {
+            const stats = await api.analytics.getProductStats(product.id);
+            setProductStats(stats);
+        } catch (e) {
+            toast.error('Error cargando estadísticas');
+        } finally {
+            setLoadingStats(false);
+        }
+    }
 
 
     return (
@@ -416,6 +445,7 @@ export default function InventoryPage() {
                                     <th className="px-6 py-4 text-left text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Almacén</th>
                                     <th className="px-6 py-4 text-center text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Cantidad</th>
                                     <th className="px-6 py-4 text-left text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Estado</th>
+                                    <th className="px-6 py-4 text-center text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Estadísticas</th>
                                     <th className="px-6 py-4 text-right text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Kardex</th>
                                 </tr>
                             </thead>
@@ -456,6 +486,16 @@ export default function InventoryPage() {
                                                     <span className="text-xs font-medium px-2 py-1 rounded-full bg-red-50 text-red-700 border border-red-100">
                                                         Sin Stock
                                                     </span>
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-8 text-[10px] font-black uppercase tracking-tighter border-blue-200 bg-blue-50/30 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all duration-300 shadow-sm flex items-center gap-1.5 rounded-full px-3 mx-auto"
+                                                        onClick={() => handleViewStats(item.product, item.totalQuantity)}
+                                                    >
+                                                        <span>📊</span> Analizar
+                                                    </Button>
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <Button
@@ -507,6 +547,16 @@ export default function InventoryPage() {
                                                     <span className={`text-xs font-medium px-2 py-1 rounded-full bg-${statusColor}-50 text-${statusColor}-700 border border-${statusColor}-100`}>
                                                         {stockStatus}
                                                     </span>
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-8 text-[10px] font-black uppercase tracking-tighter border-blue-200 bg-blue-50/30 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all duration-300 shadow-sm flex items-center gap-1.5 rounded-full px-3 mx-auto"
+                                                        onClick={() => handleViewStats(item.product, item.totalQuantity)}
+                                                    >
+                                                        <span>📊</span> Analizar
+                                                    </Button>
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <Button
@@ -871,6 +921,13 @@ export default function InventoryPage() {
                 onClose={() => setSelectedKardexProduct(null)}
                 product={selectedKardexProduct}
                 warehouseId={selectedKardexProduct?.warehouseId}
+            />
+
+            <ProductStatsModal
+                isOpen={!!selectedStatsProduct}
+                onClose={() => setSelectedStatsProduct(null)}
+                product={selectedStatsProduct}
+                stats={productStats}
             />
         </div>
     )

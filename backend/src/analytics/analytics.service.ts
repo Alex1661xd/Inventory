@@ -251,4 +251,65 @@ export class AnalyticsService {
 
         return result;
     }
+
+    async getProductStats(tenantId: string, productId: string, from?: string, to?: string) {
+        const where: any = {
+            productId,
+            invoice: {
+                tenantId,
+                status: 'PAID',
+            }
+        };
+
+        if (from || to) {
+            where.invoice.createdAt = {};
+            if (from) where.invoice.createdAt.gte = new Date(from);
+            if (to) where.invoice.createdAt.lte = new Date(to);
+        }
+
+        // 1. Obtener items de facturas pagadas para este producto
+        const invoiceItems = await this.prisma.invoiceItem.findMany({
+            where,
+            include: {
+                invoice: true,
+                product: {
+                    select: { costPrice: true }
+                }
+            }
+        });
+
+        let totalSold = 0;
+        let totalRevenue = 0;
+        let totalCost = 0;
+
+        invoiceItems.forEach(item => {
+            totalSold += item.quantity;
+
+            // Revenue: cantidad * precio unitario
+            // Nota: No estamos aplicando el descuento global de la factura aquí para simplificar,
+            // pero idealmente deberíamos prorratearlo.
+            const itemRevenue = item.quantity * Number(item.unitPrice);
+            totalRevenue += itemRevenue;
+
+            // Cost: Usar snapshot (totalCost) si existe (FIFO), o fallback al costo actual del producto
+            // @ts-ignore
+            let itemCost = item.totalCost ? Number(item.totalCost) : 0;
+
+            if (itemCost === 0 && item.product) {
+                itemCost = item.quantity * Number(item.product.costPrice);
+            }
+
+            totalCost += itemCost;
+        });
+
+        const totalProfit = totalRevenue - totalCost;
+        const margin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+
+        return {
+            totalSold,
+            totalRevenue,
+            totalProfit,
+            margin
+        };
+    }
 }

@@ -16,4 +16,15 @@ export class AnalyticsController {
     ) {
         return this.analyticsService.getDashboardStats(tenantId, from, to);
     }
+
+    @Get('product-stats')
+    @Roles('ADMIN', 'SUPER_ADMIN')
+    getProductStats(
+        @GetTenantId() tenantId: string,
+        @Query('productId') productId: string,
+        @Query('from') from?: string,
+        @Query('to') to?: string,
+    ) {
+        return this.analyticsService.getProductStats(tenantId, productId, from, to);
+    }
 }

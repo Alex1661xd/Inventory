@@ -145,7 +145,7 @@ export type StockRow = {
     quantity: number;
     productId: string;
     warehouseId: string;
-    product: { id: string; name: string; barcode?: string | null; sku?: string | null; costPrice?: string | null; categoryId?: string | null };
+    product: { id: string; name: string; barcode?: string | null; sku?: string | null; costPrice?: string | null; salePrice?: string | null; categoryId?: string | null };
     warehouse: { id: string; name: string };
 };
 
@@ -429,6 +429,13 @@ export const api = {
             const query = params.toString();
             return backendFetch<AnalyticsDashboard>(`/analytics/dashboard${query ? `?${query}` : ''}`);
         },
+        getProductStats: (productId: string, from?: string, to?: string) =>
+            backendFetch<{
+                totalSold: number;
+                totalRevenue: number;
+                totalProfit: number;
+                margin: number;
+            }>(`/analytics/product-stats?productId=${productId}${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}`),
     },
     purchases: {
         list: (from?: string, to?: string) => {
