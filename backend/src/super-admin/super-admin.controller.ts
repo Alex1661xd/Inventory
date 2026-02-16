@@ -1,8 +1,10 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, UseGuards, BadRequestException, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { SuperAdminService } from './super-admin.service';
 import { SuperAdminGuard } from './guards/super-admin.guard';
 import { GenerateCodesDto } from './dto/generate-codes.dto';
 import { DeleteTenantDataDto } from './dto/delete-tenant-data.dto';
+import { GenerateCatalogImageDto } from './dto/generate-catalog-image.dto';
 
 @Controller('super-admin')
 @UseGuards(SuperAdminGuard)
@@ -49,5 +51,24 @@ export class SuperAdminController {
         @Body() dto: DeleteTenantDataDto,
     ) {
         return this.superAdminService.deleteAllTenantData(id, dto.password, dto.confirmation);
+    }
+
+    // ========== CATALOG IMAGE GENERATOR ==========
+
+    @Post('catalog-images/generate')
+    @UseInterceptors(
+        FileInterceptor('image', {
+            limits: { fileSize: 15 * 1024 * 1024 },
+        }),
+    )
+    generateCatalogImage(
+        @UploadedFile() image: any,
+        @Body() dto: GenerateCatalogImageDto,
+    ) {
+        if (!image) {
+            throw new BadRequestException('Debes enviar una imagen en el campo "image"');
+        }
+
+        return this.superAdminService.generateCatalogImage(image, dto.description, dto.whatsapp, dto.count);
     }
 }

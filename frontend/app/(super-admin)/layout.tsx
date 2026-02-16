@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/backend'
 import { Button } from '@/components/ui/button'
-import { ShieldAlert, Users, LogOut, KeyRound, Database } from 'lucide-react'
+import { ShieldAlert, Users, LogOut, KeyRound, Database, Images } from 'lucide-react'
 
 export default function SuperAdminLayout({
     children,
@@ -77,6 +77,10 @@ export default function SuperAdminLayout({
                     <Link href="/super-admin/backup" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 transition-colors font-bold text-sm">
                         <Database className="w-4 h-4 text-indigo-500" />
                         Respaldo Global
+                    </Link>
+                    <Link href="/super-admin/catalog-images" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 transition-colors font-bold text-sm">
+                        <Images className="w-4 h-4 text-emerald-500" />
+                        Imágenes de Catálogo
                     </Link>
                 </nav>
 

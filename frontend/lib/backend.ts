@@ -571,6 +571,31 @@ export const api = {
             deleteData: (id: string, payload: { password: string, confirmation: string }) =>
                 backendFetch<any>(`/super-admin/tenants/${id}/delete-data`, { method: 'POST', json: payload }),
         },
+        catalogImages: {
+            generate: (formData: FormData) =>
+                backendFetch<{
+                    success: boolean;
+                    message: string;
+                    modelo: string;
+                    modelos_usados?: {
+                        analisis?: string;
+                        refinado?: string;
+                        generacion?: string | null;
+                    };
+                    timestamp: string;
+                    whatsapp: string;
+                    prompt_final: string;
+                    count: number;
+                    images: Array<{
+                        index: number;
+                        model: string;
+                        image_base64: string;
+                        image_url: string;
+                    }>;
+                    image_base64: string | null;
+                    image_url: string | null;
+                }>('/super-admin/catalog-images/generate', { method: 'POST', body: formData }),
+        },
     },
     backup: {
         getAuthUrl: () => backendFetch<{ url: string }>('/backup/auth-url'),
