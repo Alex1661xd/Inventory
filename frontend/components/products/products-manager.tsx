@@ -19,13 +19,11 @@ type FormState = {
     name: string
     description: string
     sku: string
-    imageUrl: string
     images: string[]
     costPrice: string
     salePrice: string
     isPublic: boolean
     initialStock: string
-    initialWarehouseId: string
     categoryId: string
 }
 
@@ -33,13 +31,11 @@ const emptyForm: FormState = {
     name: '',
     description: '',
     sku: '',
-    imageUrl: '',
     images: [],
     costPrice: '0',
     salePrice: '0',
     isPublic: true,
     initialStock: '0',
-    initialWarehouseId: '',
     categoryId: '',
 }
 
@@ -61,6 +57,8 @@ export function ProductsManager({
     const [search, setSearch] = useState('')
     const [currentPage, setCurrentPage] = useState(1)
     const itemsPerPage = 12
+    const [totalItems, setTotalItems] = useState(0)
+    const [totalPages, setTotalPages] = useState(0)
     const [selectedCategory, setSelectedCategory] = useState('')
     const [priceRange, setPriceRange] = useState({ min: '', max: '' })
     const [stockFilter, setStockFilter] = useState('all') // 'all', 'inStock', 'outOfStock'
@@ -81,56 +79,41 @@ export function ProductsManager({
 
     const isEditing = useMemo(() => Boolean(editingId), [editingId])
 
-    const filteredProducts = useMemo(() => {
-        let filtered = products
 
-        const q = search.trim().toLowerCase()
-        if (q) {
-            filtered = filtered.filter((p) => {
-                const haystack = [p.name, p.sku ?? '', p.barcode ?? ''].join(' ').toLowerCase()
-                return haystack.includes(q)
-            })
-        }
 
-        if (selectedCategory) {
-            filtered = filtered.filter(p => p.categoryId === selectedCategory)
-        }
+    const [debouncedSearch, setDebouncedSearch] = useState(search)
+    const [debouncedPriceRange, setDebouncedPriceRange] = useState(priceRange)
 
-        if (priceRange.min) {
-            const minPrice = Number(priceRange.min)
-            if (!isNaN(minPrice)) {
-                filtered = filtered.filter(p => Number(p.salePrice) >= minPrice)
-            }
-        }
-        if (priceRange.max) {
-            const maxPrice = Number(priceRange.max)
-            if (!isNaN(maxPrice)) {
-                filtered = filtered.filter(p => Number(p.salePrice) <= maxPrice)
-            }
-        }
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedSearch(search), 500)
+        return () => clearTimeout(timer)
+    }, [search])
 
-        if (stockFilter === 'inStock') {
-            filtered = filtered.filter(p => (p.totalStock ?? 0) > 0)
-        } else if (stockFilter === 'outOfStock') {
-            filtered = filtered.filter(p => (p.totalStock ?? 0) === 0)
-        }
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedPriceRange(priceRange), 500)
+        return () => clearTimeout(timer)
+    }, [priceRange])
 
-        return filtered
-    }, [products, search, selectedCategory, priceRange, stockFilter])
-
-    const paginatedProducts = useMemo(() => {
-        const startIndex = (currentPage - 1) * itemsPerPage
-        const endIndex = startIndex + itemsPerPage
-        return filteredProducts.slice(startIndex, endIndex)
-    }, [filteredProducts, currentPage])
-
-    const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)
-
-    const load = async () => {
+    const load = async (page = 1) => {
         setLoading(true)
         try {
-            const [data, ws, cats] = await Promise.all([api.products.list(), api.warehouses.list(), api.categories.list()])
-            setProducts(data)
+            const [response, ws, cats] = await Promise.all([
+                api.products.list({
+                    page,
+                    limit: itemsPerPage,
+                    search: debouncedSearch,
+                    categoryId: selectedCategory || undefined,
+                    minPrice: debouncedPriceRange.min ? parseFloat(debouncedPriceRange.min) : undefined,
+                    maxPrice: debouncedPriceRange.max ? parseFloat(debouncedPriceRange.max) : undefined,
+                    stockStatus: stockFilter !== 'all' ? stockFilter : undefined
+                }),
+                api.warehouses.list(),
+                api.categories.list()
+            ])
+            const productsData = Array.isArray(response) ? response : (response?.data || [])
+            setProducts(productsData)
+            setTotalItems(Array.isArray(response) ? response.length : (response.total || 0))
+            setTotalPages(Array.isArray(response) ? 1 : (response.totalPages || 1))
             setWarehouses(ws)
             setCategories(cats)
         } catch (e: any) {
@@ -141,8 +124,13 @@ export function ProductsManager({
     }
 
     useEffect(() => {
-        load()
-    }, [])
+        load(1)
+        setCurrentPage(1)
+    }, [debouncedSearch, selectedCategory, debouncedPriceRange, stockFilter])
+
+    useEffect(() => {
+        load(currentPage)
+    }, [currentPage])
 
     useEffect(() => {
         if (!barcodeModal.visible) return
@@ -249,29 +237,24 @@ export function ProductsManager({
 
     const startCreate = () => {
         setEditingId(null)
-        setForm((prev) => ({
-            ...emptyForm,
-            initialWarehouseId: prev.initialWarehouseId || warehouses[0]?.id || '',
-        }))
+        setForm(emptyForm)
         setShowForm(true)
     }
 
     const startEdit = (p: Product) => {
         setEditingId(p.id)
         setForm({
-            name: p.name ?? '',
-            description: p.description ?? '',
-            sku: p.sku ?? '',
-            imageUrl: p.imageUrl ?? '',
-            images: p.images ?? (p.imageUrl ? [p.imageUrl] : []),
-            costPrice: String(p.costPrice ?? '0'),
-            salePrice: String(p.salePrice ?? '0'),
-            isPublic: Boolean(p.isPublic),
+            name: p.name,
+            description: p.description || '',
+            sku: p.sku || '',
+            images: p.images || [],
+            costPrice: p.costPrice.toString(),
+            salePrice: p.salePrice.toString(),
+            isPublic: p.isPublic,
             initialStock: '0',
-            initialWarehouseId: warehouses[0]?.id || '',
-            categoryId: p.categoryId ?? '',
+            categoryId: p.categoryId || '',
         })
-        setImagePreviews(p.images && p.images.length > 0 ? p.images : (p.imageUrl ? [p.imageUrl] : []))
+        setImagePreviews(p.images || [])
         setSelectedFiles([])
         setImagesToDelete([])
         setShowForm(true)
@@ -301,19 +284,30 @@ export function ProductsManager({
         setImagePreviews(newPreviews)
 
         if (previewToRemove.startsWith('blob:')) {
-            const existingInOriginal = imagePreviews.slice(0, index).filter(p => !p.startsWith('blob:')).length
-            const fileIndex = index - existingInOriginal
-            if (fileIndex >= 0) {
+            // Find which file in selectedFiles this corresponds to
+            // It's the Nth blob preview in the current imagePreviews
+            let blobCount = 0
+            let fileIndex = -1
+            for (let i = 0; i <= index; i++) {
+                if (imagePreviews[i].startsWith('blob:')) {
+                    if (i === index) {
+                        fileIndex = blobCount
+                        break
+                    }
+                    blobCount++
+                }
+            }
+            if (fileIndex !== -1) {
                 const newFiles = [...selectedFiles]
                 newFiles.splice(fileIndex, 1)
                 setSelectedFiles(newFiles)
+                URL.revokeObjectURL(previewToRemove)
             }
         } else {
             setImagesToDelete(prev => [...prev, previewToRemove])
             setForm(prev => ({
                 ...prev,
-                images: prev.images.filter(img => img !== previewToRemove),
-                imageUrl: prev.images.filter(img => img !== previewToRemove)[0] || ''
+                images: prev.images.filter(img => img !== previewToRemove)
             }))
         }
     }
@@ -371,8 +365,13 @@ export function ProductsManager({
     const submit = async () => {
         if (!form.name.trim()) return toast.error('El nombre es obligatorio')
         if (!form.categoryId) return toast.error('La categoría es obligatoria')
-        if (Number(form.costPrice) < 0) return toast.error('El precio de costo no es válido')
-        if (Number(form.salePrice) < 0) return toast.error('El precio de venta no es válido')
+
+        const cost = Number(form.costPrice)
+        const sale = Number(form.salePrice)
+
+        if (isNaN(cost) || cost <= 0) return toast.error('El precio de costo debe ser superior a 0')
+        if (isNaN(sale) || sale <= 0) return toast.error('El precio de venta debe ser superior a 0')
+        if (sale <= cost) return toast.error('El precio de venta debe ser mayor al costo')
 
         setSaving(true)
         setUploading(true)
@@ -389,7 +388,6 @@ export function ProductsManager({
                 name: form.name.trim(),
                 description: form.description.trim() || undefined,
                 sku: form.sku.trim() || undefined,
-                imageUrl: finalImages[0] || undefined,
                 images: finalImages,
                 costPrice: Number(form.costPrice),
                 salePrice: Number(form.salePrice),
@@ -406,7 +404,6 @@ export function ProductsManager({
                 await api.products.create({
                     ...basePayload,
                     initialStock: initialStock > 0 ? initialStock : 0,
-                    initialWarehouseId: initialStock > 0 ? form.initialWarehouseId : undefined,
                 })
                 toast.success('Producto creado')
             }
@@ -475,9 +472,7 @@ export function ProductsManager({
 
 
     const downloadProductImages = async (product: Product) => {
-        const images = product.images && product.images.length > 0
-            ? product.images
-            : (product.imageUrl ? [product.imageUrl] : [])
+        const images = product.images && product.images.length > 0 ? product.images : []
 
         if (images.length === 0) return toast.error('No hay imágenes para descargar')
 
@@ -558,7 +553,7 @@ export function ProductsManager({
                             </Button>
                         </Link>
                     )}
-                    <Button variant="outline" onClick={load} disabled={loading} className="group w-full sm:w-auto">
+                    <Button variant="outline" onClick={() => load(currentPage)} disabled={loading} className="group w-full sm:w-auto">
                         <span className={loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}>
                             {loading ? '⚙️' : '🔄'}
                         </span>
@@ -639,7 +634,7 @@ export function ProductsManager({
 
             {/* Products Grid */}
             <div className="grid gap-4 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
-                {paginatedProducts.map((p, index) => (
+                {products.map((p, index) => (
                     <div
                         key={p.id}
                         className="group relative rounded-xl border border-[rgb(230,225,220)] bg-white p-3 shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col h-full animate-fade-in"
@@ -648,7 +643,7 @@ export function ProductsManager({
                         {/* Product Image */}
                         <div className="aspect-square w-full rounded-lg bg-gradient-to-br from-[rgb(250,248,245)] to-[rgb(240,235,230)] overflow-hidden mb-3 relative group/slider">
                             <ImageSlider
-                                images={p.images && p.images.length > 0 ? p.images : (p.imageUrl ? [p.imageUrl] : [])}
+                                images={p.images && p.images.length > 0 ? p.images : []}
                                 name={p.name}
                                 interval={3000 + (index * 500)} // Staggered animations
                                 className="h-full w-full"
@@ -765,12 +760,23 @@ export function ProductsManager({
                         <CardContent className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
                             <div className="grid gap-6 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label>Nombre del Producto</Label>
-                                    <Input value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} placeholder="Ej. Sofá Chesterfield de Cuero" />
+                                    <Label className="flex items-center gap-1">
+                                        Nombre del Producto
+                                        <span className="text-red-500">*</span>
+                                    </Label>
+                                    <Input
+                                        value={form.name}
+                                        onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+                                        placeholder="Ej: Sofá Modular Gris"
+                                        className="h-11 border-2 border-[rgb(230,225,220)] focus:border-[rgb(25,35,25)] transition-all duration-300 rounded-lg"
+                                    />
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label>Categoría</Label>
+                                    <Label className="flex items-center gap-1">
+                                        Categoría
+                                        <span className="text-red-500">*</span>
+                                    </Label>
                                     <select
                                         className="flex h-11 w-full rounded-lg border-2 border-[rgb(230,225,220)] bg-white/90 px-4 py-2.5 text-sm font-medium shadow-sm transition-all duration-300 focus:outline-none focus:border-[rgb(25,35,25)]"
                                         value={form.categoryId}
@@ -800,13 +806,18 @@ export function ProductsManager({
                                 )}
 
                                 <div className="space-y-2 md:col-span-2">
-                                    <Label>Descripción</Label>
+                                    <Label className="flex items-center gap-1">
+                                        Descripción
+                                    </Label>
                                     <Input value={form.description} onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))} placeholder="Describe el material, dimensiones, etc." />
                                 </div>
 
                                 {isAdminView && (
                                     <div className="space-y-2">
-                                        <Label>Precio Costo (Valor de adquisición)</Label>
+                                        <Label className="flex items-center gap-1">
+                                            Precio Costo (Valor de adquisición)
+                                            <span className="text-red-500">*</span>
+                                        </Label>
                                         <Input
                                             type="text"
                                             value={formatCurrency(form.costPrice)}
@@ -816,7 +827,10 @@ export function ProductsManager({
                                 )}
 
                                 <div className="space-y-2">
-                                    <Label>Precio Venta (Precio al público)</Label>
+                                    <Label className="flex items-center gap-1">
+                                        Precio Venta (Precio al público)
+                                        <span className="text-red-500">*</span>
+                                    </Label>
                                     <Input
                                         type="text"
                                         value={formatCurrency(form.salePrice)}
@@ -880,7 +894,9 @@ export function ProductsManager({
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label>SKU Referencia</Label>
+                                    <Label className="flex items-center gap-1">
+                                        SKU / Referencia
+                                    </Label>
                                     <Input value={form.sku} onChange={(e) => setForm((s) => ({ ...s, sku: e.target.value }))} placeholder="Ex: MOD-SOF-001" />
                                 </div>
 
@@ -926,7 +942,7 @@ export function ProductsManager({
                             <div className="grid md:grid-cols-2 gap-8">
                                 <div className="aspect-square rounded-2xl overflow-hidden border border-[rgb(230,225,220)] shadow-inner flex items-center justify-center bg-[rgb(250,248,245)] relative group">
                                     <ImageSlider
-                                        images={viewModal.product.images && viewModal.product.images.length > 0 ? viewModal.product.images : (viewModal.product.imageUrl ? [viewModal.product.imageUrl] : [])}
+                                        images={viewModal.product.images && viewModal.product.images.length > 0 ? viewModal.product.images : []}
                                         name={viewModal.product.name}
                                         showControls={true}
                                         className="w-full h-full"

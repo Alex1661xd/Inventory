@@ -3,12 +3,16 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreatePurchaseDto } from './dto/create-purchase.dto';
 import { CacheService } from '../cache/cache.service';
 import { StockMovementType, ExpenseCategory } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
+import { SequenceService } from '../sequences/sequence.service';
 
 @Injectable()
 export class PurchasesService {
     constructor(
         private prisma: PrismaService,
-        private cacheService: CacheService
+        private cacheService: CacheService,
+        private auditService: AuditService,
+        private sequenceService: SequenceService,
     ) { }
 
     async create(tenantId: string, userId: string, dto: CreatePurchaseDto) {
@@ -33,9 +37,13 @@ export class PurchasesService {
         }
 
         const purchaseResult = await this.prisma.$transaction(async (tx) => {
+            // 0. Calcular el siguiente número de compra POR TENANT (ATÓMICO)
+            const nextPurchaseNumber = await this.sequenceService.nextVal(tenantId, 'purchase', tx);
+
             // 1. Crear la Compra
             const purchase = await tx.purchase.create({
                 data: {
+                    purchaseNumber: nextPurchaseNumber,
                     tenantId,
                     supplierId: dto.supplierId,
                     buyerId: userId,
@@ -187,10 +195,21 @@ export class PurchasesService {
             console.error('⚠️ [PurchasesService] Error al invalidar caché:', cacheError.message);
         }
 
+        // Audit log
+        this.auditService.log({
+            action: 'CREATE',
+            entity: 'Purchase',
+            entityId: purchaseResult.id,
+            newValue: { purchaseNumber: purchaseResult.purchaseNumber, total, items: dto.items.length },
+            userId,
+            tenantId,
+        });
+
         return purchaseResult;
     }
 
-    async findAll(tenantId: string, from?: string, to?: string) {
+    async findAll(tenantId: string, page: number = 1, limit: number = 20, from?: string, to?: string, search?: string) {
+        const skip = (page - 1) * limit;
         const where: any = { tenantId };
 
         if (from || to) {
@@ -199,15 +218,41 @@ export class PurchasesService {
             if (to) where.date.lte = new Date(to);
         }
 
-        return this.prisma.purchase.findMany({
-            where,
-            include: {
-                supplier: { select: { name: true } },
-                buyer: { select: { name: true } },
-                _count: { select: { items: true } }
-            },
-            orderBy: { date: 'desc' }
-        });
+        if (search) {
+            const searchInt = parseInt(search);
+            const searchConditions: any[] = [
+                { supplier: { name: { contains: search, mode: 'insensitive' } } }
+            ];
+
+            if (!isNaN(searchInt)) {
+                searchConditions.push({ purchaseNumber: searchInt });
+            }
+
+            where.OR = searchConditions;
+        }
+
+        const [data, total] = await Promise.all([
+            this.prisma.purchase.findMany({
+                where,
+                include: {
+                    supplier: { select: { name: true } },
+                    buyer: { select: { name: true } },
+                    _count: { select: { items: true } }
+                },
+                orderBy: { date: 'desc' },
+                skip,
+                take: limit,
+            }),
+            this.prisma.purchase.count({ where })
+        ]);
+
+        return {
+            data,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        };
     }
 
     async findOne(tenantId: string, id: string) {

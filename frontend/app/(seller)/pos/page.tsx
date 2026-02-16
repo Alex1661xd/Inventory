@@ -1249,11 +1249,12 @@ export default function POSPage() {
             setWarehouseId(userWarehouseId)
 
             // Load products and stock for the user's warehouse
-            const [prods, stockData] = await Promise.all([
-                api.products.list(),
+            const [prodsRes, stockData] = await Promise.all([
+                api.products.list({ limit: 1000 }),
                 api.inventory.stock({ warehouseId: userWarehouseId })
             ])
 
+            const prods = Array.isArray(prodsRes) ? prodsRes : (prodsRes?.data || [])
             setProducts(prods)
 
             // Build stock map: { productId: quantity }

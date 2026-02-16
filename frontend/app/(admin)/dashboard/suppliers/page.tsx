@@ -33,27 +33,39 @@ export default function SuppliersPage() {
         paymentTerms: ''
     })
 
-    useEffect(() => {
-        loadSuppliers()
-    }, [])
+    const [currentPage, setCurrentPage] = useState(1)
+    const [totalPages, setTotalPages] = useState(0)
+    const itemsPerPage = 20
 
-    const loadSuppliers = async () => {
+    const [debouncedSearch, setDebouncedSearch] = useState('')
+
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedSearch(search), 500)
+        return () => clearTimeout(timer)
+    }, [search])
+
+    useEffect(() => {
+        loadSuppliers(1)
+        setCurrentPage(1)
+    }, [debouncedSearch])
+
+    useEffect(() => {
+        loadSuppliers(currentPage)
+    }, [currentPage])
+
+    const loadSuppliers = async (page = 1) => {
         setLoading(true)
         try {
-            const data = await api.suppliers.list()
-            setSuppliers(data)
+            const response = await api.suppliers.list({ page, limit: itemsPerPage, search: debouncedSearch })
+            setSuppliers(response.data)
+            setTotalPages(response.totalPages)
+            setCurrentPage(response.page)
         } catch (error) {
             toast.error('Error al cargar proveedores')
         } finally {
             setLoading(false)
         }
     }
-
-    const filteredSuppliers = suppliers.filter(s =>
-        s.name.toLowerCase().includes(search.toLowerCase()) ||
-        s.contactName?.toLowerCase().includes(search.toLowerCase()) ||
-        s.email?.toLowerCase().includes(search.toLowerCase())
-    )
 
     const handleCreate = () => {
         setEditingSupplier(null)
@@ -100,7 +112,7 @@ export default function SuppliersPage() {
                 toast.success('Proveedor creado')
             }
             setIsModalOpen(false)
-            loadSuppliers()
+            loadSuppliers(currentPage)
         } catch (error) {
             toast.error('Error al guardar proveedor')
         } finally {
@@ -112,7 +124,7 @@ export default function SuppliersPage() {
         try {
             await api.suppliers.remove(id)
             toast.success('Proveedor eliminado')
-            loadSuppliers()
+            loadSuppliers(currentPage)
         } catch (error) {
             toast.error('Error al eliminar')
         }
@@ -163,7 +175,7 @@ export default function SuppliersPage() {
                                     Cargando...
                                 </TableCell>
                             </TableRow>
-                        ) : filteredSuppliers.length === 0 ? (
+                        ) : suppliers.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={5} className="text-center py-10 text-gray-500">
                                     <div className="flex flex-col items-center justify-center gap-2">
@@ -173,7 +185,7 @@ export default function SuppliersPage() {
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            filteredSuppliers.map((supplier) => (
+                            suppliers.map((supplier) => (
                                 <TableRow key={supplier.id} className="hover:bg-gray-50/50 transition-colors">
                                     <TableCell className="font-medium">
                                         <div>{supplier.name}</div>
@@ -211,6 +223,29 @@ export default function SuppliersPage() {
                     </TableBody>
                 </Table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="flex justify-center gap-2 mt-4">
+                    <Button
+                        variant="outline"
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                    >
+                        Anterior
+                    </Button>
+                    <span className="flex items-center px-4 font-medium text-sm">
+                        Página {currentPage} de {totalPages}
+                    </span>
+                    <Button
+                        variant="outline"
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                    >
+                        Siguiente
+                    </Button>
+                </div>
+            )}
 
             {/* Modal Crear/Editar */}
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>

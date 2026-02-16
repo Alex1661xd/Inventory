@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Request, Query } from '@nestjs/common';
 import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { GetTenantGuard } from '../auth/guards/get-tenant.guard';
@@ -15,10 +15,28 @@ export class InvoicesController {
     }
 
     @Get()
-    findAll(@GetTenantId() tenantId: string, @Request() req: any) {
+    findAll(
+        @GetTenantId() tenantId: string,
+        @Request() req: any,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
+        @Query('search') search?: string,
+        @Query('from') from?: string,
+        @Query('to') to?: string,
+        @Query('status') status?: string,
+    ) {
         const user = req.user;
         const sellerId = user.role === 'SELLER' ? user.id : undefined;
-        return this.invoicesService.findAll(tenantId, sellerId);
+        return this.invoicesService.findAll(
+            tenantId,
+            page ? parseInt(page, 10) : 1,
+            limit ? parseInt(limit, 10) : 20,
+            sellerId,
+            search,
+            from,
+            to,
+            status
+        );
     }
 
     @Get(':id')

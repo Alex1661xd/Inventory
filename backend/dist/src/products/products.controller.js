@@ -29,8 +29,13 @@ let ProductsController = class ProductsController {
     create(tenantId, dto, userId) {
         return this.productsService.create(tenantId, dto, userId);
     }
-    findAll(tenantId) {
-        return this.productsService.findAllWithTotalStock(tenantId);
+    findAll(tenantId, page, limit, search, categoryId, minPrice, maxPrice, stockStatus) {
+        return this.productsService.findAllWithTotalStock(tenantId, page ? parseInt(page, 10) : 1, limit ? parseInt(limit, 10) : 50, search, {
+            categoryId,
+            minPrice: minPrice ? parseFloat(minPrice) : undefined,
+            maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
+            stockStatus,
+        });
     }
     findByBarcode(tenantId, barcode) {
         return this.productsService.findByBarcode(tenantId, barcode);
@@ -59,8 +64,15 @@ __decorate([
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, get_tenant_id_decorator_1.GetTenantId)()),
+    __param(1, (0, common_1.Query)('page')),
+    __param(2, (0, common_1.Query)('limit')),
+    __param(3, (0, common_1.Query)('search')),
+    __param(4, (0, common_1.Query)('categoryId')),
+    __param(5, (0, common_1.Query)('minPrice')),
+    __param(6, (0, common_1.Query)('maxPrice')),
+    __param(7, (0, common_1.Query)('stockStatus')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], ProductsController.prototype, "findAll", null);
 __decorate([

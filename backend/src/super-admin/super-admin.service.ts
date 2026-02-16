@@ -206,12 +206,11 @@ export class SuperAdminService {
         // 1. Get all products to collect image URLs before they are deleted
         const products = await this.prisma.product.findMany({
             where: { tenantId },
-            select: { images: true, imageUrl: true }
+            select: { images: true }
         });
 
         const imagesToDelete: string[] = [];
         products.forEach(p => {
-            if (p.imageUrl) imagesToDelete.push(p.imageUrl);
             if (p.images && p.images.length > 0) {
                 imagesToDelete.push(...p.images);
             }

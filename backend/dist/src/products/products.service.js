@@ -16,14 +16,17 @@ const crypto_1 = require("crypto");
 const cache_service_1 = require("../cache/cache.service");
 const client_1 = require("@prisma/client");
 const supabase_service_1 = require("../supabase/supabase.service");
+const audit_service_1 = require("../audit/audit.service");
 let ProductsService = class ProductsService {
     prisma;
     cacheService;
     supabaseService;
-    constructor(prisma, cacheService, supabaseService) {
+    auditService;
+    constructor(prisma, cacheService, supabaseService, auditService) {
         this.prisma = prisma;
         this.cacheService = cacheService;
         this.supabaseService = supabaseService;
+        this.auditService = auditService;
     }
     generateBarcode() {
         return `PRD-${(0, crypto_1.randomBytes)(4).toString('hex').toUpperCase()}`;
@@ -79,7 +82,6 @@ let ProductsService = class ProductsService {
                         description: dto.description,
                         barcode,
                         sku: dto.sku,
-                        imageUrl: dto.imageUrl,
                         images: dto.images ?? [],
                         costPrice: dto.costPrice ?? 0,
                         salePrice: dto.salePrice ?? 0,
@@ -121,60 +123,102 @@ let ProductsService = class ProductsService {
                 return product;
             });
             await this.invalidateProductCache(tenantId);
+            this.auditService.log({
+                action: 'CREATE',
+                entity: 'Product',
+                entityId: product.id,
+                newValue: { name: dto.name, costPrice: dto.costPrice, salePrice: dto.salePrice },
+                userId,
+                tenantId,
+            });
             return product;
         }
         catch (error) {
             throw new common_1.BadRequestException(error?.message ?? 'Error creating product');
         }
     }
-    async findAllWithTotalStock(tenantId) {
+    async findAllWithTotalStock(tenantId, page = 1, limit = 50, search, filters) {
         if (!tenantId) {
             console.error('❌ [ProductsService] Intento de findAllWithTotalStock sin tenantId');
-            return [];
+            return { data: [], total: 0, page, totalPages: 0 };
         }
-        const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'list');
+        const skip = (page - 1) * limit;
+        const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'list', `p${page}-l${limit}-s${search || 'all'}-c${filters?.categoryId || 'all'}-min${filters?.minPrice || '0'}-max${filters?.maxPrice || 'inf'}-st${filters?.stockStatus || 'all'}`);
         try {
             const cached = await this.cacheService.get(cacheKey);
             if (cached) {
-                console.log(`📦 [ProductsService] Cargando ${cached.length} productos desde CACHE (Tenant: ${tenantId})`);
                 return cached;
             }
         }
         catch (e) {
             console.error('⚠️ [ProductsService] Error leyendo caché:', e.message);
         }
-        console.log(`🔍 [ProductsService] Consultando DB para tenant: ${tenantId}`);
-        const products = await this.prisma.product.findMany({
-            where: { tenantId, active: true },
-            orderBy: { createdAt: 'desc' },
-        });
-        if (products.length === 0) {
-            console.log(`ℹ️ [ProductsService] El tenant ${tenantId} no tiene productos registrados.`);
-            return [];
+        const where = {
+            tenantId,
+            active: true
+        };
+        if (search) {
+            where.OR = [
+                { name: { contains: search, mode: 'insensitive' } },
+                { description: { contains: search, mode: 'insensitive' } },
+                { sku: { contains: search, mode: 'insensitive' } },
+                { barcode: { contains: search, mode: 'insensitive' } },
+            ];
         }
-        const productIds = products.map(p => p.id);
-        const stockData = await this.prisma.stock.groupBy({
-            by: ['productId'],
-            where: {
-                productId: { in: productIds }
-            },
-            _sum: {
-                quantity: true,
-            },
+        if (filters?.categoryId) {
+            where.categoryId = filters.categoryId;
+        }
+        if (filters?.minPrice !== undefined || filters?.maxPrice !== undefined) {
+            where.salePrice = {};
+            if (filters.minPrice !== undefined)
+                where.salePrice.gte = filters.minPrice;
+            if (filters.maxPrice !== undefined)
+                where.salePrice.lte = filters.maxPrice;
+        }
+        if (filters?.stockStatus === 'inStock') {
+            where.inventory = {
+                some: {
+                    quantity: { gt: 0 }
+                }
+            };
+        }
+        else if (filters?.stockStatus === 'outOfStock') {
+            where.inventory = {
+                every: {
+                    quantity: { lte: 0 }
+                }
+            };
+        }
+        const [products, total] = await Promise.all([
+            this.prisma.product.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit,
+                include: { inventory: true }
+            }),
+            this.prisma.product.count({ where })
+        ]);
+        const productsWithStock = products.map(p => {
+            const totalStock = (p.inventory || []).reduce((acc, s) => acc + s.quantity, 0);
+            const { inventory, ...rest } = p;
+            return {
+                ...rest,
+                costPrice: Number(p.costPrice),
+                salePrice: Number(p.salePrice),
+                totalStock
+            };
         });
-        const stockMap = new Map();
-        stockData.forEach(item => {
-            stockMap.set(item.productId, item._sum.quantity ?? 0);
-        });
-        const result = products.map(product => ({
-            ...product,
-            costPrice: Number(product.costPrice),
-            salePrice: Number(product.salePrice),
-            totalStock: stockMap.get(product.id) ?? 0,
-        }));
-        console.log(`✅ [ProductsService] DB retornó ${result.length} productos procesados (Tenant: ${tenantId})`);
+        const result = {
+            data: productsWithStock,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        };
+        console.log(`✅ [ProductsService] DB retornó ${products.length} productos procesados (Tenant: ${tenantId})`);
         try {
-            await this.cacheService.set(cacheKey, result, 300);
+            await this.cacheService.set(cacheKey, result, 60);
         }
         catch (e) {
             console.error('⚠️ [ProductsService] Error guardando en caché:', e.message);
@@ -270,6 +314,13 @@ let ProductsService = class ProductsService {
                 data: dto,
             });
             await this.invalidateProductCache(tenantId, id);
+            this.auditService.log({
+                action: 'UPDATE',
+                entity: 'Product',
+                entityId: id,
+                newValue: dto,
+                tenantId,
+            });
             return result;
         }
         catch (error) {
@@ -279,7 +330,7 @@ let ProductsService = class ProductsService {
     async remove(tenantId, id) {
         const product = await this.prisma.product.findFirst({
             where: { id, tenantId },
-            select: { id: true, images: true, imageUrl: true, barcode: true },
+            select: { id: true, images: true, barcode: true },
         });
         if (!product)
             throw new common_1.NotFoundException('Product not found');
@@ -316,11 +367,17 @@ let ProductsService = class ProductsService {
             });
             const imagesToDelete = product.images && product.images.length > 0
                 ? product.images
-                : (product.imageUrl ? [product.imageUrl] : []);
+                : [];
             if (imagesToDelete.length > 0) {
                 await this.deleteImagesFromStorage(imagesToDelete);
             }
             await this.invalidateProductCache(tenantId, id, product.barcode);
+            this.auditService.log({
+                action: 'DELETE',
+                entity: 'Product',
+                entityId: id,
+                tenantId,
+            });
             return { success: true };
         }
         catch (error) {
@@ -372,6 +429,7 @@ exports.ProductsService = ProductsService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         cache_service_1.CacheService,
-        supabase_service_1.SupabaseService])
+        supabase_service_1.SupabaseService,
+        audit_service_1.AuditService])
 ], ProductsService);
 //# sourceMappingURL=products.service.js.map

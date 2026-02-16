@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
     Select,
@@ -45,6 +46,10 @@ export default function CustomersPage() {
     const [loading, setLoading] = useState(false)
     const [saving, setSaving] = useState(false)
     const [search, setSearch] = useState('')
+    const [currentPage, setCurrentPage] = useState(1)
+    const [totalPages, setTotalPages] = useState(0)
+    const [totalItems, setTotalItems] = useState(0)
+    const itemsPerPage = 12
     const [showForm, setShowForm] = useState(false)
     const [editingId, setEditingId] = useState<string | null>(null)
     const [itemToDelete, setItemToDelete] = useState<string | null>(null)
@@ -58,21 +63,29 @@ export default function CustomersPage() {
     const [countryCode, setCountryCode] = useState('57')
     const [localPhone, setLocalPhone] = useState('')
 
-    useEffect(() => {
-        loadCustomers()
-    }, [])
-
-    const loadCustomers = async () => {
+    const loadCustomers = async (page = 1, query = search) => {
         setLoading(true)
         try {
-            const data = await api.customers.list()
-            setCustomers(data)
+            const response = await api.customers.list({ page, limit: itemsPerPage, search: query })
+            const customersData = Array.isArray(response) ? response : (response?.data || [])
+            setCustomers(customersData)
+            setTotalPages(Array.isArray(response) ? 1 : (response.totalPages || 1))
+            setTotalItems(Array.isArray(response) ? response.length : (response.total || 0))
+            setCurrentPage(Array.isArray(response) ? 1 : (response.page || 1))
         } catch (e: any) {
             toast.error(e.message)
         } finally {
             setLoading(false)
         }
     }
+
+    useEffect(() => {
+        loadCustomers(1, search)
+    }, [search])
+
+    useEffect(() => {
+        loadCustomers(currentPage, search)
+    }, [currentPage])
 
     const startCreate = () => {
         setEditingId(null)
@@ -156,12 +169,7 @@ export default function CustomersPage() {
         setShowForm(false)
     }
 
-    const filteredCustomers = customers.filter(c =>
-        c.name.toLowerCase().includes(search.toLowerCase()) ||
-        c.email?.toLowerCase().includes(search.toLowerCase()) ||
-        c.phone?.includes(search) ||
-        c.docNumber?.includes(search)
-    )
+    // We use customers directly since they are already filtered by the API
 
     return (
         <div className="space-y-8 animate-fade-in pb-20 md:pb-0">
@@ -176,7 +184,7 @@ export default function CustomersPage() {
                     </p>
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <Button variant="outline" onClick={loadCustomers} disabled={loading} className="group">
+                    <Button variant="outline" onClick={() => loadCustomers()} disabled={loading} className="group">
                         <span className={loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}>
                             {loading ? '⚙️' : '🔄'}
                         </span>
@@ -201,13 +209,13 @@ export default function CustomersPage() {
                     />
                 </div>
                 <div className="text-sm text-[rgb(120,115,110)] font-medium">
-                    {filteredCustomers.length} clientes registrados
+                    {totalItems} clientes registrados
                 </div>
             </div>
 
             {/* Customers Grid */}
             <div className="grid gap-3 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {filteredCustomers.map((c, index) => (
+                {customers.map((c, index) => (
                     <div
                         key={c.id}
                         className="group relative rounded-xl border border-[rgb(230,225,220)] bg-white p-3 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full animate-fade-in"
@@ -259,6 +267,45 @@ export default function CustomersPage() {
                     </div>
                 ))}
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-2 mt-8">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1 || loading}
+                    >
+                        Anterior
+                    </Button>
+                    <div className="flex items-center gap-1">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                            <Button
+                                key={page}
+                                variant={currentPage === page ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setCurrentPage(page)}
+                                className={cn(
+                                    "w-8 h-8 p-0",
+                                    currentPage === page && "bg-[rgb(25,35,25)] text-white"
+                                )}
+                                disabled={loading}
+                            >
+                                {page}
+                            </Button>
+                        ))}
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages || loading}
+                    >
+                        Siguiente
+                    </Button>
+                </div>
+            )}
 
             {/* Form Modal */}
             {showForm && (

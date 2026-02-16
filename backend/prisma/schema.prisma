@@ -89,6 +89,8 @@ model Tenant {
   purchases   Purchase[]
   purchasePayments PurchasePayment[]
   stockBatches StockBatch[]
+  auditLogs   AuditLog[]
+  tenantSequences TenantSequence[]
   // Backups
   backupConfig BackupConfig?
   
@@ -195,7 +197,6 @@ model Product {
   description String?
   barcode     String?  // Aquí escaneas el código de barras
   sku         String?  // Código interno
-  imageUrl    String?  // Deprecated: Migrating to 'images'
   images      String[] @default([]) // Array de URLs (Max 3)
   
   // Precios (Usamos Decimal para evitar errores de dinero)
@@ -326,7 +327,7 @@ model Customer {
 
 model Invoice {
   id              String        @id @default(uuid())
-  invoiceNumber   Int           @default(autoincrement()) // Consecutivo (1, 2, 3...)
+  invoiceNumber   Int           // Consecutivo por tenant (1, 2, 3...)
   total           Decimal
   discount        Decimal       @default(0)
   status          InvoiceStatus @default(PAID)
@@ -501,7 +502,7 @@ enum PurchaseStatus {
 
 model Purchase {
   id              String         @id @default(uuid())
-  purchaseNumber  Int            @default(autoincrement())
+  purchaseNumber  Int            // Consecutivo por tenant (1, 2, 3...)
   subtotal        Decimal        @default(0) // Suma de items
   additionalCosts Decimal        @default(0) // Fletes, seguros, etc.
   total           Decimal        // subtotal + additionalCosts
@@ -600,4 +601,52 @@ model StockBatch {
   @@index([tenantId])
   @@index([productId, entryDate])
   @@index([warehouseId])
+}
+
+// --------------------------------------
+// AUDITORÍA / ACTIVITY LOGS
+// --------------------------------------
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  action      String   // CREATE, UPDATE, DELETE, CANCEL, TRANSFER, LOGIN, etc.
+  entity      String   // Product, Invoice, Purchase, Warehouse, etc.
+  entityId    String?  // ID del recurso afectado
+  
+  // Datos del cambio (opcional)
+  oldValue    Json?    // Estado anterior (snapshot parcial)
+  newValue    Json?    // Estado nuevo (snapshot parcial)
+  metadata    Json?    // Datos adicionales (IP, user-agent, etc.)
+  
+  // Usuario que realizó la acción
+  userId      String?
+  userName    String?  // Snapshot del nombre para referencia rápida
+  userRole    String?  // Snapshot del rol
+  
+  // Multi-tenancy
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([tenantId])
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+// --------------------------------------
+// SECUENCIAS POR TENANT (Autoincrement atómico)
+// --------------------------------------
+
+model TenantSequence {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  sequenceName  String   // 'invoice' | 'purchase'
+  currentValue  Int      @default(0)
+
+  @@unique([tenantId, sequenceName])
+  @@index([tenantId])
 }

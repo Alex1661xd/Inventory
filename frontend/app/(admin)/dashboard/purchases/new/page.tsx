@@ -53,11 +53,13 @@ export default function NewPurchasePage() {
             setLoadingData(true)
             console.log('📦 [NewPurchase] Iniciando carga de datos base...')
             try {
-                const [s, w, p] = await Promise.all([
-                    api.suppliers.list(),
+                const [sRes, w, pRes] = await Promise.all([
+                    api.suppliers.list({ limit: 500 }),
                     api.warehouses.list(),
-                    api.products.list(true) // Forzar refresco para tener los costos más recientes
+                    api.products.list({ limit: 1000 })
                 ])
+                const s = Array.isArray(sRes) ? sRes : (sRes?.data || [])
+                const p = Array.isArray(pRes) ? pRes : (pRes?.data || [])
                 console.log(`✅ [NewPurchase] Datos cargados: ${s.length} proveedores, ${w.length} almacenes, ${p.length} productos`)
                 setSuppliers(s)
                 setWarehouses(w)

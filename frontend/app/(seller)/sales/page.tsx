@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { api } from '@/lib/backend'
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { format, isToday, isThisMonth, subDays, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns'
+import { format, isToday, isThisMonth, subDays, isWithinInterval, startOfDay, endOfDay, parseISO, startOfMonth, endOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useMemo } from 'react'
 import { Play, Trash2, RefreshCw, ShoppingBag, Clock, CheckCircle2, Loader2, Eye, User, Wallet, Calendar, Package, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react'
@@ -230,68 +230,90 @@ export default function SalesHistoryPage() {
     const [detailId, setDetailId] = useState<string | null>(null)
     const [activeTab, setActiveTab] = useState<'all' | 'completed' | 'pending'>('all')
     const [currentPage, setCurrentPage] = useState(1)
-    const itemsPerPage = 5
+    const [totalPages, setTotalPages] = useState(0)
+    const [totalItems, setTotalItems] = useState(0)
+    const itemsPerPage = 6
 
     // Lists & Filters
-    const [allInvoices, setAllInvoices] = useState<any[]>([])
+    const [invoices, setInvoices] = useState<any[]>([])
+    const [search, setSearch] = useState('')
+    const [debouncedSearch, setDebouncedSearch] = useState('')
     const [dateFilter, setDateFilter] = useState<'today' | 'month' | '15days' | 'custom' | 'all'>('month')
     const [customDateRange, setCustomDateRange] = useState<{
         from: string
         to: string
     }>({ from: '', to: '' })
 
-    // Filter Logic
-    const filteredInvoices = useMemo(() => {
-        if (!allInvoices.length) return []
+    // Stats (Real totals from a future API summary, currently computed locally or placeholder)
+    const [stats, setStats] = useState({
+        completedCount: 0,
+        pendingCount: 0,
+        totalRevenue: 0
+    })
 
-        const now = new Date()
+    // State for all invoices (before client-side filtering)
+    const [allInvoices, setAllInvoices] = useState<any[]>([])
 
-        return allInvoices.filter(invoice => {
-            const date = new Date(invoice.createdAt)
-
-            switch (dateFilter) {
-                case 'today':
-                    return isToday(date)
-                case 'month':
-                    return isThisMonth(date)
-                case '15days':
-                    return isWithinInterval(date, {
-                        start: subDays(now, 15),
-                        end: now
-                    })
-                case 'custom':
-                    if (customDateRange.from && customDateRange.to) {
-                        return isWithinInterval(date, {
-                            start: startOfDay(parseISO(customDateRange.from)),
-                            end: endOfDay(parseISO(customDateRange.to))
-                        })
-                    }
-                    return true
-                case 'all':
-                default:
-                    return true
-            }
-        })
-    }, [allInvoices, dateFilter, customDateRange])
-
-    const completedSales = useMemo(() => filteredInvoices.filter((i: any) => i.status === 'PAID'), [filteredInvoices])
-    const pendingSales = useMemo(() => filteredInvoices.filter((i: any) => i.status === 'PENDING'), [filteredInvoices])
-
+    // Debounce search input
     useEffect(() => {
-        loadInvoices()
-    }, [])
+        const timer = setTimeout(() => setDebouncedSearch(search), 500)
+        return () => clearTimeout(timer)
+    }, [search])
 
     // Reset pagination when filter or tab changes
     useEffect(() => {
         setCurrentPage(1)
-    }, [dateFilter, customDateRange, activeTab])
+    }, [debouncedSearch, dateFilter, customDateRange, activeTab])
 
-    const loadInvoices = async () => {
+    const loadInvoices = async (page = currentPage) => {
         setLoading(true)
         try {
-            const data = await api.invoices.list()
+            let from: string | undefined
+            let to: string | undefined
 
-            setAllInvoices(data)
+            const now = new Date()
+            if (dateFilter === 'today') {
+                from = startOfDay(now).toISOString()
+                to = endOfDay(now).toISOString()
+            } else if (dateFilter === 'month') {
+                from = startOfMonth(now).toISOString()
+                to = endOfMonth(now).toISOString()
+            } else if (dateFilter === '15days') {
+                from = startOfDay(subDays(now, 15)).toISOString()
+                to = endOfDay(now).toISOString()
+            } else if (dateFilter === 'custom' && customDateRange.from && customDateRange.to) {
+                from = startOfDay(parseISO(customDateRange.from)).toISOString()
+                to = endOfDay(parseISO(customDateRange.to)).toISOString()
+            }
+
+            const status = activeTab === 'all' ? undefined : (activeTab === 'completed' ? 'PAID' : 'PENDING')
+
+            const response = await api.invoices.list({
+                page,
+                limit: itemsPerPage,
+                search: debouncedSearch,
+                from,
+                to,
+                status
+            })
+
+            const invoicesData = Array.isArray(response) ? response : (response?.data || [])
+            setInvoices(invoicesData)
+            setTotalPages(Array.isArray(response) ? 1 : (response.totalPages || 1))
+            setTotalItems(Array.isArray(response) ? response.length : (response.total || 0))
+            setCurrentPage(Array.isArray(response) ? 1 : (response.page || 1))
+
+            // Update stats based on the fetched data
+            const completed = invoicesData.filter((i: any) => i.status === 'PAID')
+            const pending = invoicesData.filter((i: any) => i.status === 'PENDING')
+            const totalRev = completed.reduce((acc: number, s: any) => acc + Number(s.total || 0), 0)
+
+            setStats({
+                completedCount: completed.length,
+                pendingCount: pending.length,
+                totalRevenue: totalRev
+            })
+
         } catch (e) {
             console.error(e)
             toast.error('Error cargando historial')
@@ -299,6 +321,10 @@ export default function SalesHistoryPage() {
             setLoading(false)
         }
     }
+
+    useEffect(() => {
+        loadInvoices(currentPage)
+    }, [currentPage, debouncedSearch, dateFilter, customDateRange, activeTab])
 
 
 
@@ -340,25 +366,7 @@ export default function SalesHistoryPage() {
         return 0
     }
 
-    const allSales = [
-        ...pendingSales.map(s => ({ ...s, type: 'pending' })),
-        ...completedSales.map(s => ({ ...s, type: 'completed' }))
-    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-    const filteredSales = activeTab === 'all'
-        ? allSales
-        : activeTab === 'completed'
-            ? allSales.filter(s => s.type === 'completed')
-            : allSales.filter(s => s.type === 'pending')
-
-    const totalRevenue = completedSales.reduce((acc, s) => acc + Number(s.total || 0), 0)
-
-    // Pagination Logic
-    const totalPages = Math.ceil(filteredSales.length / itemsPerPage)
-    const paginatedSales = filteredSales.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    )
 
     return (
         <>
@@ -373,80 +381,94 @@ export default function SalesHistoryPage() {
                         </h1>
                         <p className="text-gray-500 text-sm md:text-base">Registro de transacciones</p>
                     </div>
-                    <Button variant="outline" onClick={loadInvoices} disabled={loading} className="w-full sm:w-auto h-11 sm:h-auto">
+                    <Button variant="outline" onClick={() => loadInvoices()} disabled={loading} className="w-full sm:w-auto h-11 sm:h-auto">
                         <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
                         Actualizar
                     </Button>
                 </div>
 
-                {/* Date Filters */}
-                <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                    <div className="w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0">
-                        <div className="flex flex-nowrap lg:flex-wrap gap-1.5 bg-gray-100 p-1 rounded-lg min-w-max lg:min-w-0">
-                            {[
-                                { id: 'today', label: 'Hoy' },
-                                { id: 'month', label: 'Este Mes' },
-                                { id: '15days', label: '15 Días' },
-                                { id: 'all', label: 'Todo' },
-                                { id: 'custom', label: 'Personalizado' },
-                            ].map((filter) => (
-                                <button
-                                    key={filter.id}
-                                    onClick={() => setDateFilter(filter.id as any)}
-                                    className={cn(
-                                        "px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all whitespace-nowrap",
-                                        dateFilter === filter.id
-                                            ? "bg-white text-gray-900 shadow-sm"
-                                            : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
-                                    )}
-                                >
-                                    {filter.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {dateFilter === 'custom' && (
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full lg:w-auto animate-in fade-in slide-in-from-left-2 duration-300">
-                            <div className="flex items-center gap-2 w-full sm:w-auto">
-                                <input
-                                    type="date"
-                                    value={customDateRange.from}
-                                    onChange={(e) => setCustomDateRange(prev => ({ ...prev, from: e.target.value }))}
-                                    className="h-9 px-3 rounded-md border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 w-full sm:w-40"
-                                />
-                                <span className="text-gray-400">-</span>
-                                <input
-                                    type="date"
-                                    value={customDateRange.to}
-                                    onChange={(e) => setCustomDateRange(prev => ({ ...prev, to: e.target.value }))}
-                                    className="h-9 px-3 rounded-md border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 w-full sm:w-40"
-                                />
+                {/* Filters & Search */}
+                <div className="flex flex-col gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+                        <div className="w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0">
+                            <div className="flex flex-nowrap lg:flex-wrap gap-1.5 bg-gray-100 p-1 rounded-lg min-w-max lg:min-w-0">
+                                {[
+                                    { id: 'today', label: 'Hoy' },
+                                    { id: 'month', label: 'Este Mes' },
+                                    { id: '15days', label: '15 Días' },
+                                    { id: 'all', label: 'Todo' },
+                                    { id: 'custom', label: 'Personalizado' },
+                                ].map((filter) => (
+                                    <button
+                                        key={filter.id}
+                                        onClick={() => setDateFilter(filter.id as any)}
+                                        className={cn(
+                                            "px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all whitespace-nowrap",
+                                            dateFilter === filter.id
+                                                ? "bg-white text-gray-900 shadow-sm"
+                                                : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
+                                        )}
+                                    >
+                                        {filter.label}
+                                    </button>
+                                ))}
                             </div>
                         </div>
-                    )}
+
+                        {dateFilter === 'custom' && (
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full lg:w-auto animate-in fade-in slide-in-from-left-2 duration-300">
+                                <div className="flex items-center gap-2 w-full sm:w-auto">
+                                    <input
+                                        type="date"
+                                        value={customDateRange.from}
+                                        onChange={(e) => setCustomDateRange(prev => ({ ...prev, from: e.target.value }))}
+                                        className="h-9 px-3 rounded-md border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 w-full sm:w-40"
+                                    />
+                                    <span className="text-gray-400">-</span>
+                                    <input
+                                        type="date"
+                                        value={customDateRange.to}
+                                        onChange={(e) => setCustomDateRange(prev => ({ ...prev, to: e.target.value }))}
+                                        className="h-9 px-3 rounded-md border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 w-full sm:w-40"
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Search Input */}
+                    <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                        <input
+                            type="text"
+                            placeholder="Buscar por cliente o factura..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full h-11 pl-10 pr-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900 transition-all text-sm"
+                        />
+                    </div>
                 </div>
 
                 {/* Stats Summary - Minimal Design */}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <Card className="bg-white border-gray-200">
                         <CardContent className="h-24 flex flex-col items-center justify-center p-4">
-                            <div className="text-3xl font-bold text-gray-900">{completedSales.length}</div>
-                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide mt-1">Completadas</div>
+                            <div className="text-3xl font-bold text-gray-900">{totalItems}</div>
+                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide mt-1">Total Ventas</div>
                         </CardContent>
                     </Card>
 
                     <Card className="bg-white border-gray-200">
                         <CardContent className="h-24 flex flex-col items-center justify-center p-4">
-                            <div className="text-3xl font-bold text-gray-900">{pendingSales.length}</div>
-                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide mt-1">Pendientes</div>
+                            <div className="text-3xl font-bold text-gray-900">{stats.completedCount}</div>
+                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wide mt-1">Completadas (Pág)</div>
                         </CardContent>
                     </Card>
 
                     <Card className="bg-gray-900 border-gray-900 text-white col-span-2 md:col-span-1">
                         <CardContent className="h-24 flex flex-col items-center justify-center p-4">
-                            <div className="text-2xl md:text-3xl font-bold">{formatCurrency(totalRevenue)}</div>
-                            <div className="text-xs text-gray-400 font-medium uppercase tracking-wide mt-1">Total</div>
+                            <div className="text-2xl md:text-3xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
+                            <div className="text-xs text-gray-400 font-medium uppercase tracking-wide mt-1">Subtotal Pág</div>
                         </CardContent>
                     </Card>
                 </div>
@@ -454,9 +476,9 @@ export default function SalesHistoryPage() {
                 {/* Filter Tabs - Elegant Style */}
                 <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
                     {[
-                        { key: 'all', label: 'Todas', count: allSales.length },
-                        { key: 'completed', label: 'Completadas', count: completedSales.length },
-                        { key: 'pending', label: 'Pendientes', count: pendingSales.length },
+                        { key: 'all', label: 'Todas' },
+                        { key: 'completed', label: 'Completadas' },
+                        { key: 'pending', label: 'Pendientes' },
                     ].map((tab) => (
                         <button
                             key={tab.key}
@@ -469,12 +491,6 @@ export default function SalesHistoryPage() {
                             )}
                         >
                             {tab.label}
-                            <span className={cn(
-                                "ml-2 text-xs px-1.5 py-0.5 rounded-full",
-                                activeTab === tab.key ? "bg-gray-900 text-white" : "bg-gray-200 text-gray-600"
-                            )}>
-                                {tab.count}
-                            </span>
                         </button>
                     ))}
                 </div>
@@ -486,7 +502,7 @@ export default function SalesHistoryPage() {
                             <RefreshCw className="h-6 w-6 animate-spin mx-auto text-gray-400 mb-2" />
                             <p className="text-gray-500">Cargando ventas...</p>
                         </Card>
-                    ) : filteredSales.length === 0 ? (
+                    ) : invoices.length === 0 ? (
                         <Card className="p-10 text-center border-dashed border-2 border-gray-200">
                             <ShoppingBag className="h-12 w-12 mx-auto text-gray-300 mb-3" />
                             <p className="text-gray-500 font-medium">No hay ventas para mostrar</p>
@@ -494,7 +510,7 @@ export default function SalesHistoryPage() {
                         </Card>
                     ) : (
                         <>
-                            {paginatedSales.map((sale) => (
+                            {invoices.map((sale: any) => (
                                 <SaleCard
                                     key={sale.id}
                                     sale={sale}
@@ -510,7 +526,7 @@ export default function SalesHistoryPage() {
                             {/* Pagination Status & UI */}
                             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-gray-100 mt-4">
                                 <div className="text-sm text-gray-500 font-medium order-2 sm:order-1">
-                                    Mostrando <span className="text-gray-900">{Math.min(filteredSales.length, (currentPage - 1) * itemsPerPage + 1)}-{Math.min(filteredSales.length, currentPage * itemsPerPage)}</span> de <span className="text-gray-900">{filteredSales.length}</span> ventas
+                                    Mostrando <span className="text-gray-900">{Math.min(totalItems, (currentPage - 1) * itemsPerPage + 1)}-{Math.min(totalItems, currentPage * itemsPerPage)}</span> de <span className="text-gray-900">{totalItems}</span> ventas
                                 </div>
 
                                 {totalPages > 1 && (

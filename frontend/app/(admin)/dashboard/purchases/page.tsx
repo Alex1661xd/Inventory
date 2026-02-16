@@ -33,11 +33,30 @@ export default function PurchasesPage() {
     const [paymentData, setPaymentData] = useState({ amount: '', notes: '' })
     const [savingPayment, setSavingPayment] = useState(false)
 
-    const loadPurchases = async () => {
+    const [currentPage, setCurrentPage] = useState(1)
+    const [totalPages, setTotalPages] = useState(0)
+    const itemsPerPage = 12
+
+    const [debouncedSearch, setDebouncedSearch] = useState('')
+
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedSearch(searchQuery), 500)
+        return () => clearTimeout(timer)
+    }, [searchQuery])
+
+    const loadPurchases = async (page = 1) => {
         setLoading(true)
         try {
-            const data = await api.purchases.list(dateRange.from, dateRange.to)
-            setPurchases(data)
+            const response = await api.purchases.list({
+                from: dateRange.from,
+                to: dateRange.to,
+                search: debouncedSearch,
+                page,
+                limit: itemsPerPage
+            })
+            setPurchases(response.data)
+            setTotalPages(response.totalPages)
+            setCurrentPage(response.page)
         } catch (e: any) {
             toast.error('Error al cargar compras: ' + e.message)
         } finally {
@@ -46,13 +65,13 @@ export default function PurchasesPage() {
     }
 
     useEffect(() => {
-        loadPurchases()
-    }, [dateRange])
+        loadPurchases(1)
+        setCurrentPage(1)
+    }, [dateRange, debouncedSearch])
 
-    const filteredPurchases = purchases.filter(p =>
-        p.supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.purchaseNumber.toString().includes(searchQuery)
-    )
+    useEffect(() => {
+        loadPurchases(currentPage)
+    }, [currentPage])
 
     const stats = {
         totalInvestment: purchases.reduce((sum, p) => sum + Number(p.total), 0),
@@ -194,96 +213,121 @@ export default function PurchasesPage() {
                         <div className="w-12 h-12 border-4 border-[hsl(var(--primary))] border-t-transparent rounded-full animate-spin" />
                         <p className="text-[hsl(var(--muted))] font-medium">Cargando historial...</p>
                     </div>
-                ) : filteredPurchases.length === 0 ? (
+                ) : purchases.length === 0 ? (
                     <div className="text-center py-20 bg-white/30 rounded-3xl border-2 border-dashed border-[hsl(var(--border))]">
                         <div className="text-6xl mb-4">📦</div>
                         <h3 className="text-xl font-bold text-[hsl(var(--foreground))]">Sin registros</h3>
                         <p className="text-[hsl(var(--muted))]">No hemos encontrado ninguna compra que coincida.</p>
                     </div>
                 ) : (
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {filteredPurchases.map((purchase) => (
-                            <Link key={purchase.id} href={`/dashboard/purchases/${purchase.id}`}>
-                                <Card className="hover:shadow-xl transition-all duration-300 border-[hsl(var(--border))] group hover:-translate-y-1 bg-white/80">
-                                    <CardContent className="p-6">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold">
-                                                #{purchase.purchaseNumber}
-                                            </div>
-                                            <span className="text-[10px] font-bold text-[hsl(var(--muted))] uppercase tracking-widest bg-slate-100 px-2 py-1 rounded">
-                                                {format(new Date(purchase.date), 'dd/MM/yyyy')}
-                                            </span>
-                                        </div>
-                                        <h4 className="text-lg font-bold text-[hsl(var(--foreground))] mb-3 group-hover:text-[hsl(var(--primary))] transition-colors line-clamp-1 uppercase">
-                                            {purchase.supplier.name}
-                                        </h4>
-                                        <div className="space-y-4 mb-6">
-                                            <div className="space-y-1">
-                                                <div className="flex items-center text-xs text-[hsl(var(--muted))] font-medium">
-                                                    <span className="mr-2">👤</span> {purchase.buyer.name}
+                    <div className="space-y-6">
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            {purchases.map((purchase: Purchase) => (
+                                <Link key={purchase.id} href={`/dashboard/purchases/${purchase.id}`}>
+                                    <Card className="hover:shadow-xl transition-all duration-300 border-[hsl(var(--border))] group hover:-translate-y-1 bg-white/80">
+                                        <CardContent className="p-6">
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold">
+                                                    #{purchase.purchaseNumber}
                                                 </div>
-                                                <div className="flex items-center text-xs text-[hsl(var(--muted))] font-medium">
-                                                    <span className="mr-2">📦</span> {purchase._count?.items} productos
-                                                </div>
+                                                <span className="text-[10px] font-bold text-[hsl(var(--muted))] uppercase tracking-widest bg-slate-100 px-2 py-1 rounded">
+                                                    {format(new Date(purchase.date), 'dd/MM/yyyy')}
+                                                </span>
                                             </div>
-
-                                            <div className="bg-[hsl(var(--surface-elevated))] p-3 rounded-xl space-y-2 border border-[hsl(var(--border))]">
-                                                <div className="flex justify-between text-[11px] font-bold">
-                                                    <span className="text-[hsl(var(--muted))] uppercase tracking-tighter">Inversión Total:</span>
-                                                    <div className="text-right">
-                                                        <span className="text-[hsl(var(--foreground))]">${formatThousands(Number(purchase.total))}</span>
-                                                        {Number(purchase.additionalCosts) > 0 && (
-                                                            <div className="text-[8px] text-blue-600 font-black">
-                                                                (INC. FLETE: ${formatThousands(Number(purchase.additionalCosts))})
-                                                            </div>
-                                                        )}
+                                            <h4 className="text-lg font-bold text-[hsl(var(--foreground))] mb-3 group-hover:text-[hsl(var(--primary))] transition-colors line-clamp-1 uppercase">
+                                                {purchase.supplier.name}
+                                            </h4>
+                                            <div className="space-y-4 mb-6">
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center text-xs text-[hsl(var(--muted))] font-medium">
+                                                        <span className="mr-2">👤</span> {purchase.buyer.name}
+                                                    </div>
+                                                    <div className="flex items-center text-xs text-[hsl(var(--muted))] font-medium">
+                                                        <span className="mr-2">📦</span> {purchase._count?.items} productos
                                                     </div>
                                                 </div>
-                                                <div className="flex justify-between text-[11px] font-bold">
-                                                    <span className="text-[hsl(var(--muted))] uppercase tracking-tighter">Pagado:</span>
-                                                    <span className="text-emerald-600">${formatThousands(Number(purchase.amountPaid))}</span>
-                                                </div>
-                                                <div className="flex justify-between text-[11px] font-black border-t pt-1 border-dashed border-[hsl(var(--border))]">
-                                                    <span className="text-[hsl(var(--muted))] uppercase tracking-tighter">Saldo Pendiente:</span>
-                                                    <span className="text-amber-600">${formatThousands(Number(purchase.total) - Number(purchase.amountPaid))}</span>
-                                                </div>
-                                            </div>
-                                        </div>
 
-                                        <div className="flex flex-wrap items-center justify-between pt-4 border-t border-[hsl(var(--border))] gap-3">
-                                            <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter border ${purchase.isPaid
-                                                ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                                                : 'bg-amber-100 text-amber-700 border-amber-200'
-                                                }`}>
-                                                {purchase.isPaid ? 'Totalmente Pagado' : 'Pendiente de Pago'}
+                                                <div className="bg-[hsl(var(--surface-elevated))] p-3 rounded-xl space-y-2 border border-[hsl(var(--border))]">
+                                                    <div className="flex justify-between text-[11px] font-bold">
+                                                        <span className="text-[hsl(var(--muted))] uppercase tracking-tighter">Inversión Total:</span>
+                                                        <div className="text-right">
+                                                            <span className="text-[hsl(var(--foreground))]">${formatThousands(Number(purchase.total))}</span>
+                                                            {Number(purchase.additionalCosts) > 0 && (
+                                                                <div className="text-[8px] text-blue-600 font-black">
+                                                                    (INC. FLETE: ${formatThousands(Number(purchase.additionalCosts))})
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex justify-between text-[11px] font-bold">
+                                                        <span className="text-[hsl(var(--muted))] uppercase tracking-tighter">Pagado:</span>
+                                                        <span className="text-emerald-600">${formatThousands(Number(purchase.amountPaid))}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-[11px] font-black border-t pt-1 border-dashed border-[hsl(var(--border))]">
+                                                        <span className="text-[hsl(var(--muted))] uppercase tracking-tighter">Saldo Pendiente:</span>
+                                                        <span className="text-amber-600">${formatThousands(Number(purchase.total) - Number(purchase.amountPaid))}</span>
+                                                    </div>
+                                                </div>
                                             </div>
 
-                                            <div className="flex items-center gap-2">
-                                                {!purchase.isPaid && (
-                                                    <>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            className="h-8 text-[10px] font-black rounded-full border-amber-200 text-amber-700 hover:bg-amber-50"
-                                                            onClick={(e) => openPaymentModal(e, purchase)}
-                                                        >
-                                                            ABONAR
-                                                        </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            className="h-8 text-[10px] font-black bg-emerald-600 text-white hover:bg-emerald-700 rounded-full shadow-sm"
-                                                            onClick={(e) => handleMarkAsPaid(e, purchase.id)}
-                                                        >
-                                                            LIQUIDAR
-                                                        </Button>
-                                                    </>
-                                                )}
+                                            <div className="flex flex-wrap items-center justify-between pt-4 border-t border-[hsl(var(--border))] gap-3">
+                                                <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter border ${purchase.isPaid
+                                                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                                    : 'bg-amber-100 text-amber-700 border-amber-200'
+                                                    }`}>
+                                                    {purchase.isPaid ? 'Totalmente Pagado' : 'Pendiente de Pago'}
+                                                </div>
+
+                                                <div className="flex items-center gap-2">
+                                                    {!purchase.isPaid && (
+                                                        <>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="h-8 text-[10px] font-black rounded-full border-amber-200 text-amber-700 hover:bg-amber-50"
+                                                                onClick={(e) => openPaymentModal(e, purchase)}
+                                                            >
+                                                                ABONAR
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                className="h-8 text-[10px] font-black bg-emerald-600 text-white hover:bg-emerald-700 rounded-full shadow-sm"
+                                                                onClick={(e) => handleMarkAsPaid(e, purchase.id)}
+                                                            >
+                                                                LIQUIDAR
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </Link>
-                        ))}
+                                        </CardContent>
+                                    </Card>
+                                </Link>
+                            ))}
+                        </div>
+
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                            <div className="flex justify-center gap-2 mt-8">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                >
+                                    Anterior
+                                </Button>
+                                <span className="flex items-center px-4 font-bold text-sm">
+                                    Página {currentPage} de {totalPages}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
+                                >
+                                    Siguiente
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

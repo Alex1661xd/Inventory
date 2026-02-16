@@ -121,6 +121,7 @@ export default function ExpensesPage() {
 
     // Pagination & Delete confirmation
     const [currentPage, setCurrentPage] = useState(1)
+    const [totalPages, setTotalPages] = useState(0)
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
     const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null)
     const [showBreakdown, setShowBreakdown] = useState(false)
@@ -128,23 +129,33 @@ export default function ExpensesPage() {
     const itemsPerPage = 10
 
     useEffect(() => {
-        loadData()
+        loadData(1)
     }, [startDate, endDate, filterCategory])
 
-    const loadData = async () => {
+    useEffect(() => {
+        loadData(currentPage)
+    }, [currentPage])
+
+    const loadData = async (page = 1) => {
         setLoading(true)
         try {
-            const [expensesData, suppliersData, plData] = await Promise.all([
+            const [expensesResponse, suppliersData, plData] = await Promise.all([
                 api.expenses.list({
                     startDate,
                     endDate,
-                    category: filterCategory || undefined
+                    category: filterCategory || undefined,
+                    page,
+                    limit: itemsPerPage
                 }),
-                api.suppliers.list(),
+                api.suppliers.list({ limit: 500 }),
                 api.expenses.profitLoss(startDate, endDate)
             ])
-            setExpenses(expensesData)
-            setSuppliers(suppliersData)
+            setExpenses(expensesResponse.data)
+            setTotalPages(expensesResponse.totalPages)
+            setCurrentPage(expensesResponse.page)
+
+            const suppliers = Array.isArray(suppliersData) ? suppliersData : (suppliersData?.data || [])
+            setSuppliers(suppliers)
             setProfitLoss(plData)
         } catch (error) {
             console.error('Error loading data:', error)
@@ -492,7 +503,7 @@ export default function ExpensesPage() {
                         <CardTitle className="flex items-center justify-between">
                             <span>📋 Registro de Gastos</span>
                             <span className="text-sm font-normal text-gray-500">
-                                Total: <span className="font-bold text-gray-900">${formatThousands(totalExpenses)}</span>
+                                Total: <span className="font-bold text-gray-900">${formatThousands(profitLoss?.operatingExpenses.totalExpenses || 0)}</span>
                             </span>
                         </CardTitle>
                     </CardHeader>
@@ -521,7 +532,7 @@ export default function ExpensesPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {expenses.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((expense) => (
+                                        {expenses.map((expense) => (
                                             <TableRow key={expense.id}>
                                                 <TableCell className="font-medium">
                                                     {new Date(expense.date).toLocaleDateString('es-CO')}
@@ -559,12 +570,11 @@ export default function ExpensesPage() {
                                 </Table>
 
                                 {/* Paginación */}
-                                {expenses.length > itemsPerPage && (
+                                {totalPages > 1 && (
                                     <div className="flex items-center justify-between px-2 py-4 border-t">
                                         <p className="text-sm text-gray-500 font-medium">
-                                            Mostrando <span className="text-gray-900">{(currentPage - 1) * itemsPerPage + 1}</span>-
-                                            <span className="text-gray-900">{Math.min(expenses.length, currentPage * itemsPerPage)}</span> de
-                                            <span className="text-gray-900"> {expenses.length}</span> gastos
+                                            Página <span className="text-gray-900">{currentPage}</span> de
+                                            <span className="text-gray-900"> {totalPages}</span>
                                         </p>
                                         <div className="flex items-center gap-2">
                                             <Button
@@ -577,7 +587,7 @@ export default function ExpensesPage() {
                                                 <ChevronLeft className="h-4 w-4 text-gray-600" />
                                             </Button>
                                             <div className="flex items-center gap-1">
-                                                {Array.from({ length: Math.ceil(expenses.length / itemsPerPage) }, (_, i) => i + 1).map((page) => (
+                                                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                                                     <Button
                                                         key={page}
                                                         variant={currentPage === page ? "default" : "ghost"}
@@ -596,8 +606,8 @@ export default function ExpensesPage() {
                                                 variant="outline"
                                                 size="icon"
                                                 className="h-9 w-9 rounded-xl border-gray-200"
-                                                onClick={() => setCurrentPage(p => Math.min(Math.ceil(expenses.length / itemsPerPage), p + 1))}
-                                                disabled={currentPage === Math.ceil(expenses.length / itemsPerPage)}
+                                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                                disabled={currentPage === totalPages}
                                             >
                                                 <ChevronRight className="h-4 w-4 text-gray-600" />
                                             </Button>

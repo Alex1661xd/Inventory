@@ -41,12 +41,13 @@ export function TransfersManager() {
     const loadData = async () => {
         setLoading(true)
         try {
-            const [p, w, s] = await Promise.all([
-                api.products.list(),
+            const [pRes, w, s] = await Promise.all([
+                api.products.list({ limit: 1000 }),
                 api.warehouses.list(),
                 api.inventory.stock({})
             ])
-            setProducts(p)
+            const productsData = Array.isArray(pRes) ? pRes : (pRes?.data || [])
+            setProducts(productsData)
             setWarehouses(w)
             setStock(s)
         } catch (e: any) {

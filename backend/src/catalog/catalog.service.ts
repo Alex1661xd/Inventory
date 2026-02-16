@@ -36,7 +36,6 @@ export class CatalogService {
                 name: true,
                 description: true,
                 images: true,
-                imageUrl: true,
                 salePrice: true,
                 category: {
                     select: {
@@ -79,17 +78,11 @@ export class CatalogService {
         const catalogProducts = products.map(product => {
             const totalStock = product.inventory.reduce((sum, inv) => sum + inv.quantity, 0);
 
-            // Combinar imágenes: array de imágenes + imageUrl si existe
-            const allImages = [...product.images];
-            if (product.imageUrl && !allImages.includes(product.imageUrl)) {
-                allImages.push(product.imageUrl);
-            }
-
             return {
                 id: product.id,
                 name: product.name,
                 description: product.description,
-                images: allImages,
+                images: product.images || [],
                 price: Number(product.salePrice),
                 categoryId: product.category?.id || null,
                 categoryName: product.category?.name || 'Sin categoría',

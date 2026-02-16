@@ -390,7 +390,7 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
                                 {/* Image Section */}
                                 <div className="aspect-square rounded-2xl overflow-hidden border border-[hsl(var(--border))] shadow-inner flex items-center justify-center bg-[hsl(var(--muted))/0.1] relative group">
                                     <ImageSlider
-                                        images={product.images && product.images.length > 0 ? product.images : (product.imageUrl ? [product.imageUrl] : [])}
+                                        images={product.images && product.images.length > 0 ? product.images : []}
                                         name={product.name}
                                         className="w-full h-full"
                                         imageClassName="object-contain" // Contain to show the full image

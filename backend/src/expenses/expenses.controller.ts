@@ -27,9 +27,17 @@ export class ExpensesController {
         @GetTenantId() tenantId: string,
         @Query('startDate') startDate?: string,
         @Query('endDate') endDate?: string,
-        @Query('category') category?: string
+        @Query('category') category?: string,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
     ) {
-        return this.expensesService.findAll(tenantId, { startDate, endDate, category });
+        return this.expensesService.findAll(tenantId, {
+            startDate,
+            endDate,
+            category,
+            page: page ? parseInt(page, 10) : 1,
+            limit: limit ? parseInt(limit, 10) : 20
+        });
     }
 
     @Get('summary')

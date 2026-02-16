@@ -34,9 +34,11 @@ export default function InventoryPage() {
     const [stock, setStock] = useState<StockRow[]>([])
     const [loading, setLoading] = useState(false)
 
-    // Pagination state
+    // Server-side pagination
     const [currentPage, setCurrentPage] = useState(1)
-    const itemsPerPage = 10
+    const [totalPages, setTotalPages] = useState(1)
+    const [totalItems, setTotalItems] = useState(0)
+    const itemsPerPage = 15
 
     // Update stock modal state
     const [showUpdateStockModal, setShowUpdateStockModal] = useState(false)
@@ -55,6 +57,7 @@ export default function InventoryPage() {
     const [selectedProduct, setSelectedProduct] = useState('')
     const [selectedWarehouse, setSelectedWarehouse] = useState('')
     const [searchQuery, setSearchQuery] = useState('')
+    const [debouncedSearch, setDebouncedSearch] = useState('')
     const [showFilters, setShowFilters] = useState(false)
     const [selectedKardexProduct, setSelectedKardexProduct] = useState<{ id: string, name: string, warehouseId?: string } | null>(null)
     const [valuation, setValuation] = useState<InventoryValuation | null>(null)
@@ -64,20 +67,51 @@ export default function InventoryPage() {
     const [productStats, setProductStats] = useState<any>(null)
     const [loadingStats, setLoadingStats] = useState(false)
 
-    const loadData = async () => {
-        setLoading(true)
+    // Debounce search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchQuery)
+            setCurrentPage(1)
+        }, 400)
+        return () => clearTimeout(timer)
+    }, [searchQuery])
+
+    // Reset page when filters change
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [selectedProduct, selectedWarehouse])
+
+    // Load base data (products for dropdown, warehouses, valuation)
+    const loadBaseData = async () => {
         try {
-            // Load base data, all stock and valuation
-            const [p, w, s, v] = await Promise.all([
-                api.products.list(),
+            const [pRes, w, v] = await Promise.all([
+                api.products.list({ limit: 500 }),
                 api.warehouses.list(),
-                api.inventory.stock({}), // Fetch all stock initially
                 api.inventory.valuation()
             ])
-            setProducts(p)
+            const productsData = Array.isArray(pRes) ? pRes : (pRes?.data || [])
+            setProducts(productsData)
             setWarehouses(w)
-            setStock(s)
             setValuation(v)
+        } catch (e: any) {
+            toast.error(e.message)
+        }
+    }
+
+    // Load stock data with server-side pagination
+    const loadStock = async () => {
+        setLoading(true)
+        try {
+            const response = await api.inventory.stockPaginated({
+                page: currentPage,
+                limit: itemsPerPage,
+                search: debouncedSearch || undefined,
+                productId: selectedProduct || undefined,
+                warehouseId: selectedWarehouse || undefined,
+            })
+            setStock(response.data)
+            setTotalPages(response.totalPages)
+            setTotalItems(response.total)
         } catch (e: any) {
             toast.error(e.message)
         } finally {
@@ -85,13 +119,15 @@ export default function InventoryPage() {
         }
     }
 
+    // Initial load
     useEffect(() => {
-        loadData()
+        loadBaseData()
     }, [])
 
+    // Load stock on page/filter changes
     useEffect(() => {
-        setCurrentPage(1)
-    }, [selectedProduct, selectedWarehouse, searchQuery])
+        loadStock()
+    }, [currentPage, debouncedSearch, selectedProduct, selectedWarehouse])
 
     // Update current stock when product and warehouse are selected
     useEffect(() => {
@@ -130,7 +166,8 @@ export default function InventoryPage() {
             setShowUpdateStockModal(false)
             setUpdateStockForm({ productId: '', warehouseId: '', quantityDelta: 1, action: 'increase', reason: 'ADJUSTMENT' })
             setCurrentStock(null)
-            await loadData()
+            await loadBaseData()
+            await loadStock()
         } catch (e: any) {
             toast.error(e.message)
         } finally {
@@ -154,6 +191,7 @@ export default function InventoryPage() {
         setShowConfirmation(true)
     }
 
+    // Aggregate stock rows by product (server already paginates, but we still aggregate per product for display)
     const aggregatedStock = useMemo(() => {
         const stockMap = new Map<string, AggregatedStock>()
 
@@ -176,32 +214,6 @@ export default function InventoryPage() {
 
         return Array.from(stockMap.values())
     }, [stock])
-
-    const filteredAggregatedStock = useMemo(() => {
-        return aggregatedStock.filter(item => {
-            const matchesProduct = selectedProduct ? item.productId === selectedProduct : true
-
-            const matchesWarehouse = selectedWarehouse
-                ? (item.warehouseQuantities[selectedWarehouse] || 0) > 0
-                : true
-
-            const searchLower = searchQuery.toLowerCase()
-            const productName = item.product?.name?.toLowerCase() || ''
-
-            const matchesSearch = !searchQuery || productName.includes(searchLower)
-
-            return matchesProduct && matchesWarehouse && matchesSearch
-        })
-    }, [aggregatedStock, selectedProduct, selectedWarehouse, searchQuery])
-
-    // Pagination
-    const paginatedStock = useMemo(() => {
-        const startIndex = (currentPage - 1) * itemsPerPage
-        const endIndex = startIndex + itemsPerPage
-        return filteredAggregatedStock.slice(startIndex, endIndex)
-    }, [filteredAggregatedStock, currentPage])
-
-    const totalPages = Math.ceil(filteredAggregatedStock.length / itemsPerPage)
 
     const filteredValuation = useMemo(() => {
         if (!valuation) return null;
@@ -263,7 +275,7 @@ export default function InventoryPage() {
                         <span className="mr-2">📦</span>
                         Actualizar Stock
                     </Button>
-                    <Button variant="outline" onClick={loadData} disabled={loading} className="group h-11">
+                    <Button variant="outline" onClick={() => { loadBaseData(); loadStock(); }} disabled={loading} className="group h-11">
                         <span className={loading ? 'animate-spin mr-2' : 'group-hover:rotate-180 transition-transform duration-500 mr-2'}>⚙️</span>
                         {loading ? 'Sincronizando...' : 'Actualizar Datos'}
                     </Button>
@@ -391,7 +403,7 @@ export default function InventoryPage() {
 
                 <div className="flex items-center justify-between pt-2 border-t border-[rgb(230,225,220)]">
                     <div className="text-sm text-[rgb(120,115,110)] font-medium">
-                        Mostrando {paginatedStock.length} de {filteredAggregatedStock.length} productos
+                        Mostrando {aggregatedStock.length} de {totalItems} productos
                     </div>
                     <Button
                         variant="outline"
@@ -416,7 +428,7 @@ export default function InventoryPage() {
                         <div>
                             <CardTitle style={{ fontFamily: 'var(--font-display)' }}>Existencias</CardTitle>
                             <CardDescription>
-                                Mostrando {paginatedStock.length} de {filteredAggregatedStock.length} productos
+                                Mostrando {aggregatedStock.length} de {totalItems} productos
                             </CardDescription>
                         </div>
                         {(selectedProduct || selectedWarehouse || searchQuery) && (
@@ -450,7 +462,7 @@ export default function InventoryPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[hsl(var(--border))]">
-                                {paginatedStock.length === 0 && (
+                                {aggregatedStock.length === 0 && (
                                     <tr>
                                         <td colSpan={6} className="px-6 py-12 text-center text-[hsl(var(--muted))]">
                                             <div className="text-4xl mb-4">🔍</div>
@@ -458,7 +470,7 @@ export default function InventoryPage() {
                                         </td>
                                     </tr>
                                 )}
-                                {paginatedStock.flatMap((item) => {
+                                {aggregatedStock.flatMap((item: AggregatedStock) => {
                                     // Si hay filtros específicos, mostrar solo las filas que coinciden
                                     const relevantWarehouses = selectedWarehouse
                                         ? warehouses.filter(w => w.id === selectedWarehouse && (item.warehouseQuantities[w.id] || 0) > 0)
@@ -586,7 +598,7 @@ export default function InventoryPage() {
             {totalPages > 1 && (
                 <div className="flex items-center justify-between">
                     <div className="text-sm text-[hsl(var(--muted))]">
-                        Página {currentPage} de {totalPages} ({filteredAggregatedStock.length} productos totales)
+                        Página {currentPage} de {totalPages} ({totalItems} productos totales)
                     </div>
                     <div className="flex items-center gap-2">
                         <Button

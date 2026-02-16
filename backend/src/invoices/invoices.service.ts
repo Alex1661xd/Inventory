@@ -3,12 +3,16 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StockMovementType } from '@prisma/client';
 import { CacheService } from '../cache/cache.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { AuditService } from '../audit/audit.service';
+import { SequenceService } from '../sequences/sequence.service';
 
 @Injectable()
 export class InvoicesService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly cacheService: CacheService,
+        private readonly auditService: AuditService,
+        private readonly sequenceService: SequenceService,
     ) { }
 
     private async invalidateInvoicesCache(tenantId: string, invoiceId?: string, sellerId?: string) {
@@ -51,6 +55,9 @@ export class InvoicesService {
         }
 
         const result = await this.prisma.$transaction(async (tx) => {
+            // 0. Calcular el siguiente número de factura POR TENANT (ATÓMICO)
+            const nextInvoiceNumber = await this.sequenceService.nextVal(tenantId, 'invoice', tx);
+
             // 1. Validate stock availability BEFORE creating invoice
             if (dto.status === 'PAID') {
                 for (const item of dto.items) {
@@ -85,6 +92,7 @@ export class InvoicesService {
             // 2. Create Invoice — ✅ ahora guarda warehouseId
             const invoice = await tx.invoice.create({
                 data: {
+                    invoiceNumber: nextInvoiceNumber,
                     total: calculatedTotal,
                     status: dto.status,
                     paymentMethod: dto.paymentMethod,
@@ -180,30 +188,82 @@ export class InvoicesService {
 
         await this.invalidateInvoicesCache(tenantId, result.id, sellerId);
 
+        // Audit log
+        this.auditService.log({
+            action: 'CREATE',
+            entity: 'Invoice',
+            entityId: result.id,
+            newValue: { invoiceNumber: result.invoiceNumber, total: dto.total, items: dto.items.length },
+            userId: sellerId,
+            tenantId,
+        });
+
         return result;
     }
 
-    async findAll(tenantId: string, sellerId?: string) {
-        const cacheKey = this.cacheService.generateKey(tenantId, 'invoices', 'list', sellerId || 'all');
-        const cached = await this.cacheService.get<any[]>(cacheKey);
+    async findAll(tenantId: string, page: number = 1, limit: number = 20, sellerId?: string, search?: string, from?: string, to?: string, status?: string) {
+        const skip = (page - 1) * limit;
+        const cacheKey = this.cacheService.generateKey(
+            tenantId,
+            'invoices',
+            'list',
+            `${sellerId || 'all'}-p${page}-l${limit}-s${search || 'all'}-f${from || 'all'}-t${to || 'all'}-st${status || 'all'}`
+        );
+
+        const cached = await this.cacheService.get<any>(cacheKey);
         if (cached) return cached;
 
-        const result = await this.prisma.invoice.findMany({
-            where: {
-                tenantId,
-                ...(sellerId && { sellerId })
-            },
-            include: {
-                customer: true,
-                seller: true,
-                items: {
-                    include: {
-                        product: true
+        const where: any = {
+            tenantId,
+            ...(sellerId && { sellerId }),
+            ...(status && { status })
+        };
+
+        if (from || to) {
+            where.createdAt = {};
+            if (from) where.createdAt.gte = new Date(from);
+            if (to) where.createdAt.lte = new Date(to);
+        }
+
+        if (search) {
+            const searchInt = parseInt(search);
+            const searchConditions: any[] = [
+                { customer: { name: { contains: search, mode: 'insensitive' } } }
+            ];
+
+            if (!isNaN(searchInt)) {
+                searchConditions.push({ invoiceNumber: searchInt });
+            }
+
+            where.OR = searchConditions;
+        }
+
+        const [data, total] = await Promise.all([
+            this.prisma.invoice.findMany({
+                where,
+                include: {
+                    customer: true,
+                    seller: true,
+                    items: {
+                        include: {
+                            product: true
+                        }
                     }
-                }
-            },
-            orderBy: { createdAt: 'desc' }
-        });
+                },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit,
+            }),
+            this.prisma.invoice.count({ where })
+        ]);
+
+        const result = {
+            data,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        };
 
         await this.cacheService.set(cacheKey, result, 60);
 
@@ -319,6 +379,16 @@ export class InvoicesService {
 
         // Invalidate all related caches
         await this.invalidateInvoicesCache(tenantId, id, invoice.sellerId);
+
+        // Audit log
+        this.auditService.log({
+            action: 'CANCEL',
+            entity: 'Invoice',
+            entityId: id,
+            oldValue: { invoiceNumber: invoice.invoiceNumber, status: invoice.status },
+            userId: sellerId,
+            tenantId,
+        });
 
         return result;
     }

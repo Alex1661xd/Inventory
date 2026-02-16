@@ -53,12 +53,15 @@ export default function DashboardPage() {
     const loadStats = async () => {
         setLoading(true)
         try {
-            const [products, warehouses, stock, invoices] = await Promise.all([
-                api.products.list(),
+            const [productsRes, warehouses, stock, invoicesRes] = await Promise.all([
+                api.products.list({ limit: 100 }),
                 api.warehouses.list(),
                 api.inventory.stock({}),
-                api.invoices.list()
+                api.invoices.list({ limit: 100 })
             ])
+
+            const products = Array.isArray(productsRes) ? productsRes : (productsRes?.data || [])
+            const invoices = Array.isArray(invoicesRes) ? invoicesRes : (invoicesRes?.data || [])
 
             const totalInventoryUnits = stock.reduce((acc, item) => acc + item.quantity, 0)
             const totalSales = invoices

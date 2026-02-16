@@ -4,12 +4,14 @@ import { CacheService } from '../cache/cache.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { startOfDay, endOfDay, parseISO, addHours } from 'date-fns';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class ExpensesService {
     constructor(
         private prisma: PrismaService,
-        private cacheService: CacheService
+        private cacheService: CacheService,
+        private auditService: AuditService,
     ) { }
 
     async create(tenantId: string, userId: string, dto: CreateExpenseDto) {
@@ -35,6 +37,15 @@ export class ExpensesService {
         await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'analytics', '*'));
         await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'expenses', '*'));
 
+        this.auditService.log({
+            action: 'CREATE',
+            entity: 'Expense',
+            entityId: expense.id,
+            newValue: expense,
+            userId,
+            tenantId,
+        });
+
         return expense;
     }
 
@@ -42,7 +53,22 @@ export class ExpensesService {
         startDate?: string;
         endDate?: string;
         category?: string;
+        page?: number;
+        limit?: number;
     }) {
+        const page = filters?.page || 1;
+        const limit = filters?.limit || 20;
+
+        const cacheKey = this.cacheService.generateKey(
+            tenantId,
+            'expenses',
+            'list',
+            `p${page}-l${limit}-${filters?.startDate || 'all'}-${filters?.endDate || 'all'}-${filters?.category || 'all'}`
+        );
+
+        const cached = await this.cacheService.get<any>(cacheKey);
+        if (cached) return cached;
+
         const where: any = { tenantId };
         const cashWhere: any = { type: 'EXPENSE', shift: { tenantId } };
 
@@ -112,7 +138,21 @@ export class ExpensesService {
         const allExpenses = [...generalExpenses, ...mappedCash]
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-        return allExpenses;
+        const total = allExpenses.length;
+        const skip = (page - 1) * limit;
+        const data = allExpenses.slice(skip, skip + limit);
+
+        const result = {
+            data,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        };
+
+        await this.cacheService.set(cacheKey, result, 60);
+
+        return result;
     }
 
     async findOne(tenantId: string, id: string) {
@@ -139,6 +179,14 @@ export class ExpensesService {
         await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'analytics', '*'));
         await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'expenses', '*'));
 
+        this.auditService.log({
+            action: 'UPDATE',
+            entity: 'Expense',
+            entityId: id,
+            newValue: dto,
+            tenantId,
+        });
+
         return result;
     }
 
@@ -149,6 +197,13 @@ export class ExpensesService {
 
         await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'analytics', '*'));
         await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'expenses', '*'));
+
+        this.auditService.log({
+            action: 'DELETE',
+            entity: 'Expense',
+            entityId: id,
+            tenantId,
+        });
 
         return result;
     }

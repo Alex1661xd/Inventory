@@ -14,6 +14,9 @@ const class_validator_1 = require("class-validator");
 class QueryStockDto {
     productId;
     warehouseId;
+    page;
+    limit;
+    search;
 }
 exports.QueryStockDto = QueryStockDto;
 __decorate([
@@ -26,4 +29,19 @@ __decorate([
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], QueryStockDto.prototype, "warehouseId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumberString)(),
+    __metadata("design:type", String)
+], QueryStockDto.prototype, "page", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumberString)(),
+    __metadata("design:type", String)
+], QueryStockDto.prototype, "limit", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], QueryStockDto.prototype, "search", void 0);
 //# sourceMappingURL=query-stock.dto.js.map

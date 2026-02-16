@@ -268,16 +268,54 @@ let InventoryService = class InventoryService {
         return result;
     }
     async findStock(tenantId, query) {
+        const page = query.page ? parseInt(query.page, 10) : undefined;
+        const limit = query.limit ? Math.min(parseInt(query.limit, 10), 100) : undefined;
+        const isPaginated = page !== undefined && limit !== undefined;
+        const skip = isPaginated ? (page - 1) * limit : undefined;
         const where = {
             product: {
                 tenantId,
-                active: true
+                active: true,
             }
         };
         if (query.productId)
             where.productId = query.productId;
         if (query.warehouseId)
             where.warehouseId = query.warehouseId;
+        if (query.search) {
+            where.product.OR = [
+                { name: { contains: query.search, mode: 'insensitive' } },
+                { barcode: { contains: query.search, mode: 'insensitive' } },
+                { sku: { contains: query.search, mode: 'insensitive' } },
+            ];
+        }
+        if (isPaginated) {
+            const [stocks, total] = await Promise.all([
+                this.prisma.stock.findMany({
+                    where,
+                    include: {
+                        product: { select: { id: true, name: true, barcode: true, sku: true, costPrice: true, salePrice: true, categoryId: true } },
+                        warehouse: { select: { id: true, name: true } },
+                    },
+                    orderBy: { product: { name: 'asc' } },
+                    skip,
+                    take: limit,
+                }),
+                this.prisma.stock.count({ where }),
+            ]);
+            const data = stocks.map(({ product, warehouse, ...rest }) => ({
+                ...rest,
+                product,
+                warehouse,
+            }));
+            return {
+                data,
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            };
+        }
         const stocks = await this.prisma.stock.findMany({
             where,
             include: {

@@ -26,8 +26,18 @@ export class PurchasesController {
         @GetTenantId() tenantId: string,
         @Query('from') from?: string,
         @Query('to') to?: string,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
+        @Query('search') search?: string,
     ) {
-        return this.purchasesService.findAll(tenantId, from, to);
+        return this.purchasesService.findAll(
+            tenantId,
+            page ? parseInt(page, 10) : 1,
+            limit ? parseInt(limit, 10) : 20,
+            from,
+            to,
+            search
+        );
     }
 
     @Get(':id')

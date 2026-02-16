@@ -16,11 +16,6 @@ export class CreateProductDto {
     sku?: string;
 
     @IsOptional()
-    @IsString()
-    @MaxLength(500)
-    imageUrl?: string;
-
-    @IsOptional()
     @IsArray()
     @IsString({ each: true })
     images?: string[];

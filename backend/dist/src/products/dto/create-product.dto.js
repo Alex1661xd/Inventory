@@ -15,7 +15,6 @@ class CreateProductDto {
     name;
     description;
     sku;
-    imageUrl;
     images;
     costPrice;
     salePrice;
@@ -42,12 +41,6 @@ __decorate([
     (0, class_validator_1.MaxLength)(100),
     __metadata("design:type", String)
 ], CreateProductDto.prototype, "sku", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.MaxLength)(500),
-    __metadata("design:type", String)
-], CreateProductDto.prototype, "imageUrl", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsArray)(),

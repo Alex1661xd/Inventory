@@ -1,4 +1,4 @@
-import { IsUUID, IsOptional } from 'class-validator';
+import { IsUUID, IsOptional, IsString, IsNumberString } from 'class-validator';
 
 export class QueryStockDto {
     @IsOptional()
@@ -8,4 +8,16 @@ export class QueryStockDto {
     @IsOptional()
     @IsUUID()
     warehouseId?: string;
+
+    @IsOptional()
+    @IsNumberString()
+    page?: string;
+
+    @IsOptional()
+    @IsNumberString()
+    limit?: string;
+
+    @IsOptional()
+    @IsString()
+    search?: string;
 }

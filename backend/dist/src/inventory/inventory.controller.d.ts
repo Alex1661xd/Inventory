@@ -14,21 +14,45 @@ export declare class InventoryController {
         product: {
             id: string;
             name: string;
-            barcode: string | null;
             sku: string | null;
             costPrice: import("@prisma/client/runtime/library").Decimal;
             salePrice: import("@prisma/client/runtime/library").Decimal;
             categoryId: string | null;
+            barcode: string | null;
         };
         warehouse: {
             id: string;
             name: string;
         };
         id: string;
+        warehouseId: string;
         quantity: number;
         productId: string;
-        warehouseId: string;
-    }[]>;
+    }[] | {
+        data: {
+            product: {
+                id: string;
+                name: string;
+                sku: string | null;
+                costPrice: import("@prisma/client/runtime/library").Decimal;
+                salePrice: import("@prisma/client/runtime/library").Decimal;
+                categoryId: string | null;
+                barcode: string | null;
+            };
+            warehouse: {
+                id: string;
+                name: string;
+            };
+            id: string;
+            warehouseId: string;
+            quantity: number;
+            productId: string;
+        }[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+    }>;
     getKardex(tenantId: string, productId: string, warehouseId?: string): Promise<({
         user: {
             id: string;
@@ -41,14 +65,14 @@ export declare class InventoryController {
     } & {
         id: string;
         createdAt: Date;
+        warehouseId: string;
+        userId: string | null;
         quantity: number;
         productId: string;
-        warehouseId: string;
         balanceAfter: number;
         type: import("@prisma/client").$Enums.StockMovementType;
         reference: string | null;
         notes: string | null;
-        userId: string | null;
     })[]>;
     getValuation(tenantId: string): Promise<{
         totalCost: number;

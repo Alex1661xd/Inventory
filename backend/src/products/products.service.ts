@@ -6,13 +6,15 @@ import { randomBytes } from 'crypto';
 import { CacheService } from '../cache/cache.service';
 import { StockMovementType } from '@prisma/client';
 import { SupabaseService } from '../supabase/supabase.service';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class ProductsService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly cacheService: CacheService,
-        private readonly supabaseService: SupabaseService
+        private readonly supabaseService: SupabaseService,
+        private readonly auditService: AuditService,
     ) { }
 
     private generateBarcode() {
@@ -85,7 +87,6 @@ export class ProductsService {
                         description: dto.description,
                         barcode,
                         sku: dto.sku,
-                        imageUrl: dto.imageUrl,
                         images: dto.images ?? [],
                         costPrice: dto.costPrice ?? 0,
                         salePrice: dto.salePrice ?? 0,
@@ -136,76 +137,129 @@ export class ProductsService {
             // Invalidar caché de productos del tenant
             await this.invalidateProductCache(tenantId);
 
+            // Audit log
+            this.auditService.log({
+                action: 'CREATE',
+                entity: 'Product',
+                entityId: product.id,
+                newValue: { name: dto.name, costPrice: dto.costPrice, salePrice: dto.salePrice },
+                userId,
+                tenantId,
+            });
+
             return product;
         } catch (error: any) {
             throw new BadRequestException(error?.message ?? 'Error creating product');
         }
     }
 
-    async findAllWithTotalStock(tenantId: string) {
+    async findAllWithTotalStock(
+        tenantId: string,
+        page: number = 1,
+        limit: number = 50,
+        search?: string,
+        filters?: {
+            categoryId?: string;
+            minPrice?: number;
+            maxPrice?: number;
+            stockStatus?: string;
+        }
+    ) {
         if (!tenantId) {
             console.error('❌ [ProductsService] Intento de findAllWithTotalStock sin tenantId');
-            return [];
+            return { data: [], total: 0, page, totalPages: 0 };
         }
 
-        const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'list');
+        const skip = (page - 1) * limit;
+        const cacheKey = this.cacheService.generateKey(
+            tenantId,
+            'products',
+            'list',
+            `p${page}-l${limit}-s${search || 'all'}-c${filters?.categoryId || 'all'}-min${filters?.minPrice || '0'}-max${filters?.maxPrice || 'inf'}-st${filters?.stockStatus || 'all'}`
+        );
+
         try {
-            const cached = await this.cacheService.get<any[]>(cacheKey);
+            const cached = await this.cacheService.get<any>(cacheKey);
             if (cached) {
-                console.log(`📦 [ProductsService] Cargando ${cached.length} productos desde CACHE (Tenant: ${tenantId})`);
                 return cached;
             }
         } catch (e) {
             console.error('⚠️ [ProductsService] Error leyendo caché:', e.message);
         }
 
-        console.log(`🔍 [ProductsService] Consultando DB para tenant: ${tenantId}`);
+        const where: any = {
+            tenantId,
+            active: true
+        };
 
-        // 1. Obtener todos los productos del tenant primero (solo activos)
-        const products = await this.prisma.product.findMany({
-            // @ts-ignore
-            where: { tenantId, active: true },
-            orderBy: { createdAt: 'desc' },
-        });
-
-        if (products.length === 0) {
-            console.log(`ℹ️ [ProductsService] El tenant ${tenantId} no tiene productos registrados.`);
-            return [];
+        if (search) {
+            where.OR = [
+                { name: { contains: search, mode: 'insensitive' } },
+                { description: { contains: search, mode: 'insensitive' } },
+                { sku: { contains: search, mode: 'insensitive' } },
+                { barcode: { contains: search, mode: 'insensitive' } },
+            ];
         }
 
-        const productIds = products.map(p => p.id);
+        if (filters?.categoryId) {
+            where.categoryId = filters.categoryId;
+        }
 
-        // 2. Obtener el stock total SOLO para esos productos
-        const stockData = await this.prisma.stock.groupBy({
-            by: ['productId'],
-            where: {
-                productId: { in: productIds }
-            },
-            _sum: {
-                quantity: true,
-            },
+        if (filters?.minPrice !== undefined || filters?.maxPrice !== undefined) {
+            where.salePrice = {};
+            if (filters.minPrice !== undefined) where.salePrice.gte = filters.minPrice;
+            if (filters.maxPrice !== undefined) where.salePrice.lte = filters.maxPrice;
+        }
+
+        if (filters?.stockStatus === 'inStock') {
+            where.inventory = {
+                some: {
+                    quantity: { gt: 0 }
+                }
+            };
+        } else if (filters?.stockStatus === 'outOfStock') {
+            where.inventory = {
+                every: {
+                    quantity: { lte: 0 }
+                }
+            };
+        }
+
+        const [products, total] = await Promise.all([
+            this.prisma.product.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit,
+                include: { inventory: true }
+            }),
+            this.prisma.product.count({ where })
+        ]);
+
+        const productsWithStock = products.map(p => {
+            const totalStock = (p.inventory || []).reduce((acc, s) => acc + s.quantity, 0);
+            const { inventory, ...rest } = p;
+            return {
+                ...rest,
+                costPrice: Number(p.costPrice),
+                salePrice: Number(p.salePrice),
+                totalStock
+            };
         });
 
-        // 3. Crear mapa de stock
-        const stockMap = new Map<string, number>();
-        stockData.forEach(item => {
-            stockMap.set(item.productId, item._sum.quantity ?? 0);
-        });
+        const result = {
+            data: productsWithStock,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        };
 
-        // 4. Combinar y asegurar tipos numéricos para el frontend
-        const result = products.map(product => ({
-            ...product,
-            // Convertimos Decimal a Number para evitar problemas de serialización/caché
-            costPrice: Number(product.costPrice),
-            salePrice: Number(product.salePrice),
-            totalStock: stockMap.get(product.id) ?? 0,
-        }));
-
-        console.log(`✅ [ProductsService] DB retornó ${result.length} productos procesados (Tenant: ${tenantId})`);
+        console.log(`✅ [ProductsService] DB retornó ${products.length} productos procesados (Tenant: ${tenantId})`);
 
         // 5. Guardar en caché
         try {
-            await this.cacheService.set(cacheKey, result, 300);
+            await this.cacheService.set(cacheKey, result, 60);
         } catch (e) {
             console.error('⚠️ [ProductsService] Error guardando en caché:', e.message);
         }
@@ -340,6 +394,15 @@ export class ProductsService {
             // Invalidar caché al actualizar
             await this.invalidateProductCache(tenantId, id);
 
+            // Audit log
+            this.auditService.log({
+                action: 'UPDATE',
+                entity: 'Product',
+                entityId: id,
+                newValue: dto,
+                tenantId,
+            });
+
             return result;
         } catch (error: any) {
             throw new BadRequestException(error?.message ?? 'Error updating product');
@@ -350,7 +413,7 @@ export class ProductsService {
     async remove(tenantId: string, id: string) {
         const product = await this.prisma.product.findFirst({
             where: { id, tenantId },
-            select: { id: true, images: true, imageUrl: true, barcode: true },
+            select: { id: true, images: true, barcode: true },
         });
 
         if (!product) throw new NotFoundException('Product not found');
@@ -400,7 +463,7 @@ export class ProductsService {
             // Borrado real de imágenes del storage
             const imagesToDelete = product.images && product.images.length > 0
                 ? product.images
-                : (product.imageUrl ? [product.imageUrl] : []);
+                : [];
 
             if (imagesToDelete.length > 0) {
                 await this.deleteImagesFromStorage(imagesToDelete);
@@ -408,6 +471,14 @@ export class ProductsService {
 
             // Invalidar caché (incluyendo barcode)
             await this.invalidateProductCache(tenantId, id, product.barcode);
+
+            // Audit log
+            this.auditService.log({
+                action: 'DELETE',
+                entity: 'Product',
+                entityId: id,
+                tenantId,
+            });
 
             return { success: true };
         } catch (error: any) {

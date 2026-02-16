@@ -43,6 +43,7 @@ const navSections = [
         links: [
             { href: '/dashboard/catalog', label: 'Mi Catálogo', icon: '📖' },
             { href: '/dashboard/backup', label: 'Respaldos (Drive)', icon: '🛡️' },
+            { href: '/dashboard/audit', label: 'Auditoría', icon: '🔍' },
         ]
     }
 ]

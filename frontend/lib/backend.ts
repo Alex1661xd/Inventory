@@ -119,8 +119,7 @@ export type Product = {
     description?: string | null;
     barcode?: string | null;
     sku?: string | null;
-    imageUrl?: string | null;
-    images?: string[];
+    images: string[];
     costPrice: string;
     salePrice: string;
     isPublic: boolean;
@@ -130,6 +129,29 @@ export type Product = {
     categoryId?: string | null;
     totalStock?: number;
     activeCosts?: { cost: number; quantity: number }[];
+};
+
+export type PaginatedResponse<T> = {
+    data: T[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+};
+
+export type AuditLog = {
+    id: string;
+    action: string;
+    entity: string;
+    entityId?: string | null;
+    oldValue?: any;
+    newValue?: any;
+    metadata?: any;
+    userId?: string | null;
+    userName?: string | null;
+    userRole?: string | null;
+    tenantId: string;
+    createdAt: string;
 };
 
 export type Warehouse = {
@@ -265,7 +287,18 @@ export type AnalyticsDashboard = {
 
 export const api = {
     products: {
-        list: (refresh = false) => backendFetch<Product[]>(`/products${refresh ? '?refresh=' + Date.now() : ''}`),
+        list: (options?: { page?: number; limit?: number; search?: string; categoryId?: string; minPrice?: number; maxPrice?: number; stockStatus?: string }) => {
+            const params = new URLSearchParams();
+            if (options?.page) params.set('page', options.page.toString());
+            if (options?.limit) params.set('limit', options.limit.toString());
+            if (options?.search) params.set('search', options.search);
+            if (options?.categoryId) params.set('categoryId', options.categoryId);
+            if (options?.minPrice !== undefined) params.set('minPrice', options.minPrice.toString());
+            if (options?.maxPrice !== undefined) params.set('maxPrice', options.maxPrice.toString());
+            if (options?.stockStatus) params.set('stockStatus', options.stockStatus);
+            const query = params.toString();
+            return backendFetch<PaginatedResponse<Product>>(`/products${query ? `?${query}` : ''}`);
+        },
         get: (id: string, refresh = false) => backendFetch<Product>(`/products/${id}${refresh ? '?refresh=1' : ''}`),
         findByBarcode: (barcode: string) => {
             const search = new URLSearchParams();
@@ -277,7 +310,7 @@ export const api = {
             name: string;
             description?: string;
             sku?: string;
-            imageUrl?: string;
+            images?: string[];
             costPrice?: number;
             salePrice?: number;
             isPublic?: boolean;
@@ -289,7 +322,7 @@ export const api = {
             name: string;
             description?: string;
             sku?: string;
-            imageUrl?: string;
+            images?: string[];
             costPrice?: number;
             salePrice?: number;
             isPublic?: boolean;
@@ -330,6 +363,16 @@ export const api = {
             const q = search.toString();
             return backendFetch<StockRow[]>(`/inventory/stock${q ? `?${q}` : ''}`);
         },
+        stockPaginated: (params: { productId?: string; warehouseId?: string; page?: number; limit?: number; search?: string }) => {
+            const search = new URLSearchParams();
+            if (params.productId) search.set('productId', params.productId);
+            if (params.warehouseId) search.set('warehouseId', params.warehouseId);
+            if (params.page) search.set('page', params.page.toString());
+            if (params.limit) search.set('limit', params.limit.toString());
+            if (params.search) search.set('search', params.search);
+            const q = search.toString();
+            return backendFetch<PaginatedResponse<StockRow>>(`/inventory/stock${q ? `?${q}` : ''}`);
+        },
         kardex: (productId: string, warehouseId?: string) => {
             const search = new URLSearchParams();
             search.set('productId', productId);
@@ -350,19 +393,43 @@ export const api = {
         remove: (id: string) => backendFetch<any>(`/users/${id}`, { method: 'DELETE' }),
     },
     customers: {
-        list: () => backendFetch<any[]>('/customers'),
+        list: (options?: { page?: number; limit?: number; search?: string }) => {
+            const params = new URLSearchParams();
+            if (options?.page) params.set('page', options.page.toString());
+            if (options?.limit) params.set('limit', options.limit.toString());
+            if (options?.search) params.set('search', options.search);
+            const query = params.toString();
+            return backendFetch<PaginatedResponse<any>>(`/customers${query ? `?${query}` : ''}`);
+        },
         create: (payload: any) => backendFetch<any>('/customers', { method: 'POST', json: payload }),
         update: (id: string, payload: any) => backendFetch<any>(`/customers/${id}`, { method: 'PATCH', json: payload }),
         remove: (id: string) => backendFetch<any>(`/customers/${id}`, { method: 'DELETE' }),
     },
     invoices: {
         create: (payload: any) => backendFetch<any>('/invoices', { method: 'POST', json: payload }),
-        list: () => backendFetch<any[]>('/invoices'),
+        list: (options?: { page?: number; limit?: number; search?: string; from?: string; to?: string; status?: string }) => {
+            const params = new URLSearchParams();
+            if (options?.page) params.set('page', options.page.toString());
+            if (options?.limit) params.set('limit', options.limit.toString());
+            if (options?.search) params.set('search', options.search);
+            if (options?.from) params.set('from', options.from);
+            if (options?.to) params.set('to', options.to);
+            if (options?.status) params.set('status', options.status);
+            const query = params.toString();
+            return backendFetch<PaginatedResponse<any>>(`/invoices${query ? `?${query}` : ''}`);
+        },
         get: (id: string) => backendFetch<any>(`/invoices/${id}`),
         cancel: (id: string) => backendFetch<any>(`/invoices/${id}/cancel`, { method: 'POST' }),
     },
     suppliers: {
-        list: () => backendFetch<Supplier[]>('/suppliers'),
+        list: (options?: { page?: number; limit?: number; search?: string }) => {
+            const params = new URLSearchParams();
+            if (options?.page) params.set('page', options.page.toString());
+            if (options?.limit) params.set('limit', options.limit.toString());
+            if (options?.search) params.set('search', options.search);
+            const query = params.toString();
+            return backendFetch<PaginatedResponse<Supplier>>(`/suppliers${query ? `?${query}` : ''}`);
+        },
         create: (payload: { name: string; contactName?: string; email?: string; phone?: string; address?: string; taxId?: string; paymentTerms?: string }) =>
             backendFetch<Supplier>('/suppliers', { method: 'POST', json: payload }),
         update: (id: string, payload: Partial<Supplier>) =>
@@ -394,13 +461,15 @@ export const api = {
         },
     },
     expenses: {
-        list: (filters?: { startDate?: string; endDate?: string; category?: string }) => {
+        list: (filters?: { startDate?: string; endDate?: string; category?: string; page?: number; limit?: number }) => {
             const params = new URLSearchParams();
             if (filters?.startDate) params.set('startDate', filters.startDate);
             if (filters?.endDate) params.set('endDate', filters.endDate);
             if (filters?.category) params.set('category', filters.category);
-            const q = params.toString();
-            return backendFetch<Expense[]>(`/expenses${q ? `?${q}` : ''}`);
+            if (filters?.page) params.set('page', filters.page.toString());
+            if (filters?.limit) params.set('limit', filters.limit.toString());
+            const query = params.toString();
+            return backendFetch<PaginatedResponse<Expense>>(`/expenses${query ? `?${query}` : ''}`);
         },
         create: (payload: { amount: number; description: string; category: ExpenseCategory; date?: string; supplierId?: string }) =>
             backendFetch<Expense>('/expenses', { method: 'POST', json: payload }),
@@ -440,12 +509,15 @@ export const api = {
             }>(`/analytics/product-stats?productId=${productId}${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}`),
     },
     purchases: {
-        list: (from?: string, to?: string) => {
+        list: (options?: { page?: number; limit?: number; search?: string; from?: string; to?: string }) => {
             const params = new URLSearchParams();
-            if (from) params.append('from', from);
-            if (to) params.append('to', to);
+            if (options?.page) params.set('page', options.page.toString());
+            if (options?.limit) params.set('limit', options.limit.toString());
+            if (options?.search) params.set('search', options.search);
+            if (options?.from) params.set('from', options.from);
+            if (options?.to) params.set('to', options.to);
             const query = params.toString();
-            return backendFetch<Purchase[]>(`/purchases${query ? `?${query}` : ''}`);
+            return backendFetch<PaginatedResponse<Purchase>>(`/purchases${query ? `?${query}` : ''}`);
         },
         get: (id: string) => backendFetch<Purchase>(`/purchases/${id}`),
         create: (payload: {
@@ -513,5 +585,19 @@ export const api = {
                 body: formData,
             });
         },
+    },
+    audit: {
+        list: (options?: { page?: number; limit?: number; entity?: string; action?: string; userId?: string; from?: string; to?: string }) => {
+            const params = new URLSearchParams();
+            if (options?.page) params.set('page', options.page.toString());
+            if (options?.limit) params.set('limit', options.limit.toString());
+            if (options?.entity) params.set('entity', options.entity);
+            if (options?.action) params.set('action', options.action);
+            if (options?.userId) params.set('userId', options.userId);
+            if (options?.from) params.set('from', options.from);
+            if (options?.to) params.set('to', options.to);
+            const query = params.toString();
+            return backendFetch<PaginatedResponse<AuditLog>>(`/audit${query ? `?${query}` : ''}`);
+        }
     }
 };

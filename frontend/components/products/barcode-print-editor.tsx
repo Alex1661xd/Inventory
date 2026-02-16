@@ -76,9 +76,10 @@ export function BarcodePrintPage() {
     const loadProducts = async () => {
         setLoading(true)
         try {
-            const data = await api.products.list()
+            const response = await api.products.list({ limit: 1000 })
+            const productsData = Array.isArray(response) ? response : (response?.data || [])
             // Only products with barcodes
-            setProducts(data.filter(p => p.barcode))
+            setProducts(productsData.filter((p: Product) => p.barcode))
         } catch (e: any) {
             toast.error(e.message)
         } finally {
@@ -338,8 +339,8 @@ export function BarcodePrintPage() {
                                     >
                                         <div className="flex items-center gap-3">
                                             <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                                {product.imageUrl ? (
-                                                    <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                                                {product.images && product.images.length > 0 ? (
+                                                    <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
                                                 ) : (
                                                     <span className="text-2xl">📦</span>
                                                 )}
@@ -386,8 +387,8 @@ export function BarcodePrintPage() {
                                     {/* Product Info Row */}
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                            {item.product.imageUrl ? (
-                                                <img src={item.product.imageUrl} alt={item.product.name} className="w-full h-full object-cover" />
+                                            {item.product.images && item.product.images.length > 0 ? (
+                                                <img src={item.product.images[0]} alt={item.product.name} className="w-full h-full object-cover" />
                                             ) : (
                                                 <span className="text-xl">📦</span>
                                             )}

@@ -23,8 +23,28 @@ export class ProductsController {
     }
 
     @Get()
-    findAll(@GetTenantId() tenantId: string) {
-        return this.productsService.findAllWithTotalStock(tenantId);
+    findAll(
+        @GetTenantId() tenantId: string,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
+        @Query('search') search?: string,
+        @Query('categoryId') categoryId?: string,
+        @Query('minPrice') minPrice?: string,
+        @Query('maxPrice') maxPrice?: string,
+        @Query('stockStatus') stockStatus?: string,
+    ) {
+        return this.productsService.findAllWithTotalStock(
+            tenantId,
+            page ? parseInt(page, 10) : 1,
+            limit ? parseInt(limit, 10) : 50,
+            search,
+            {
+                categoryId,
+                minPrice: minPrice ? parseFloat(minPrice) : undefined,
+                maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
+                stockStatus,
+            }
+        );
     }
 
     @Get('by-barcode')

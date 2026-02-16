@@ -3,12 +3,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../cache/cache.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class CustomersService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly cacheService: CacheService,
+        private readonly auditService: AuditService,
     ) { }
 
     private async invalidateCustomersCache(tenantId: string, customerId?: string) {
@@ -43,18 +45,51 @@ export class CustomersService {
 
         await this.invalidateCustomersCache(tenantId, result.id);
 
+        this.auditService.log({
+            action: 'CREATE',
+            entity: 'Customer',
+            entityId: result.id,
+            newValue: result,
+            tenantId,
+        });
+
         return result;
     }
 
-    async findAll(tenantId: string) {
-        const cacheKey = this.cacheService.generateKey(tenantId, 'customers', 'list');
-        const cached = await this.cacheService.get<any[]>(cacheKey);
+    async findAll(tenantId: string, page: number = 1, limit: number = 20, search?: string) {
+        const skip = (page - 1) * limit;
+        const cacheKey = this.cacheService.generateKey(tenantId, 'customers', 'list', `p${page}-l${limit}-s${search || 'all'}`);
+
+        const cached = await this.cacheService.get<any>(cacheKey);
         if (cached) return cached;
 
-        const result = await this.prisma.customer.findMany({
-            where: { tenantId },
-            orderBy: { name: 'asc' },
-        });
+        const where: any = { tenantId };
+
+        if (search) {
+            where.OR = [
+                { name: { contains: search, mode: 'insensitive' } },
+                { email: { contains: search, mode: 'insensitive' } },
+                { docNumber: { contains: search, mode: 'insensitive' } },
+            ];
+        }
+
+        const [data, total] = await Promise.all([
+            this.prisma.customer.findMany({
+                where,
+                orderBy: { name: 'asc' },
+                skip,
+                take: limit,
+            }),
+            this.prisma.customer.count({ where }),
+        ]);
+
+        const result = {
+            data,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        };
 
         await this.cacheService.set(cacheKey, result, 300);
 
@@ -97,6 +132,14 @@ export class CustomersService {
 
         await this.invalidateCustomersCache(tenantId, id);
 
+        this.auditService.log({
+            action: 'UPDATE',
+            entity: 'Customer',
+            entityId: id,
+            newValue: updateCustomerDto,
+            tenantId,
+        });
+
         return result;
     }
 
@@ -116,6 +159,13 @@ export class CustomersService {
         });
 
         await this.invalidateCustomersCache(tenantId, id);
+
+        this.auditService.log({
+            action: 'DELETE',
+            entity: 'Customer',
+            entityId: id,
+            tenantId,
+        });
 
         return result;
     }
