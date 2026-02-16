@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -1250,7 +1250,7 @@ export default function POSPage() {
 
             // Load products and stock for the user's warehouse
             const [prodsRes, stockData] = await Promise.all([
-                api.products.list({ limit: 1000 }),
+                api.products.list({ limit: 1000, sellableOnly: true }),
                 api.inventory.stock({ warehouseId: userWarehouseId })
             ])
 
@@ -1338,6 +1338,10 @@ export default function POSPage() {
     }
 
     const addToCart = (product: Product) => {
+        if (!product.isSellable) {
+            toast.error(`"${product.name}" no está habilitado para venta`)
+            return
+        }
         const availableStock = stockMap[product.id] ?? 0
         const currentInCart = cart.find(item => item.id === product.id)?.quantity ?? 0
 

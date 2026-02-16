@@ -36,9 +36,11 @@ export class PurchasesService {
             throw new BadRequestException('Uno o más productos no existen o están inactivos');
         }
 
+        // 0. Calcular el siguiente número de compra POR TENANT (ATÓMICO)
+        // Fuera de la transacción para evitar errores P2028 con tx en algunos entornos
+        const nextPurchaseNumber = await this.sequenceService.nextVal(tenantId, 'purchase');
+
         const purchaseResult = await this.prisma.$transaction(async (tx) => {
-            // 0. Calcular el siguiente número de compra POR TENANT (ATÓMICO)
-            const nextPurchaseNumber = await this.sequenceService.nextVal(tenantId, 'purchase', tx);
 
             // 1. Crear la Compra
             const purchase = await tx.purchase.create({
@@ -169,6 +171,11 @@ export class PurchasesService {
             }
 
             return purchase;
+        }, {
+            // Esta transaccion crea compra + items + stock + lote FIFO + kardex.
+            // Con multiples productos puede superar el timeout default (5s).
+            maxWait: 10000,
+            timeout: 20000,
         });
 
         // ==================== CACHE INVALIDATION (OUTSIDE TRANSACTION) ====================

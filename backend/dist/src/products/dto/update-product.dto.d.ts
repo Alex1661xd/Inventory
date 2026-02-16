@@ -6,5 +6,6 @@ export declare class UpdateProductDto {
     costPrice?: number;
     salePrice?: number;
     isPublic?: boolean;
+    isSellable?: boolean;
     categoryId?: string;
 }

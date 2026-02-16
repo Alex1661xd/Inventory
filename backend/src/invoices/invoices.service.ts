@@ -55,7 +55,7 @@ export class InvoicesService {
             // 1. Validate stock availability BEFORE creating invoice
             if (dto.status === 'PAID') {
                 for (const item of dto.items) {
-                    const stockRecord = await tx.stock.findUnique({
+                    const stockRecord: any = await tx.stock.findUnique({
                         where: {
                             productId_warehouseId: {
                                 productId: item.productId,
@@ -64,14 +64,14 @@ export class InvoicesService {
                         },
                         include: {
                             product: {
-                                select: { name: true, active: true }
+                                select: { name: true, active: true, isSellable: true }
                             }
                         }
                     });
 
-                    if (!stockRecord || !stockRecord.product || !stockRecord.product.active) {
+                    if (!stockRecord || !stockRecord.product || !stockRecord.product.active || !stockRecord.product.isSellable) {
                         throw new BadRequestException(
-                            `El producto con ID "${item.productId}" no existe o está desactivado.`
+                            `El producto con ID "${item.productId}" no existe, está desactivado o no está habilitado para venta.`
                         );
                     }
 

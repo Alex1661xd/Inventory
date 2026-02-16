@@ -6,6 +6,7 @@ export declare class CreateProductDto {
     costPrice: number;
     salePrice: number;
     isPublic?: boolean;
+    isSellable?: boolean;
     categoryId: string;
     initialStock?: number;
     initialWarehouseId?: string;

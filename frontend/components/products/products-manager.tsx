@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -23,6 +23,7 @@ type FormState = {
     costPrice: string
     salePrice: string
     isPublic: boolean
+    isSellable: boolean
     initialStock: string
     categoryId: string
 }
@@ -35,6 +36,7 @@ const emptyForm: FormState = {
     costPrice: '0',
     salePrice: '0',
     isPublic: true,
+    isSellable: true,
     initialStock: '0',
     categoryId: '',
 }
@@ -76,6 +78,7 @@ export function ProductsManager({
     const [isStockFlipped, setIsStockFlipped] = useState(false)
     const [stockDetails, setStockDetails] = useState<any[]>([])
     const [loadingStock, setLoadingStock] = useState(false)
+    const [togglingId, setTogglingId] = useState<string | null>(null)
 
     const isEditing = useMemo(() => Boolean(editingId), [editingId])
 
@@ -252,6 +255,7 @@ export function ProductsManager({
             costPrice: p.costPrice.toString(),
             salePrice: p.salePrice.toString(),
             isPublic: p.isPublic,
+            isSellable: p.isSellable,
             initialStock: '0',
             categoryId: p.categoryId || '',
         })
@@ -393,6 +397,7 @@ export function ProductsManager({
                 costPrice: Number(form.costPrice),
                 salePrice: Number(form.salePrice),
                 isPublic: form.isPublic,
+                isSellable: form.isSellable,
                 categoryId: form.categoryId || undefined,
             }
 
@@ -424,6 +429,20 @@ export function ProductsManager({
     }
 
     const remove = (id: string) => setItemToDelete(id)
+
+    const toggleSellable = async (p: Product) => {
+        if (togglingId) return
+        setTogglingId(p.id)
+        try {
+            await api.products.update(p.id, { isSellable: !p.isSellable })
+            toast.success(p.isSellable ? 'Producto pausado para venta' : 'Producto habilitado para venta')
+            await load(currentPage, true)
+        } catch (e: any) {
+            toast.error(e.message)
+        } finally {
+            setTogglingId(null)
+        }
+    }
 
     const confirmDelete = async () => {
         if (!itemToDelete) return
@@ -658,6 +677,14 @@ export function ProductsManager({
                                     {p.isPublic ? 'Público' : 'Privado'}
                                 </div>
                             </div>
+                            <div className="absolute top-2 left-2">
+                                <div className={cn(
+                                    "px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider backdrop-blur-md",
+                                    p.isSellable ? "bg-blue-500/20 text-blue-700" : "bg-amber-500/20 text-amber-800"
+                                )}>
+                                    {p.isSellable ? 'Vendible' : 'Pausado'}
+                                </div>
+                            </div>
                         </div>
 
                         {/* Product Info */}
@@ -708,6 +735,18 @@ export function ProductsManager({
                             {!readOnly && (
                                 <>
                                     <Button
+                                        variant={p.isSellable ? "outline" : "secondary"}
+                                        size="sm"
+                                        className="h-7 text-[10px] font-bold flex items-center justify-center gap-1"
+                                        onClick={() => toggleSellable(p)}
+                                        disabled={!!togglingId}
+                                    >
+                                        {togglingId === p.id && <span className="animate-spin text-[8px]">⚙️</span>}
+                                        {togglingId === p.id
+                                            ? (p.isSellable ? 'Pausando' : 'Vender...')
+                                            : (p.isSellable ? 'Pausar' : 'Vender')}
+                                    </Button>
+                                    <Button
                                         variant="secondary"
                                         size="sm"
                                         className="h-7 text-[10px] font-bold"
@@ -718,10 +757,10 @@ export function ProductsManager({
                                     <Button
                                         variant="destructive"
                                         size="sm"
-                                        className="h-7 text-[10px] font-bold"
+                                        className="h-7 text-[10px] font-bold col-span-2"
                                         onClick={() => remove(p.id)}
                                     >
-                                        Del
+                                        Eliminar
                                     </Button>
                                 </>
                             )}

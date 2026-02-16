@@ -163,6 +163,7 @@ export class ProductsService {
             minPrice?: number;
             maxPrice?: number;
             stockStatus?: string;
+            sellableOnly?: boolean;
         },
         refresh: boolean = false
     ) {
@@ -176,7 +177,7 @@ export class ProductsService {
             tenantId,
             'products',
             'list',
-            `p${page}-l${limit}-s${search || 'all'}-c${filters?.categoryId || 'all'}-min${filters?.minPrice || '0'}-max${filters?.maxPrice || 'inf'}-st${filters?.stockStatus || 'all'}`
+            `p${page}-l${limit}-s${search || 'all'}-c${filters?.categoryId || 'all'}-min${filters?.minPrice || '0'}-max${filters?.maxPrice || 'inf'}-st${filters?.stockStatus || 'all'}-sell${filters?.sellableOnly || 'false'}`
         );
 
         if (!refresh) {
@@ -194,6 +195,10 @@ export class ProductsService {
             tenantId,
             active: true
         };
+
+        if (filters?.sellableOnly) {
+            where.isSellable = true;
+        }
 
         if (search) {
             where.OR = [

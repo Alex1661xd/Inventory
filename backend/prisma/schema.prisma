@@ -204,6 +204,7 @@ model Product {
   salePrice   Decimal  @default(0) // Precio al público
   
   isPublic    Boolean  @default(true) // Si false, no sale en el catálogo web
+  isSellable  Boolean  @default(true) // Si false, no se puede vender aún (POS)
   active      Boolean  @default(true) // Para Soft-Delete
 
   // Multi-tenancy

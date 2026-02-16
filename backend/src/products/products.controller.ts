@@ -33,6 +33,7 @@ export class ProductsController {
         @Query('maxPrice') maxPrice?: string,
         @Query('stockStatus') stockStatus?: string,
         @Query('refresh') refresh?: string,
+        @Query('sellableOnly') sellableOnly?: string,
     ) {
         return this.productsService.findAllWithTotalStock(
             tenantId,
@@ -44,6 +45,7 @@ export class ProductsController {
                 minPrice: minPrice ? parseFloat(minPrice) : undefined,
                 maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
                 stockStatus,
+                sellableOnly: sellableOnly === '1' || sellableOnly === 'true',
             },
             !!refresh
         );

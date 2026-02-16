@@ -143,7 +143,7 @@ let ProductsService = class ProductsService {
             return { data: [], total: 0, page, totalPages: 0 };
         }
         const skip = (page - 1) * limit;
-        const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'list', `p${page}-l${limit}-s${search || 'all'}-c${filters?.categoryId || 'all'}-min${filters?.minPrice || '0'}-max${filters?.maxPrice || 'inf'}-st${filters?.stockStatus || 'all'}`);
+        const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'list', `p${page}-l${limit}-s${search || 'all'}-c${filters?.categoryId || 'all'}-min${filters?.minPrice || '0'}-max${filters?.maxPrice || 'inf'}-st${filters?.stockStatus || 'all'}-sell${filters?.sellableOnly || 'false'}`);
         if (!refresh) {
             try {
                 const cached = await this.cacheService.get(cacheKey);
@@ -159,6 +159,9 @@ let ProductsService = class ProductsService {
             tenantId,
             active: true
         };
+        if (filters?.sellableOnly) {
+            where.isSellable = true;
+        }
         if (search) {
             where.OR = [
                 { name: { contains: search, mode: 'insensitive' } },

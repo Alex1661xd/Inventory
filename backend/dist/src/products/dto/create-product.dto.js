@@ -19,6 +19,7 @@ class CreateProductDto {
     costPrice;
     salePrice;
     isPublic;
+    isSellable;
     categoryId;
     initialStock;
     initialWarehouseId;
@@ -62,6 +63,11 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], CreateProductDto.prototype, "isPublic", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreateProductDto.prototype, "isSellable", void 0);
 __decorate([
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)

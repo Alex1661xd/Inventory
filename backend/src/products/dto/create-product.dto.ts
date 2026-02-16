@@ -32,6 +32,10 @@ export class CreateProductDto {
     @IsBoolean()
     isPublic?: boolean;
 
+    @IsOptional()
+    @IsBoolean()
+    isSellable?: boolean;
+
     @IsUUID()
     categoryId!: string;
 

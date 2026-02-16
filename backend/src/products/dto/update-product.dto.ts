@@ -36,6 +36,10 @@ export class UpdateProductDto {
     isPublic?: boolean;
 
     @IsOptional()
+    @IsBoolean()
+    isSellable?: boolean;
+
+    @IsOptional()
     @IsUUID()
     categoryId?: string;
 }
