@@ -107,8 +107,13 @@ export class AuthService {
             return result;
 
         } catch (error: any) {
-            // Si falla la BD, deberíamos borrar el usuario de Supabase para no dejar "huerfanos"
-            // await this.supabaseService.getClient().auth.admin.deleteUser(userId);
+            // Si falla la BD, borramos el usuario de Supabase para no dejar "huerfanos"
+            try {
+                await this.supabaseService.getClient().auth.admin.deleteUser(userId);
+                console.log(`🧹 [Auth] Rollback: Usuario Supabase ${userId} eliminado tras fallo en BD`);
+            } catch (rollbackErr: any) {
+                console.error(`⚠️ [Auth] Error en rollback de Supabase: ${rollbackErr.message}`);
+            }
             console.error('Registration Transaction Failed:', error);
             throw new BadRequestException('Error registering business: ' + error.message);
         }

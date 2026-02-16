@@ -10,16 +10,49 @@ export class AnalyticsService {
         private cacheService: CacheService
     ) { }
 
+    // ✅ Obtener offset UTC dinámico desde la timezone del Tenant
+    private getTimezoneOffsetHours(timezone: string): number {
+        try {
+            const now = new Date();
+            const formatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: timezone,
+                timeZoneName: 'shortOffset',
+            });
+            const parts = formatter.formatToParts(now);
+            const offsetPart = parts.find(p => p.type === 'timeZoneName');
+            if (offsetPart) {
+                // Parse "GMT-5", "GMT+3", "GMT+5:30", etc.
+                const match = offsetPart.value.match(/GMT([+-]?)(\d+)(?::(\d+))?/);
+                if (match) {
+                    const sign = match[1] === '-' ? -1 : 1;
+                    const hours = parseInt(match[2], 10);
+                    return sign * hours;
+                }
+            }
+        } catch (e) {
+            console.warn(`⚠️ [Analytics] Timezone inválida: ${timezone}, usando UTC-5 por defecto`);
+        }
+        return -5; // Fallback a Colombia
+    }
+
     async getDashboardStats(tenantId: string, from?: string, to?: string) {
         const cacheKey = this.cacheService.generateKey(tenantId, 'analytics', 'dashboard', from || '30d', to || 'now');
 
         const cachedData = await this.cacheService.get<any>(cacheKey);
         if (cachedData) return cachedData;
 
+        // ✅ Obtener timezone del Tenant
+        const tenant = await this.prisma.tenant.findUnique({
+            where: { id: tenantId },
+            select: { timezone: true }
+        });
+        const offsetHours = this.getTimezoneOffsetHours(tenant?.timezone || 'America/Bogota');
+        const absOffset = Math.abs(offsetHours);
+
         // Ajuste de fechas para incluir el día completo (00:00:00 a 23:59:59)
-        // Se aplica un offset de -5 horas (aprox) para alinear UTC con la hora local de LATAM
-        const startDate = from ? addHours(startOfDay(parseISO(from)), 5) : startOfDay(subDays(new Date(), 30));
-        const endDate = to ? addHours(endOfDay(parseISO(to)), 5) : endOfDay(new Date());
+        // Se aplica el offset correcto del tenant
+        const startDate = from ? addHours(startOfDay(parseISO(from)), absOffset) : startOfDay(subDays(new Date(), 30));
+        const endDate = to ? addHours(endOfDay(parseISO(to)), absOffset) : endOfDay(new Date());
 
         // 1. Obtener todas las facturas pagas del periodo
         const invoices = await this.prisma.invoice.findMany({

@@ -38,6 +38,18 @@ export class InvoicesService {
     }
 
     async create(tenantId: string, sellerId: string, dto: CreateInvoiceDto) {
+        // ✅ VALIDACIÓN: Recalcular el total desde los ítems para prevenir fraude
+        const calculatedSubtotal = dto.items.reduce(
+            (sum, item) => sum + (item.quantity * item.unitPrice), 0
+        );
+        const calculatedTotal = calculatedSubtotal - (dto.discount || 0);
+
+        if (Math.abs(calculatedTotal - dto.total) > 0.01) {
+            throw new BadRequestException(
+                `El total enviado ($${dto.total}) no coincide con el cálculo de los ítems ($${calculatedTotal.toFixed(2)}). Verifica los datos.`
+            );
+        }
+
         const result = await this.prisma.$transaction(async (tx) => {
             // 1. Validate stock availability BEFORE creating invoice
             if (dto.status === 'PAID') {
@@ -70,15 +82,16 @@ export class InvoicesService {
                 }
             }
 
-            // 2. Create Invoice
+            // 2. Create Invoice — ✅ ahora guarda warehouseId
             const invoice = await tx.invoice.create({
                 data: {
-                    total: dto.total,
+                    total: calculatedTotal,
                     status: dto.status,
                     paymentMethod: dto.paymentMethod,
                     tenantId,
                     sellerId,
                     customerId: dto.customerId,
+                    warehouseId: dto.warehouseId, // ✅ Persistir para reversión al cancelar
                     amountReceived: dto.amountReceived,
                     amountReturned: dto.amountReturned,
                     discount: dto.discount || 0,
@@ -124,7 +137,7 @@ export class InvoicesService {
                         pendingToSubtract -= qtyToTake;
                     }
 
-                    // C. Si aún queda pendiente, hubo un error de sincronización o stock insuficiente
+                    // C. Si aún queda pendiente, hubo un error de sincronización
                     if (pendingToSubtract > 0) {
                         throw new BadRequestException(`Error interno de FIFO: Stock insuficiente en lotes para ${invoiceItem.productId}`);
                     }
@@ -192,7 +205,7 @@ export class InvoicesService {
             orderBy: { createdAt: 'desc' }
         });
 
-        await this.cacheService.set(cacheKey, result, 60); // Reduced to 60s for better real-time feel
+        await this.cacheService.set(cacheKey, result, 60);
 
         return result;
     }
@@ -201,7 +214,6 @@ export class InvoicesService {
         const cacheKey = this.cacheService.generateKey(tenantId, 'invoices', 'detail', id);
         const cached = await this.cacheService.get<any>(cacheKey);
 
-        // Even if cached, if we have a sellerId filter, we must ensure it matches
         if (cached && (!sellerId || cached.sellerId === sellerId)) return cached;
 
         const invoice = await this.prisma.invoice.findFirst({
@@ -220,25 +232,93 @@ export class InvoicesService {
         return invoice;
     }
 
+    // ✅ CANCEL ahora REVIERTE el stock y los lotes FIFO
     async cancel(tenantId: string, id: string, sellerId?: string) {
-        const exists = await this.prisma.invoice.findFirst({
+        const invoice = await this.prisma.invoice.findFirst({
             where: {
                 id,
                 tenantId,
                 ...(sellerId && { sellerId })
             },
-            select: { id: true, sellerId: true },
+            include: {
+                items: {
+                    include: {
+                        product: { select: { id: true, name: true, costPrice: true } }
+                    }
+                }
+            },
         });
 
-        if (!exists) throw new NotFoundException('Invoice not found');
+        if (!invoice) throw new NotFoundException('Invoice not found');
 
-        const result = await this.prisma.invoice.update({
-            where: { id },
-            data: { status: 'CANCELLED' },
+        if (invoice.status === 'CANCELLED') {
+            throw new BadRequestException('Esta factura ya fue cancelada');
+        }
+
+        const result = await this.prisma.$transaction(async (tx) => {
+            // Solo revertir stock si la factura fue PAGADA (se descontó stock)
+            if (invoice.status === 'PAID' && (invoice as any).warehouseId) {
+                const warehouseId = (invoice as any).warehouseId;
+
+                for (const item of invoice.items) {
+                    // A. Incrementar el Stock global
+                    const updatedStock = await tx.stock.upsert({
+                        where: {
+                            productId_warehouseId: {
+                                productId: item.productId,
+                                warehouseId,
+                            }
+                        },
+                        update: { quantity: { increment: item.quantity } },
+                        create: {
+                            productId: item.productId,
+                            warehouseId,
+                            quantity: item.quantity,
+                        }
+                    });
+
+                    // B. Re-crear un lote FIFO con el costo de la venta original
+                    const costPrice = item.totalCost
+                        ? Number(item.totalCost) / item.quantity
+                        : Number(item.product.costPrice);
+
+                    await tx.stockBatch.create({
+                        data: {
+                            tenantId,
+                            productId: item.productId,
+                            warehouseId,
+                            initialQuantity: item.quantity,
+                            remainingQuantity: item.quantity,
+                            costPrice,
+                            entryDate: new Date(),
+                        }
+                    });
+
+                    // C. Registrar movimiento RETURN en Kardex
+                    await tx.stockMovement.create({
+                        data: {
+                            productId: item.productId,
+                            warehouseId,
+                            type: StockMovementType.RETURN,
+                            quantity: item.quantity,
+                            balanceAfter: updatedStock.quantity,
+                            reference: `Cancelación Factura #${invoice.invoiceNumber}`,
+                            notes: `Devolución por cancelación de venta #${invoice.invoiceNumber}`,
+                            userId: sellerId || invoice.sellerId,
+                        }
+                    });
+                }
+            }
+
+            // D. Marcar factura como cancelada
+            return tx.invoice.update({
+                where: { id },
+                data: { status: 'CANCELLED' },
+            });
         });
 
-        // Invalidate list cache for "all" and specifically for this seller
-        await this.invalidateInvoicesCache(tenantId, id, exists.sellerId);
+        // Invalidate all related caches
+        await this.invalidateInvoicesCache(tenantId, id, invoice.sellerId);
 
         return result;
     }

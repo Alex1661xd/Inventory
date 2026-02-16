@@ -1,13 +1,30 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Habilitar CORS para permitir peticiones desde el frontend
+  // ✅ ValidationPipe global — INDISPENSABLE para que los DTOs se validen
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,       // Elimina propiedades no definidas en el DTO
+    forbidNonWhitelisted: false, // No lanza error por props extra, solo las ignora
+    transform: true,       // Convierte tipos automáticamente (string → number, etc.)
+    transformOptions: {
+      enableImplicitConversion: true,
+    },
+  }));
+
+  // ✅ CORS restringido al dominio del frontend
+  const allowedOrigins = [
+    process.env.FRONTEND_URL || 'http://localhost:3001',
+    'http://localhost:3001',
+    'http://localhost:3000',
+  ].filter(Boolean);
+
   app.enableCors({
-    origin: '*', // En producción, idealmente cambia esto por tu dominio de frontend
+    origin: allowedOrigins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });

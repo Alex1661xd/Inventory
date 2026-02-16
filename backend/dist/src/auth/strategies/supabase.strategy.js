@@ -42,6 +42,15 @@ let SupabaseStrategy = class SupabaseStrategy extends (0, passport_1.PassportStr
         if (!user) {
             throw new common_1.UnauthorizedException('User not found in local database');
         }
+        if (user.role !== 'SUPER_ADMIN') {
+            const tenant = await this.prisma.tenant.findUnique({
+                where: { id: user.tenantId },
+                select: { isBanned: true },
+            });
+            if (tenant?.isBanned) {
+                throw new common_1.UnauthorizedException('Tu negocio ha sido suspendido. Contacta al administrador.');
+            }
+        }
         return user;
     }
 };

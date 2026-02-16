@@ -24,9 +24,9 @@ const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
     MARKETING: 'Marketing',
     TAXES: 'Impuestos',
     INSURANCE: 'Seguros',
-    OTHER: 'Otros',
-    //@ts-ignore
+    INVENTORY: 'Inventario',
     CASH_REGISTER: 'Gastos de Caja',
+    OTHER: 'Otros',
 }
 
 const CATEGORY_ICONS: Record<ExpenseCategory, string> = {
@@ -39,9 +39,9 @@ const CATEGORY_ICONS: Record<ExpenseCategory, string> = {
     MARKETING: '📢',
     TAXES: '🏛️',
     INSURANCE: '🛡️',
-    OTHER: '📋',
-    //@ts-ignore
+    INVENTORY: '📊',
     CASH_REGISTER: '🏧',
+    OTHER: '📋',
 }
 
 type ProfitLossData = {

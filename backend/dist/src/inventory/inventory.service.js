@@ -127,7 +127,6 @@ let InventoryService = class InventoryService {
                         remainingQuantity: qtyFromBatch,
                         costPrice: batch.costPrice,
                         entryDate: batch.entryDate,
-                        purchaseItemId: batch.purchaseItemId
                     }
                 });
                 pendingToMove -= qtyFromBatch;

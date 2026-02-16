@@ -195,6 +195,8 @@ export type ExpenseCategory =
     | 'MARKETING'
     | 'TAXES'
     | 'INSURANCE'
+    | 'INVENTORY'       // Gastos generados por compras de inventario
+    | 'CASH_REGISTER'   // Gastos registrados desde la caja registradora
     | 'OTHER';
 
 export type Expense = {

@@ -16,7 +16,7 @@ export class ProductsService {
     ) { }
 
     private generateBarcode() {
-        return `MUE-${randomBytes(4).toString('hex').toUpperCase()}`;
+        return `PRD-${randomBytes(4).toString('hex').toUpperCase()}`;
     }
 
     private async generateUniqueBarcode(tenantId: string) {
@@ -350,20 +350,54 @@ export class ProductsService {
     async remove(tenantId: string, id: string) {
         const product = await this.prisma.product.findFirst({
             where: { id, tenantId },
-            select: { id: true, images: true, imageUrl: true },
+            select: { id: true, images: true, imageUrl: true, barcode: true },
         });
 
         if (!product) throw new NotFoundException('Product not found');
 
         try {
-            // Soft delete: solo lo marcamos como inactivo
-            const result = await this.prisma.product.update({
-                where: { id },
-                // @ts-ignore
-                data: { active: false }
+            await this.prisma.$transaction(async (tx) => {
+                // Soft delete: marcamos como inactivo
+                await tx.product.update({
+                    where: { id },
+                    // @ts-ignore
+                    data: { active: false }
+                });
+
+                // ✅ Limpiar stock y lotes FIFO del producto eliminado
+                // Poner stock en 0
+                await tx.stock.updateMany({
+                    where: { productId: id },
+                    data: { quantity: 0 }
+                });
+
+                // Poner lotes FIFO en 0
+                await tx.stockBatch.updateMany({
+                    where: { productId: id, remainingQuantity: { gt: 0 } },
+                    data: { remainingQuantity: 0 }
+                });
+
+                // Registrar ajuste en Kardex
+                const stocks = await tx.stock.findMany({
+                    where: { productId: id },
+                    select: { warehouseId: true }
+                });
+
+                for (const s of stocks) {
+                    await tx.stockMovement.create({
+                        data: {
+                            productId: id,
+                            warehouseId: s.warehouseId,
+                            type: 'ADJUSTMENT',
+                            quantity: 0,
+                            balanceAfter: 0,
+                            notes: 'Producto eliminado (soft-delete) — stock ajustado a 0',
+                        }
+                    });
+                }
             });
 
-            // Borrado real de imágenes físicamente del storage para ahorrar espacio
+            // Borrado real de imágenes del storage
             const imagesToDelete = product.images && product.images.length > 0
                 ? product.images
                 : (product.imageUrl ? [product.imageUrl] : []);
@@ -372,10 +406,10 @@ export class ProductsService {
                 await this.deleteImagesFromStorage(imagesToDelete);
             }
 
-            // Invalidar caché
-            await this.invalidateProductCache(tenantId, id);
+            // Invalidar caché (incluyendo barcode)
+            await this.invalidateProductCache(tenantId, id, product.barcode);
 
-            return result;
+            return { success: true };
         } catch (error: any) {
             throw new BadRequestException(error?.message ?? 'Error in soft-deleting product');
         }
@@ -412,7 +446,7 @@ export class ProductsService {
     /**
      * Invalida todo el caché de productos de un tenant
      */
-    private async invalidateProductCache(tenantId: string, productId?: string) {
+    private async invalidateProductCache(tenantId: string, productId?: string, barcode?: string | null) {
         // Invalidar lista general
         const listKey = this.cacheService.generateKey(tenantId, 'products', 'list');
         await this.cacheService.invalidate(listKey);
@@ -421,6 +455,12 @@ export class ProductsService {
         if (productId) {
             const detailKey = this.cacheService.generateKey(tenantId, 'products', 'detail', productId);
             await this.cacheService.invalidate(detailKey);
+        }
+
+        // ✅ Invalidar caché de barcode si se conoce
+        if (barcode) {
+            const barcodeKey = this.cacheService.generateKey(tenantId, 'products', 'barcode', barcode);
+            await this.cacheService.invalidate(barcodeKey);
         }
     }
 }

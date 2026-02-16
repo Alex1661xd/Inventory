@@ -83,6 +83,18 @@ let WarehousesService = class WarehousesService {
         if (exists.isDefault) {
             throw new common_1.BadRequestException('No se puede eliminar el almacén principal por defecto.');
         }
+        const stockCount = await this.prisma.stock.count({
+            where: { warehouseId: id, quantity: { gt: 0 } }
+        });
+        if (stockCount > 0) {
+            throw new common_1.BadRequestException('No se puede eliminar un almacén que tiene productos en stock. Transfiere o ajusta el inventario primero.');
+        }
+        const usersCount = await this.prisma.user.count({
+            where: { warehouseId: id }
+        });
+        if (usersCount > 0) {
+            throw new common_1.BadRequestException('No se puede eliminar un almacén con usuarios asignados. Reasigna los usuarios primero.');
+        }
         try {
             const result = await this.prisma.warehouse.delete({
                 where: { id },

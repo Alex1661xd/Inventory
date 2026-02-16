@@ -73,6 +73,9 @@ model Tenant {
   catalogEnabled      Boolean  @default(true) // Si el catálogo está activo
   catalogWhatsApp     String?  // Número de WhatsApp para consultas directas
   
+  // Configuración de zona horaria (IANA, ej: 'America/Bogota')
+  timezone            String   @default("America/Bogota")
+  
   // Relaciones: Todo lo de abajo pertenece a un Tenant
   users       User[]
   products    Product[]
@@ -342,6 +345,9 @@ model Invoice {
   sellerId        String
   seller          User          @relation(fields: [sellerId], references: [id]) // Quién vendió
   
+  // Almacén del que se descontó el stock (necesario para revertir al cancelar)
+  warehouseId     String?
+  
   amountReceived  Decimal?
   amountReturned  Decimal?
   
@@ -559,8 +565,8 @@ model PurchaseItem {
   productId       String
   product         Product  @relation(fields: [productId], references: [id])
 
-  // Relación con el lote de stock que genera esta compra
-  stockBatch      StockBatch?
+  // Relación con lotes de stock que genera esta compra (puede ser más de uno por transferencias)
+  stockBatches    StockBatch[]
 }
 
 // --------------------------------------
@@ -577,7 +583,8 @@ model StockBatch {
   warehouse        Warehouse @relation(fields: [warehouseId], references: [id])
   
   // Opcional: El lote puede venir de una compra o de un ajuste manual
-  purchaseItemId   String?   @unique
+  // No @unique para permitir transferencias FIFO que crean lotes hijos
+  purchaseItemId   String?
   purchaseItem     PurchaseItem? @relation(fields: [purchaseItemId], references: [id])
   
   initialQuantity  Int

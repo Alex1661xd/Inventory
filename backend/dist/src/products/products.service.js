@@ -26,7 +26,7 @@ let ProductsService = class ProductsService {
         this.supabaseService = supabaseService;
     }
     generateBarcode() {
-        return `MUE-${(0, crypto_1.randomBytes)(4).toString('hex').toUpperCase()}`;
+        return `PRD-${(0, crypto_1.randomBytes)(4).toString('hex').toUpperCase()}`;
     }
     async generateUniqueBarcode(tenantId) {
         for (let i = 0; i < 10; i++) {
@@ -279,14 +279,40 @@ let ProductsService = class ProductsService {
     async remove(tenantId, id) {
         const product = await this.prisma.product.findFirst({
             where: { id, tenantId },
-            select: { id: true, images: true, imageUrl: true },
+            select: { id: true, images: true, imageUrl: true, barcode: true },
         });
         if (!product)
             throw new common_1.NotFoundException('Product not found');
         try {
-            const result = await this.prisma.product.update({
-                where: { id },
-                data: { active: false }
+            await this.prisma.$transaction(async (tx) => {
+                await tx.product.update({
+                    where: { id },
+                    data: { active: false }
+                });
+                await tx.stock.updateMany({
+                    where: { productId: id },
+                    data: { quantity: 0 }
+                });
+                await tx.stockBatch.updateMany({
+                    where: { productId: id, remainingQuantity: { gt: 0 } },
+                    data: { remainingQuantity: 0 }
+                });
+                const stocks = await tx.stock.findMany({
+                    where: { productId: id },
+                    select: { warehouseId: true }
+                });
+                for (const s of stocks) {
+                    await tx.stockMovement.create({
+                        data: {
+                            productId: id,
+                            warehouseId: s.warehouseId,
+                            type: 'ADJUSTMENT',
+                            quantity: 0,
+                            balanceAfter: 0,
+                            notes: 'Producto eliminado (soft-delete) — stock ajustado a 0',
+                        }
+                    });
+                }
             });
             const imagesToDelete = product.images && product.images.length > 0
                 ? product.images
@@ -294,8 +320,8 @@ let ProductsService = class ProductsService {
             if (imagesToDelete.length > 0) {
                 await this.deleteImagesFromStorage(imagesToDelete);
             }
-            await this.invalidateProductCache(tenantId, id);
-            return result;
+            await this.invalidateProductCache(tenantId, id, product.barcode);
+            return { success: true };
         }
         catch (error) {
             throw new common_1.BadRequestException(error?.message ?? 'Error in soft-deleting product');
@@ -328,12 +354,16 @@ let ProductsService = class ProductsService {
             console.error('⚠️ [ProductsService] Error al eliminar imágenes del storage:', error.message);
         }
     }
-    async invalidateProductCache(tenantId, productId) {
+    async invalidateProductCache(tenantId, productId, barcode) {
         const listKey = this.cacheService.generateKey(tenantId, 'products', 'list');
         await this.cacheService.invalidate(listKey);
         if (productId) {
             const detailKey = this.cacheService.generateKey(tenantId, 'products', 'detail', productId);
             await this.cacheService.invalidate(detailKey);
+        }
+        if (barcode) {
+            const barcodeKey = this.cacheService.generateKey(tenantId, 'products', 'barcode', barcode);
+            await this.cacheService.invalidate(barcodeKey);
         }
     }
 };

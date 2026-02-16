@@ -93,6 +93,13 @@ let AuthService = class AuthService {
             return result;
         }
         catch (error) {
+            try {
+                await this.supabaseService.getClient().auth.admin.deleteUser(userId);
+                console.log(`🧹 [Auth] Rollback: Usuario Supabase ${userId} eliminado tras fallo en BD`);
+            }
+            catch (rollbackErr) {
+                console.error(`⚠️ [Auth] Error en rollback de Supabase: ${rollbackErr.message}`);
+            }
             console.error('Registration Transaction Failed:', error);
             throw new common_1.BadRequestException('Error registering business: ' + error.message);
         }

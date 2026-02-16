@@ -41,6 +41,18 @@ export class SupabaseStrategy extends PassportStrategy(Strategy, 'jwt') {
             throw new UnauthorizedException('User not found in local database');
         }
 
+        // ✅ Verificar si el Tenant está baneado
+        if (user.role !== 'SUPER_ADMIN') {
+            const tenant = await this.prisma.tenant.findUnique({
+                where: { id: user.tenantId },
+                select: { isBanned: true },
+            });
+
+            if (tenant?.isBanned) {
+                throw new UnauthorizedException('Tu negocio ha sido suspendido. Contacta al administrador.');
+            }
+        }
+
         // Retornamos el usuario local que tiene tenantId
         return user;
     }

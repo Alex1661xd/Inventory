@@ -17,9 +17,9 @@ export declare class AuthService {
         };
         tenant: {
             id: string;
-            createdAt: Date;
             name: string;
             slug: string;
+            createdAt: Date;
             updatedAt: Date;
             isBanned: boolean;
             bannedAt: Date | null;
@@ -28,6 +28,7 @@ export declare class AuthService {
             catalogAccentColor: string;
             catalogEnabled: boolean;
             catalogWhatsApp: string | null;
+            timezone: string;
             registrationCodeId: string | null;
         };
     }>;

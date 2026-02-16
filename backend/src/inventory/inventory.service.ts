@@ -124,7 +124,7 @@ export class InventoryService {
                 });
 
                 // 2. Crear lote en destino (manteniendo costo y fecha original)
-                // Usamos un nuevo lote para evitar mezclar fechas si ya hay lotes en destino
+                // ✅ NO copiamos purchaseItemId — solo el lote original de compra lo tiene
                 await tx.stockBatch.create({
                     data: {
                         tenantId,
@@ -134,8 +134,7 @@ export class InventoryService {
                         remainingQuantity: qtyFromBatch,
                         costPrice: batch.costPrice,
                         entryDate: batch.entryDate,
-                        // Si el lote original tenía una compra asociada, la mantenemos
-                        purchaseItemId: batch.purchaseItemId
+                        // purchaseItemId se omite intencionalmente
                     }
                 });
 
