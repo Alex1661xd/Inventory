@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CacheService } from '../cache/cache.service';
 
 export interface AuditLogEntry {
     action: string;      // CREATE, UPDATE, DELETE, CANCEL, TRANSFER, etc.
@@ -16,7 +17,10 @@ export interface AuditLogEntry {
 
 @Injectable()
 export class AuditService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly cacheService: CacheService
+    ) { }
 
     /**
      * Registra una entrada de auditoría.
@@ -38,10 +42,18 @@ export class AuditService {
                     tenantId: entry.tenantId,
                 },
             } as any);
+
+            // Invalidate audit list cache
+            await this.invalidateAuditCache(entry.tenantId);
         } catch (error) {
             // No lanzar error para no interrumpir la operación principal
             console.error('[AuditService] Error registrando log de auditoría:', error);
         }
+    }
+
+    private async invalidateAuditCache(tenantId: string) {
+        const cachePattern = this.cacheService.generateKey(tenantId, 'audit', 'list', '*');
+        await this.cacheService.invalidatePattern(cachePattern);
     }
 
     /**
@@ -95,6 +107,15 @@ export class AuditService {
             if (options?.to) where.createdAt.lte = new Date(options.to);
         }
 
+        const cacheKey = this.cacheService.generateKey(tenantId, 'audit', 'list', `p${page}-l${limit}-e${options?.entity || 'all'}-a${options?.action || 'all'}-u${options?.userId || 'all'}-f${options?.from || 'all'}-t${options?.to || 'all'}`);
+
+        try {
+            const cached = await this.cacheService.get<any>(cacheKey);
+            if (cached) return cached;
+        } catch (error) {
+            console.error('[AuditService] Error leyendo caché:', error);
+        }
+
         const [data, total] = await Promise.all([
             this.prisma.auditLog.findMany({
                 where,
@@ -105,13 +126,17 @@ export class AuditService {
             this.prisma.auditLog.count({ where } as any),
         ]);
 
-        return {
+        const result = {
             data,
             total,
             page,
             limit,
             totalPages: Math.ceil(total / limit),
         };
+
+        await this.cacheService.set(cacheKey, result, 60);
+
+        return result;
     }
 
     /**

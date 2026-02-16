@@ -287,7 +287,7 @@ export type AnalyticsDashboard = {
 
 export const api = {
     products: {
-        list: (options?: { page?: number; limit?: number; search?: string; categoryId?: string; minPrice?: number; maxPrice?: number; stockStatus?: string }) => {
+        list: (options?: { page?: number; limit?: number; search?: string; categoryId?: string; minPrice?: number; maxPrice?: number; stockStatus?: string; refresh?: boolean }) => {
             const params = new URLSearchParams();
             if (options?.page) params.set('page', options.page.toString());
             if (options?.limit) params.set('limit', options.limit.toString());
@@ -296,6 +296,7 @@ export const api = {
             if (options?.minPrice !== undefined) params.set('minPrice', options.minPrice.toString());
             if (options?.maxPrice !== undefined) params.set('maxPrice', options.maxPrice.toString());
             if (options?.stockStatus) params.set('stockStatus', options.stockStatus);
+            if (options?.refresh) params.set('refresh', '1');
             const query = params.toString();
             return backendFetch<PaginatedResponse<Product>>(`/products${query ? `?${query}` : ''}`);
         },

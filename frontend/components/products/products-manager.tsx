@@ -94,7 +94,7 @@ export function ProductsManager({
         return () => clearTimeout(timer)
     }, [priceRange])
 
-    const load = async (page = 1) => {
+    const load = async (page = 1, refresh = false) => {
         setLoading(true)
         try {
             const [response, ws, cats] = await Promise.all([
@@ -105,7 +105,8 @@ export function ProductsManager({
                     categoryId: selectedCategory || undefined,
                     minPrice: debouncedPriceRange.min ? parseFloat(debouncedPriceRange.min) : undefined,
                     maxPrice: debouncedPriceRange.max ? parseFloat(debouncedPriceRange.max) : undefined,
-                    stockStatus: stockFilter !== 'all' ? stockFilter : undefined
+                    stockStatus: stockFilter !== 'all' ? stockFilter : undefined,
+                    refresh
                 }),
                 api.warehouses.list(),
                 api.categories.list()
@@ -413,7 +414,7 @@ export function ProductsManager({
             }
 
             resetForm()
-            await load()
+            await load(1, true)
         } catch (e: any) {
             toast.error(e.message)
         } finally {
@@ -431,7 +432,7 @@ export function ProductsManager({
             const productToDelete = products.find(p => p.id === id)
             await api.products.remove(id)
             toast.success('Producto eliminado')
-            await load()
+            await load(currentPage, true)
         } catch (e: any) {
             toast.error(e.message)
         } finally {

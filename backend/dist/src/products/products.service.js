@@ -137,21 +137,23 @@ let ProductsService = class ProductsService {
             throw new common_1.BadRequestException(error?.message ?? 'Error creating product');
         }
     }
-    async findAllWithTotalStock(tenantId, page = 1, limit = 50, search, filters) {
+    async findAllWithTotalStock(tenantId, page = 1, limit = 50, search, filters, refresh = false) {
         if (!tenantId) {
             console.error('❌ [ProductsService] Intento de findAllWithTotalStock sin tenantId');
             return { data: [], total: 0, page, totalPages: 0 };
         }
         const skip = (page - 1) * limit;
         const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'list', `p${page}-l${limit}-s${search || 'all'}-c${filters?.categoryId || 'all'}-min${filters?.minPrice || '0'}-max${filters?.maxPrice || 'inf'}-st${filters?.stockStatus || 'all'}`);
-        try {
-            const cached = await this.cacheService.get(cacheKey);
-            if (cached) {
-                return cached;
+        if (!refresh) {
+            try {
+                const cached = await this.cacheService.get(cacheKey);
+                if (cached) {
+                    return cached;
+                }
             }
-        }
-        catch (e) {
-            console.error('⚠️ [ProductsService] Error leyendo caché:', e.message);
+            catch (e) {
+                console.error('⚠️ [ProductsService] Error leyendo caché:', e.message);
+            }
         }
         const where = {
             tenantId,

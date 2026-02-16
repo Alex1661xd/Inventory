@@ -152,10 +152,9 @@ if (Math.abs(calculatedTotal - dto.total) > 0.01) {
 
 ---
 
-### 2.4 Operación `update` de Expenses usa `PUT` en frontend pero backend podría esperar `PATCH` — PENDIENTE
+### 2.4 ✅ ~~Operación `update` de Expenses usa `PUT` en frontend pero backend podría esperar `PATCH`~~ — CORREGIDO
 
-**Frontend:** `api.expenses.update` usa `method: 'PUT'`  
-**Backend:** Si el controlador de expenses usa `@Patch()` en vez de `@Put()`, esto causará un `405 Method Not Allowed`.
+**Estado actual:** El backend expone `@Put(':id')` en `ExpensesController`, por lo que el `PUT` del frontend es correcto.
 
 ---
 
@@ -259,17 +258,18 @@ app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
 ---
 
-### 5.3 `autoincrement()` en facturas y compras no es tenant-scoped — PENDIENTE
+### 5.3 ✅ ~~`autoincrement()` en facturas y compras no es tenant-scoped~~ — CORREGIDO
 
-**Problema:** El autoincrement es **global** (a nivel de tabla), no por tenant.
-
-**Solución:** Usar un secuenciador custom por tenant, o un trigger en PostgreSQL.
+**Corrección aplicada:**
+- Se implementó `TenantSequence` en Prisma.
+- Se creó `SequenceService` y se usa en `invoices.service.ts` y `purchases.service.ts` para numeración por tenant.
 
 ---
 
-### 5.4 No hay paginación en endpoints principales — PENDIENTE
+### 5.4 ⚠️ Paginación parcial en endpoints principales — PARCIAL
 
-**Solución:** Implementar paginación (`skip/take`) en todos los `findAll`.
+**Estado actual:** Ya existe paginación en módulos como productos, clientes, facturas, compras, gastos, proveedores y auditoría.
+**Falta:** `categories`, `warehouses` y `users` aún devuelven listas completas.
 
 ---
 
@@ -280,11 +280,11 @@ app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 | # | Funcionalidad | Estado |
 |---|---|---|
 | 1 | **Reversión de Stock al Cancelar Venta** | ✅ IMPLEMENTADO |
-| 2 | **Auditoría / Logs de Actividad** | ❌ Pendiente |
+| 2 | **Auditoría / Logs de Actividad** | ✅ IMPLEMENTADO |
 | 3 | **Stock Mínimo / Alertas de Reorden** | ❌ Pendiente |
 | 4 | **Notas de Crédito / Devoluciones** | ❌ Pendiente |
 | 5 | **Validación del Total en Backend** | ✅ IMPLEMENTADO |
-| 6 | **Numeración de Facturas por Tenant** | ❌ Pendiente |
+| 6 | **Numeración de Facturas por Tenant** | ✅ IMPLEMENTADO |
 
 ### 6.2 🟡 MEDIA PRIORIDAD
 
@@ -298,7 +298,7 @@ app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 | 12 | Código de Barras Personalizable | ❌ Pendiente |
 | 13 | Reportes Exportables (PDF/Excel) | ❌ Pendiente |
 | 14 | Historial de Precios | ❌ Pendiente |
-| 15 | Paginación y Búsqueda Avanzada | ❌ Pendiente |
+| 15 | Paginación y Búsqueda Avanzada | ⚠️ Parcial |
 
 ### 6.3 🟢 BAJA PRIORIDAD (Nice-to-have)
 
@@ -337,7 +337,7 @@ app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 |-----------|---------|--------|
 | 🟡 P2 | Timezone hardcodeada a UTC-5 | ✅ CORREGIDO |
 | 🟡 P2 | `warehouseId` no se guarda en `Invoice` | ✅ CORREGIDO |
-| 🟡 P2 | Autoincrement global en vez de por tenant | ❌ PENDIENTE |
+| 🟡 P2 | Autoincrement global en vez de por tenant | ✅ CORREGIDO |
 | 🟡 P2 | Cache de barcode no se invalida | ✅ CORREGIDO |
 | 🟡 P2 | Tipo `ExpenseCategory` incompleto en frontend | ✅ CORREGIDO |
 | 🟡 P2 | Exceso de @ts-ignore | ✅ PARCIAL |
@@ -351,9 +351,9 @@ app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 | Prioridad | Funcionalidad | Estado |
 |-----------|--------------|--------|
 | 🟢 P3 | Prefijo de barcode `MUE-` hardcodeado | ✅ CORREGIDO |
-| 🟢 P3 | Paginación en todos los endpoints | ❌ PENDIENTE |
+| 🟢 P3 | Paginación en todos los endpoints | ⚠️ PARCIAL |
 | 🟢 P4 | Stock mínimo y alertas | ❌ PENDIENTE |
-| 🟢 P4 | Auditoría / Activity Logs | ❌ PENDIENTE |
+| 🟢 P4 | Auditoría / Activity Logs | ✅ IMPLEMENTADO |
 | 🟢 P4 | Devoluciones / Notas de Crédito | ❌ PENDIENTE |
 | 🟢 P4 | Multi-moneda | ❌ PENDIENTE |
 | 🟢 P5 | Facturación electrónica | ❌ PENDIENTE |
@@ -367,20 +367,23 @@ El proyecto tiene una **base sólida** con una buena arquitectura multi-tenant, 
 
 ### ✅ Progreso de esta sesión (16 Feb 2026)
 
-Se corrigieron **15 de 19 problemas identificados**, incluyendo:
-- **Todos los bugs críticos (P0)** — Reversión FIFO, validación de totales, constraint UNIQUE, ValidationPipe
-- **Todos los problemas de seguridad críticos (P1)** — CORS, tenant ban, rollback Supabase
-- **La mayoría de inconsistencias (P2/P3)** — Timezone dinámica, warehouseId en Invoice, caché de barcode, logs, soft-delete, protección de warehouse
+Se incorporaron mejoras adicionales, incluyendo:
+- **Auditoría/Activity Logs** (módulo `audit` completo).
+- **Numeración por tenant** en facturas y compras (secuencias).
+- **Compatibilidad de método PUT** en expenses (frontend/backend alineados).
 
 ### Migraciones aplicadas en Supabase:
 1. `add_timezone_to_tenant` — Campo `timezone` en Tenant
 2. `add_warehouseid_to_invoice` — Campo `warehouseId` en Invoice
 3. `remove_unique_constraint_purchaseitemid` — Remover UNIQUE de StockBatch.purchaseItemId
 
-### ❌ Pendiente (4 items):
-1. Validación de `docNumber` para nulls (P2)
-2. Autoincrement por tenant para facturas (P2)
-3. Migración de `imageUrl` deprecated (P3)
-4. Uso de `@Roles` en BackupController (P3)
+### ❌ Pendiente (actual):
+1. Validación de `docNumber` cuando es `null` (clientes).
+2. `@Roles('SUPER_ADMIN')` en endpoints globales de `BackupController`.
+3. Reemplazar `$queryRawUnsafe` en `CatalogService`.
+4. Optimizar `getDashboardStats` (evitar cargas completas en memoria).
+5. Reducir N+1 en transferencias FIFO.
+6. Migración de `imageUrl` deprecated.
+7. Paginación faltante en `categories`, `warehouses` y `users`.
 
 Las funcionalidades faltantes son necesarias para un sistema de inventario robusto. Se recomienda implementarlas en fases, priorizando las que afectan la **integridad de datos** y la **seguridad**.

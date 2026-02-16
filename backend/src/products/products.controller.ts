@@ -32,6 +32,7 @@ export class ProductsController {
         @Query('minPrice') minPrice?: string,
         @Query('maxPrice') maxPrice?: string,
         @Query('stockStatus') stockStatus?: string,
+        @Query('refresh') refresh?: string,
     ) {
         return this.productsService.findAllWithTotalStock(
             tenantId,
@@ -43,7 +44,8 @@ export class ProductsController {
                 minPrice: minPrice ? parseFloat(minPrice) : undefined,
                 maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
                 stockStatus,
-            }
+            },
+            !!refresh
         );
     }
 

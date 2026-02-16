@@ -163,7 +163,8 @@ export class ProductsService {
             minPrice?: number;
             maxPrice?: number;
             stockStatus?: string;
-        }
+        },
+        refresh: boolean = false
     ) {
         if (!tenantId) {
             console.error('❌ [ProductsService] Intento de findAllWithTotalStock sin tenantId');
@@ -178,13 +179,15 @@ export class ProductsService {
             `p${page}-l${limit}-s${search || 'all'}-c${filters?.categoryId || 'all'}-min${filters?.minPrice || '0'}-max${filters?.maxPrice || 'inf'}-st${filters?.stockStatus || 'all'}`
         );
 
-        try {
-            const cached = await this.cacheService.get<any>(cacheKey);
-            if (cached) {
-                return cached;
+        if (!refresh) {
+            try {
+                const cached = await this.cacheService.get<any>(cacheKey);
+                if (cached) {
+                    return cached;
+                }
+            } catch (e) {
+                console.error('⚠️ [ProductsService] Error leyendo caché:', e.message);
             }
-        } catch (e) {
-            console.error('⚠️ [ProductsService] Error leyendo caché:', e.message);
         }
 
         const where: any = {
