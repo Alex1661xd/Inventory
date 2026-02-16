@@ -14,8 +14,9 @@ export class CustomersService {
     ) { }
 
     private async invalidateCustomersCache(tenantId: string, customerId?: string) {
-        const listKey = this.cacheService.generateKey(tenantId, 'customers', 'list');
-        await this.cacheService.invalidate(listKey);
+        // Invalidar lista general (todas las combinaciones de paginación/búsqueda)
+        const listPattern = this.cacheService.generateKey(tenantId, 'customers', 'list', '*');
+        await this.cacheService.invalidatePattern(listPattern);
 
         if (customerId) {
             const detailKey = this.cacheService.generateKey(tenantId, 'customers', 'detail', customerId);

@@ -412,8 +412,10 @@ let ProductsService = class ProductsService {
         }
     }
     async invalidateProductCache(tenantId, productId, barcode) {
-        const listKey = this.cacheService.generateKey(tenantId, 'products', 'list');
-        await this.cacheService.invalidate(listKey);
+        const listPattern = this.cacheService.generateKey(tenantId, 'products', 'list', '*');
+        await this.cacheService.invalidatePattern(listPattern);
+        const analyticsPattern = this.cacheService.generateKey(tenantId, 'analytics', '*');
+        await this.cacheService.invalidatePattern(analyticsPattern);
         if (productId) {
             const detailKey = this.cacheService.generateKey(tenantId, 'products', 'detail', productId);
             await this.cacheService.invalidate(detailKey);

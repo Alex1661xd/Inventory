@@ -16,15 +16,9 @@ export class InvoicesService {
     ) { }
 
     private async invalidateInvoicesCache(tenantId: string, invoiceId?: string, sellerId?: string) {
-        // Invalidate "all" list
-        const allListKey = this.cacheService.generateKey(tenantId, 'invoices', 'list', 'all');
-        await this.cacheService.invalidate(allListKey);
-
-        // Invalidate specific seller list if provided
-        if (sellerId) {
-            const sellerListKey = this.cacheService.generateKey(tenantId, 'invoices', 'list', sellerId);
-            await this.cacheService.invalidate(sellerListKey);
-        }
+        // Invalidate all variants of paginated lists (all sellers, filters, etc)
+        const listPattern = this.cacheService.generateKey(tenantId, 'invoices', 'list', '*');
+        await this.cacheService.invalidatePattern(listPattern);
 
         if (invoiceId) {
             const detailKey = this.cacheService.generateKey(tenantId, 'invoices', 'detail', invoiceId);

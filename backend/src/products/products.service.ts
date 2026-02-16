@@ -518,9 +518,13 @@ export class ProductsService {
      * Invalida todo el caché de productos de un tenant
      */
     private async invalidateProductCache(tenantId: string, productId?: string, barcode?: string | null) {
-        // Invalidar lista general
-        const listKey = this.cacheService.generateKey(tenantId, 'products', 'list');
-        await this.cacheService.invalidate(listKey);
+        // Invalidar lista general (todas las combinaciones de paginación/filtros)
+        const listPattern = this.cacheService.generateKey(tenantId, 'products', 'list', '*');
+        await this.cacheService.invalidatePattern(listPattern);
+
+        // Invalidar estadísticas de BI (siempre deben refrescarse si cambia el catálogo)
+        const analyticsPattern = this.cacheService.generateKey(tenantId, 'analytics', '*');
+        await this.cacheService.invalidatePattern(analyticsPattern);
 
         // Si hay un productId, invalidar ese producto específico
         if (productId) {
