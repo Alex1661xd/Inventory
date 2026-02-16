@@ -62,8 +62,8 @@ export function CustomerSelector({
     const loadCustomers = async () => {
         setLoading(true)
         try {
-            const data = await api.customers.list()
-            setCustomers(data)
+            const result = await api.customers.list()
+            setCustomers(result.data)
         } catch (e) {
             console.error(e)
         } finally {

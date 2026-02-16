@@ -89,7 +89,6 @@ const FIELD_LABELS: Record<string, string> = {
     buyerId: 'Comprador',
     sellerId: 'Vendedor',
     paymentStatus: 'Estado de Pago',
-    isPublic: 'Visible en Catálogo',
     initialStock: 'Stock Inicial',
     initialWarehouseId: 'Bodega Inicial',
 }
