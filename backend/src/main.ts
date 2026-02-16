@@ -17,14 +17,24 @@ async function bootstrap() {
   }));
 
   // ✅ CORS restringido al dominio del frontend
+  const frontendUrl = process.env.FRONTEND_URL;
   const allowedOrigins = [
-    process.env.FRONTEND_URL || 'http://localhost:3001',
+    frontendUrl,
+    frontendUrl ? frontendUrl.replace(/\/$/, '') : null, // Sin barra final
     'http://localhost:3001',
     'http://localhost:3000',
-  ].filter(Boolean);
+  ].filter(Boolean) as string[];
 
   app.enableCors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      // Si no hay origin (como en apps móviles o herramientas tipo Postman) o está en la lista blanca
+      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
+        callback(null, true);
+      } else {
+        console.error(`[CORS] Rejected origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
