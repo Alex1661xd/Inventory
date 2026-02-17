@@ -11,14 +11,15 @@ export class AuthService {
     ) { }
 
     async registerBusiness(dto: RegisterBusinessDto) {
+        const registrationCode = dto.registrationCode?.trim().toUpperCase();
 
         // 0. Validar Codigo de Registro (SuperAdmin)
-        if (!dto.registrationCode) {
+        if (!registrationCode) {
             throw new BadRequestException('Se requiere un código de invitación para registrarse.');
         }
 
         const validCode = await this.prisma.registrationCode.findUnique({
-            where: { code: dto.registrationCode }
+            where: { code: registrationCode }
         });
 
         if (!validCode) {
@@ -119,3 +120,4 @@ export class AuthService {
         }
     }
 }
+
