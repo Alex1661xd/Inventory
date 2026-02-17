@@ -112,13 +112,22 @@ export class SuperAdminService {
         return 'image/jpeg';
     }
 
-    private buildCatalogMetaPrompt(productDescription: string, userDescription: string, whatsapp?: string) {
+    private buildCatalogMetaPrompt(productDescription: string, userDescription: string, whatsapp?: string, variantStates: string[] = []) {
         let metaPrompt = `Tu tarea es refinar y mejorar el siguiente prompt para generacion de imagenes de catalogo comercial, con estas REGLAS ESTRICTAS:\n\n`;
 
         if (userDescription.trim()) {
             metaPrompt += `REGLA CRITICA: El cliente ha solicitado lo siguiente y DEBE aparecer TEXTUALMENTE en tu prompt refinado:\n"${userDescription}"\n\n`;
             metaPrompt += `NO PUEDES:\n- Omitir esta solicitud\n- Reformularla de manera que pierda el sentido original\n- Ignorarla o minimizarla\n- Ponerla como opcional\n\n`;
             metaPrompt += `DEBES:\n- Incluirla EXACTAMENTE como esta escrita\n- Marcarla como REQUISITO OBLIGATORIO en tu prompt refinado\n- Darle MAXIMA PRIORIDAD sobre otras instrucciones\n\n`;
+        }
+
+        if (variantStates.length > 0) {
+            metaPrompt += `REGLA CRITICA DE VARIANTES: Debes crear un prompt base que permita generar exactamente ${variantStates.length} variantes del MISMO producto, sin cambiar identidad, materiales, color ni estructura.\n`;
+            metaPrompt += `Estados solicitados (obligatorios):\n`;
+            variantStates.forEach((state, idx) => {
+                metaPrompt += `- Variante ${idx + 1}: ${state}\n`;
+            });
+            metaPrompt += `\nNO PUEDES ignorar estos estados ni mezclarlos incorrectamente.\n\n`;
         }
 
         metaPrompt += `Ahora refina este prompt para que sea claro, especifico y efectivo para un modelo de generacion de imagenes:\n\n---PROMPT A REFINAR---\n\n`;
@@ -129,6 +138,14 @@ export class SuperAdminService {
         if (userDescription.trim()) {
             promptBase += `REQUISITOS OBLIGATORIOS DEL CLIENTE (MAXIMA PRIORIDAD):\n${userDescription}\n\n`;
             promptBase += `Estos requisitos son MANDATORIOS y tienen prioridad absoluta sobre cualquier otra instruccion.\n\n`;
+        }
+
+        if (variantStates.length > 0) {
+            promptBase += `VARIANTES OBLIGATORIAS A GENERAR (MISMO PRODUCTO):\n`;
+            variantStates.forEach((state, idx) => {
+                promptBase += `- Variante ${idx + 1}: ${state}\n`;
+            });
+            promptBase += `Estas variantes son obligatorias y deben respetar fielmente el producto de referencia.\n\n`;
         }
 
         promptBase += `PRODUCTO:\n`;
@@ -595,7 +612,17 @@ export class SuperAdminService {
             'No fue posible obtener una descripcion del producto desde Gemini',
         );
 
-        const metaPrompt = this.buildCatalogMetaPrompt(analyzedProductDescription, userDescription, normalizedWhatsapp);
+        const normalizedVariantStates = (variantStates || [])
+            .map((value) => (value || '').trim())
+            .filter((value) => value.length > 0)
+            .slice(0, 3);
+
+        const metaPrompt = this.buildCatalogMetaPrompt(
+            analyzedProductDescription,
+            userDescription,
+            normalizedWhatsapp,
+            normalizedVariantStates,
+        );
         const refinePayload = {
             contents: [{ parts: [{ text: metaPrompt }] }],
         };
@@ -609,15 +636,25 @@ export class SuperAdminService {
             'No fue posible obtener el prompt refinado desde Gemini',
         );
 
-        const images = await Promise.all(
+        const imageResults = await Promise.all(
             Array.from({ length: safeCount }).map(async (_, index) => {
                 const generationParts: any[] = [];
-                const variantInstruction = variantStates[index]
-                    ? `Variacion ${index + 1}: ${variantStates[index]}.`
+                const variantInstruction = normalizedVariantStates[index]
+                    ? `Variacion ${index + 1} OBLIGATORIA: ${normalizedVariantStates[index]}.`
                     : `Variacion ${index + 1} de ${safeCount}: cambia solo encuadre/iluminacion/fondo, manteniendo producto identico.`;
 
+                const strictVariantPrompt = [
+                    refinedPrompt,
+                    '',
+                    'REGLAS ESTRICTAS PARA ESTA SALIDA:',
+                    `- ${variantInstruction}`,
+                    '- Mantener EXACTAMENTE el mismo producto de referencia.',
+                    '- No cambiar color/material/estructura del producto.',
+                    '- No omitir requisitos del cliente si fueron definidos.',
+                ].join('\n');
+
                 generationParts.push({
-                    text: `${refinedPrompt}\n\n${variantInstruction}`,
+                    text: strictVariantPrompt,
                 });
 
                 for (const ref of refs) {
@@ -652,11 +689,24 @@ export class SuperAdminService {
                 return {
                     index: index + 1,
                     model: modelUsed,
+                    prompt_used: strictVariantPrompt,
                     image_base64: generatedImageBase64,
                     image_url: `data:image/png;base64,${generatedImageBase64}`,
                 };
             }),
         );
+
+        const images = imageResults.map(({ index, model, image_base64, image_url }) => ({
+            index,
+            model,
+            image_base64,
+            image_url,
+        }));
+
+        const prompts_by_image = imageResults.map(({ index, prompt_used }) => ({
+            index,
+            prompt_used,
+        }));
 
         return {
             success: true,
@@ -672,7 +722,8 @@ export class SuperAdminService {
             prompt_final: refinedPrompt,
             count: safeCount,
             reference_count: refs.length,
-            variant_states: variantStates,
+            variant_states: normalizedVariantStates,
+            prompts_by_image,
             images,
             image_base64: images[0]?.image_base64 || null,
             image_url: images[0]?.image_url || null,

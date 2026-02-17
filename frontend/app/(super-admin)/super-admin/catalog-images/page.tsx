@@ -24,6 +24,11 @@ type GeneratedImageResponse = {
     prompt_final: string;
     count: number;
     reference_count?: number;
+    variant_states?: string[];
+    prompts_by_image?: Array<{
+        index: number;
+        prompt_used: string;
+    }>;
     images: Array<{
         index: number;
         model: string;
@@ -46,9 +51,9 @@ export default function CatalogImagesPage() {
 
     const [images, setImages] = useState<File[]>([])
     const [variantRefs, setVariantRefs] = useState<File[]>([])
-    const [variant1, setVariant1] = useState('Vista principal (ej: puertas cerradas)')
-    const [variant2, setVariant2] = useState('Segunda vista (ej: puertas abiertas)')
-    const [variant3, setVariant3] = useState('Tercera vista (ej: detalle interior)')
+    const [variant1, setVariant1] = useState('')
+    const [variant2, setVariant2] = useState('')
+    const [variant3, setVariant3] = useState('')
 
     const [description, setDescription] = useState('')
     const [whatsapp, setWhatsapp] = useState('')
@@ -313,9 +318,24 @@ export default function CatalogImagesPage() {
                         {mode === 'variants' && (
                             <div className="space-y-2 rounded-xl border border-slate-800 p-3 bg-slate-950/50">
                                 <Label className="text-slate-200">Estados/escenas deseadas (3 salidas)</Label>
-                                <Input value={variant1} onChange={(e) => setVariant1(e.target.value)} className="bg-slate-950 border-slate-800 text-white" />
-                                <Input value={variant2} onChange={(e) => setVariant2(e.target.value)} className="bg-slate-950 border-slate-800 text-white" />
-                                <Input value={variant3} onChange={(e) => setVariant3(e.target.value)} className="bg-slate-950 border-slate-800 text-white" />
+                                <Input
+                                    value={variant1}
+                                    onChange={(e) => setVariant1(e.target.value)}
+                                    placeholder="Vista principal (ej: puertas cerradas)"
+                                    className="bg-slate-950 border-slate-800 text-white placeholder:text-slate-500"
+                                />
+                                <Input
+                                    value={variant2}
+                                    onChange={(e) => setVariant2(e.target.value)}
+                                    placeholder="Segunda vista (ej: puertas abiertas)"
+                                    className="bg-slate-950 border-slate-800 text-white placeholder:text-slate-500"
+                                />
+                                <Input
+                                    value={variant3}
+                                    onChange={(e) => setVariant3(e.target.value)}
+                                    placeholder="Tercera vista (ej: detalle interior)"
+                                    className="bg-slate-950 border-slate-800 text-white placeholder:text-slate-500"
+                                />
                             </div>
                         )}
 
@@ -455,6 +475,20 @@ export default function CatalogImagesPage() {
                                                 {currentResult.result.prompt_final}
                                             </div>
                                         </div>
+
+                                        {currentResult.result.prompts_by_image && currentResult.result.prompts_by_image.length > 0 && (
+                                            <div className="space-y-2 mt-3">
+                                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Prompt exacto por salida</p>
+                                                <div className="space-y-2">
+                                                    {currentResult.result.prompts_by_image.map((item) => (
+                                                        <details key={`prompt-${item.index}`} className="rounded-lg border border-slate-800 bg-slate-950 p-2">
+                                                            <summary className="cursor-pointer text-xs text-slate-300">Salida {item.index}</summary>
+                                                            <pre className="mt-2 text-[11px] text-slate-300 whitespace-pre-wrap">{item.prompt_used}</pre>
+                                                        </details>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </>
                                 )}
 

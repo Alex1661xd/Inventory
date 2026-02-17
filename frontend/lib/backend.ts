@@ -586,6 +586,11 @@ export const api = {
                     whatsapp: string;
                     prompt_final: string;
                     count: number;
+                    variant_states?: string[];
+                    prompts_by_image?: Array<{
+                        index: number;
+                        prompt_used: string;
+                    }>;
                     images: Array<{
                         index: number;
                         model: string;
