@@ -1910,7 +1910,7 @@ export default function POSPage() {
                                             const created = await api.customers.create({
                                                 name: newCustomerName.trim(),
                                                 docNumber: newCustomerDoc.trim(),
-                                                phone: `${newCustomerCountryCode}${newCustomerPhone.replace(/\D/g, '')}`
+                                                phone: `+${newCustomerCountryCode}${newCustomerPhone.replace(/\D/g, '')}`
                                             })
                                             setSelectedCustomer(created)
                                             setShowCreateCustomer(false)

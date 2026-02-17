@@ -1,11 +1,11 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/backend'
 import { Button } from '@/components/ui/button'
-import { ShieldAlert, Users, LogOut, KeyRound, Database, Images } from 'lucide-react'
+import { ShieldAlert, Users, LogOut, KeyRound, Database, Images, Menu, X } from 'lucide-react'
 
 export default function SuperAdminLayout({
     children,
@@ -14,6 +14,7 @@ export default function SuperAdminLayout({
 }) {
     const router = useRouter()
     const [loading, setLoading] = useState(true)
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
     useEffect(() => {
         checkAuth()
@@ -27,7 +28,7 @@ export default function SuperAdminLayout({
             } else {
                 setLoading(false)
             }
-        } catch (error) {
+        } catch {
             router.replace('/login')
         }
     }
@@ -39,64 +40,88 @@ export default function SuperAdminLayout({
             router.push('/login')
         } catch (error) {
             console.error('Error logging out:', error)
-            // Fallback: clear local storage and redirect
             localStorage.clear()
             router.push('/login')
         }
     }
 
-    if (loading) return (
-        <div className="flex items-center justify-center min-h-screen bg-slate-950 text-white">
-            <ShieldAlert className="w-12 h-12 animate-pulse text-red-500" />
-        </div>
-    )
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-slate-950 text-white">
+                <ShieldAlert className="w-12 h-12 animate-pulse text-red-500" />
+            </div>
+        )
+    }
 
     return (
-        <div className="flex min-h-screen bg-slate-950 text-slate-100">
-            {/* Sidebar */}
-            <div className="w-64 border-r border-slate-800 p-6 flex flex-col">
-                <div className="flex items-center gap-3 mb-10">
-                    <div className="p-2 bg-red-500/10 rounded-lg">
-                        <ShieldAlert className="w-6 h-6 text-red-500" />
+        <div className="flex min-h-screen flex-col lg:flex-row bg-slate-950 text-slate-100">
+            <aside className="w-full lg:w-64 border-b lg:border-b-0 lg:border-r border-slate-800 p-4 sm:p-6 flex flex-col">
+                <div className="flex items-center justify-between mb-2 lg:mb-10">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-red-500/10 rounded-lg">
+                            <ShieldAlert className="w-6 h-6 text-red-500" />
+                        </div>
+                        <div>
+                            <h1 className="font-black tracking-tighter text-lg">SUPER ADMIN</h1>
+                            <p className="text-xs text-slate-500 font-mono">Modo Dios</p>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="font-black tracking-tighter text-lg">SUPER ADMIN</h1>
-                        <p className="text-xs text-slate-500 font-mono">Modo Diós</p>
-                    </div>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="lg:hidden"
+                        onClick={() => setMobileMenuOpen((prev) => !prev)}
+                    >
+                        {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                    </Button>
                 </div>
 
-                <nav className="flex-1 space-y-2">
-                    <Link href="/super-admin" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 transition-colors font-bold text-sm">
+                <nav className={`${mobileMenuOpen ? 'flex' : 'hidden'} lg:flex flex-col gap-2 pb-2 lg:pb-0`}>
+                    <Link
+                        href="/super-admin"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 transition-colors font-bold text-xs sm:text-sm"
+                    >
                         <KeyRound className="w-4 h-4 text-emerald-500" />
-                        Códigos de Acceso
+                        Codigos de Acceso
                     </Link>
-                    <Link href="/super-admin/tenants" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 transition-colors font-bold text-sm">
+                    <Link
+                        href="/super-admin/tenants"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 transition-colors font-bold text-xs sm:text-sm"
+                    >
                         <Users className="w-4 h-4 text-blue-500" />
-                        Gestión de Negocios
+                        Gestion de Negocios
                     </Link>
-                    <Link href="/super-admin/backup" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 transition-colors font-bold text-sm">
+                    <Link
+                        href="/super-admin/backup"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 transition-colors font-bold text-xs sm:text-sm"
+                    >
                         <Database className="w-4 h-4 text-indigo-500" />
                         Respaldo Global
                     </Link>
-                    <Link href="/super-admin/catalog-images" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 transition-colors font-bold text-sm">
+                    <Link
+                        href="/super-admin/catalog-images"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 transition-colors font-bold text-xs sm:text-sm"
+                    >
                         <Images className="w-4 h-4 text-emerald-500" />
-                        Imágenes de Catálogo
+                        Imagenes de Catalogo
                     </Link>
+                    <Button
+                        variant="ghost"
+                        onClick={handleLogout}
+                        className="mt-2 lg:mt-auto flex items-center justify-start gap-3 hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                    >
+                        <LogOut className="w-4 h-4" />
+                        Cerrar Sesion
+                    </Button>
                 </nav>
+            </aside>
 
-                <Button
-                    variant="ghost"
-                    onClick={handleLogout}
-                    className="mt-auto flex items-center justify-start gap-3 hover:bg-red-500/10 hover:text-red-500 transition-colors"
-                >
-                    <LogOut className="w-4 h-4" />
-                    Cerrar Sesión
-                </Button>
-            </div>
-
-            {/* Content */}
             <main className="flex-1 overflow-y-auto">
-                <div className="p-8 max-w-7xl mx-auto">
+                <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
                     {children}
                 </div>
             </main>

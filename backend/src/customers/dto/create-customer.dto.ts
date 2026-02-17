@@ -1,4 +1,5 @@
 import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateCustomerDto {
     @IsString()
@@ -7,6 +8,11 @@ export class CreateCustomerDto {
 
     @IsEmail()
     @IsOptional()
+    @Transform(({ value }) => {
+        if (typeof value !== 'string') return value;
+        const trimmed = value.trim();
+        return trimmed === '' ? undefined : trimmed;
+    })
     email?: string;
 
     @IsString()
@@ -15,6 +21,11 @@ export class CreateCustomerDto {
 
     @IsString()
     @IsOptional()
+    @Transform(({ value }) => {
+        if (typeof value !== 'string') return value;
+        const trimmed = value.trim();
+        return trimmed === '' ? undefined : trimmed;
+    })
     address?: string;
 
     @IsString()
