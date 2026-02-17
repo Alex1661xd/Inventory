@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { SupabaseService } from '../supabase/supabase.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterBusinessDto } from './dto/register-business.dto';
@@ -10,12 +11,29 @@ export class AuthService {
         private readonly prisma: PrismaService,
     ) { }
 
+    private formatPrismaError(error: unknown): string {
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+            if (error.code === 'P2002') {
+                const rawTarget = (error.meta as { target?: string[] | string } | undefined)?.target;
+                const target = Array.isArray(rawTarget) ? rawTarget.join(', ') : (rawTarget ?? 'campo unico');
+                return `Conflicto de unicidad en: ${target}`;
+            }
+            return `Prisma(${error.code}): ${error.message}`;
+        }
+
+        if (error instanceof Error) {
+            return error.message;
+        }
+
+        return 'Error desconocido';
+    }
+
     async registerBusiness(dto: RegisterBusinessDto) {
         const registrationCode = dto.registrationCode?.trim().toUpperCase();
 
-        // 0. Validar Codigo de Registro (SuperAdmin)
+        // 0. Validate registration code
         if (!registrationCode) {
-            throw new BadRequestException('Se requiere un código de invitación para registrarse.');
+            throw new BadRequestException('Se requiere un codigo de invitacion para registrarse.');
         }
 
         const validCode = await this.prisma.registrationCode.findUnique({
@@ -23,56 +41,54 @@ export class AuthService {
         });
 
         if (!validCode) {
-            throw new BadRequestException('Código de invitación inválido.');
+            throw new BadRequestException('Codigo de invitacion invalido.');
         }
 
         if (validCode.isUsed) {
-            throw new BadRequestException('Este código de invitación ya fue utilizado.');
+            throw new BadRequestException('Este codigo de invitacion ya fue utilizado.');
         }
 
         if (validCode.expiresAt && validCode.expiresAt < new Date()) {
-            throw new BadRequestException('El código de invitación ha expirado.');
+            throw new BadRequestException('El codigo de invitacion ha expirado.');
         }
 
-        // 1. Crear usuario en Supabase Auth usando el API de ADMIN
-        // Esto permite marcar el email como confirmado automáticamente y evita el límite de envíos (Rate Limit)
+        // 1. Create user in Supabase Auth
         const { data: authData, error: authError } = await this.supabaseService
             .getClient()
             .auth.admin.createUser({
                 email: dto.email,
                 password: dto.password,
-                email_confirm: true, // Salta la confirmación por email
+                email_confirm: true,
                 user_metadata: {
                     name: dto.userName,
                 }
             });
 
         if (authError || !authData.user) {
-            throw new BadRequestException(authError?.message || 'Error creating user in Supabase');
+            throw new BadRequestException(
+                `AUTH_CREATE: ${authError?.message || 'No se pudo crear usuario en Supabase Auth'}`
+            );
         }
 
         const userId = authData.user.id;
 
         try {
-            // 2. Transacción en Prisma
+            // 2. DB transaction
             const result = await this.prisma.$transaction(async (tx) => {
-                // a. Generar slug simple
                 const slug = dto.businessName
                     .toLowerCase()
                     .trim()
                     .replace(/ /g, '-')
-                    .replace(/[^\w-]/g, '') + '-' + Date.now().toString().slice(-4); // Agregamos sufijo simple temporal
+                    .replace(/[^\w-]/g, '') + '-' + Date.now().toString().slice(-4);
 
-                // b. Crear Tenant
                 const tenant = await tx.tenant.create({
                     data: {
                         name: dto.businessName,
-                        slug: slug,
-                        registrationCodeId: validCode.id, // VINCULAMOS AL CODIGO
+                        slug,
+                        registrationCodeId: validCode.id,
                     },
                 });
 
-                // c. Marcar codigo como USADO
                 await tx.registrationCode.update({
                     where: { id: validCode.id },
                     data: {
@@ -81,10 +97,9 @@ export class AuthService {
                     }
                 });
 
-                // d. Crear User local vinculado
                 const user = await tx.user.create({
                     data: {
-                        id: userId, // Mismo ID que Supabase
+                        id: userId,
                         email: dto.email,
                         name: dto.userName,
                         password: 'MANAGED_BY_SUPABASE',
@@ -93,7 +108,6 @@ export class AuthService {
                     },
                 });
 
-                // d. Crear Warehouse inicial
                 await tx.warehouse.create({
                     data: {
                         name: 'Bodega Principal',
@@ -107,17 +121,22 @@ export class AuthService {
 
             return result;
 
-        } catch (error: any) {
-            // Si falla la BD, borramos el usuario de Supabase para no dejar "huerfanos"
+        } catch (error: unknown) {
+            const dbErrorDetail = this.formatPrismaError(error);
+
+            // 3. Rollback auth user if DB transaction fails
             try {
                 await this.supabaseService.getClient().auth.admin.deleteUser(userId);
-                console.log(`🧹 [Auth] Rollback: Usuario Supabase ${userId} eliminado tras fallo en BD`);
+                console.log(`[Auth] Rollback successful: Supabase user ${userId} removed after DB failure`);
             } catch (rollbackErr: any) {
-                console.error(`⚠️ [Auth] Error en rollback de Supabase: ${rollbackErr.message}`);
+                console.error(`[Auth] Rollback failed for user ${userId}: ${rollbackErr?.message}`);
+                throw new BadRequestException(
+                    `DB_TX: ${dbErrorDetail} | AUTH_ROLLBACK: ${rollbackErr?.message ?? 'No se pudo eliminar usuario huerfano en Auth'}`
+                );
             }
-            console.error('Registration Transaction Failed:', error);
-            throw new BadRequestException('Error registering business: ' + error.message);
+
+            console.error('Registration transaction failed:', error);
+            throw new BadRequestException(`DB_TX: ${dbErrorDetail}`);
         }
     }
 }
-

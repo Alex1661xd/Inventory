@@ -747,6 +747,78 @@ export class SuperAdminService {
             where: { id: codeId },
         });
     }
+
+    async cleanupAuthOrphans(dryRun: boolean = true) {
+        const authUsers: Array<{ id: string; email?: string | null; created_at?: string | null }> = [];
+        const perPage = 200;
+        let page = 1;
+
+        while (true) {
+            const { data, error } = await this.supabaseService.getClient().auth.admin.listUsers({
+                page,
+                perPage,
+            });
+
+            if (error) {
+                throw new BadRequestException(`No se pudo listar usuarios de Auth: ${error.message}`);
+            }
+
+            const batch = data?.users ?? [];
+            if (batch.length === 0) break;
+
+            for (const u of batch) {
+                authUsers.push({
+                    id: u.id,
+                    email: u.email,
+                    created_at: (u as any).created_at ?? null,
+                });
+            }
+
+            if (batch.length < perPage) break;
+            page += 1;
+        }
+
+        const appUsers = await this.prisma.user.findMany({
+            select: { id: true },
+        });
+        const appUserIds = new Set(appUsers.map((u) => u.id));
+
+        const orphanUsers = authUsers.filter((u) => !appUserIds.has(u.id));
+
+        const deleted: Array<{ id: string; email?: string | null }> = [];
+        const failed: Array<{ id: string; email?: string | null; error: string }> = [];
+
+        if (!dryRun) {
+            for (const orphan of orphanUsers) {
+                const { error } = await this.supabaseService.getClient().auth.admin.deleteUser(orphan.id);
+                if (error) {
+                    failed.push({
+                        id: orphan.id,
+                        email: orphan.email,
+                        error: error.message,
+                    });
+                    continue;
+                }
+                deleted.push({ id: orphan.id, email: orphan.email });
+            }
+        }
+
+        return {
+            dryRun,
+            totalAuthUsers: authUsers.length,
+            totalAppUsers: appUsers.length,
+            orphanCount: orphanUsers.length,
+            candidates: orphanUsers.map((u) => ({
+                id: u.id,
+                email: u.email,
+                createdAt: u.created_at ?? null,
+            })),
+            deletedCount: deleted.length,
+            failedCount: failed.length,
+            deleted,
+            failed,
+        };
+    }
 }
 
 

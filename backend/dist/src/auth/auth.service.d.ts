@@ -5,12 +5,13 @@ export declare class AuthService {
     private readonly supabaseService;
     private readonly prisma;
     constructor(supabaseService: SupabaseService, prisma: PrismaService);
+    private formatPrismaError;
     registerBusiness(dto: RegisterBusinessDto): Promise<{
         user: {
             id: string;
-            name: string;
             email: string;
             password: string;
+            name: string;
             role: import("@prisma/client").$Enums.Role;
             tenantId: string;
             warehouseId: string | null;

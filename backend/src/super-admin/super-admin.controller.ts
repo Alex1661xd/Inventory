@@ -5,6 +5,7 @@ import { SuperAdminGuard } from './guards/super-admin.guard';
 import { GenerateCodesDto } from './dto/generate-codes.dto';
 import { DeleteTenantDataDto } from './dto/delete-tenant-data.dto';
 import { GenerateCatalogImageDto } from './dto/generate-catalog-image.dto';
+import { CleanupAuthOrphansDto } from './dto/cleanup-auth-orphans.dto';
 
 @Controller('super-admin')
 @UseGuards(SuperAdminGuard)
@@ -77,5 +78,10 @@ export class SuperAdminController {
             .filter((value) => value.length > 0);
 
         return this.superAdminService.generateCatalogImage(images, dto.description, dto.whatsapp, dto.count, variants);
+    }
+
+    @Post('auth/cleanup-orphans')
+    cleanupAuthOrphans(@Body() dto: CleanupAuthOrphansDto) {
+        return this.superAdminService.cleanupAuthOrphans(dto.dryRun ?? true);
     }
 }
