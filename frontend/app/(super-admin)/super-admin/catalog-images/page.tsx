@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
-import { ImagePlus, Loader2, Sparkles, Download, ChevronLeft, ChevronRight, Camera, X } from 'lucide-react'
+import { ImagePlus, Loader2, Sparkles, Download, ChevronLeft, ChevronRight, Camera, X, Trash2 } from 'lucide-react'
 
 type GeneratedImageResponse = {
     success: boolean;
@@ -78,16 +78,39 @@ export default function CatalogImagesPage() {
         }
     }, [previewUrls])
 
+    useEffect(() => {
+        if (cameraOpen && streamRef.current) {
+            void attachStreamToVideo(streamRef.current)
+        }
+    }, [cameraOpen])
+
+    const attachStreamToVideo = async (stream: MediaStream) => {
+        if (!videoRef.current) return
+        videoRef.current.srcObject = stream
+        videoRef.current.muted = true
+        videoRef.current.setAttribute('playsinline', 'true')
+        try {
+            await videoRef.current.play()
+        } catch {
+            // Ignorar: algunos navegadores lo resuelven luego de interacción.
+        }
+    }
+
     const openCamera = async (target: 'individual' | 'variants') => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+            let stream: MediaStream
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+            } catch {
+                // Fallback si la cámara trasera no está disponible.
+                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+            }
+
             streamRef.current = stream
             setCameraTarget(target)
             setCameraOpen(true)
             setTimeout(() => {
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream
-                }
+                void attachStreamToVideo(stream)
             }, 0)
         } catch {
             toast.error('No se pudo acceder a la camara')
@@ -100,6 +123,14 @@ export default function CatalogImagesPage() {
             streamRef.current = null
         }
         setCameraOpen(false)
+    }
+
+    const removeSourceFile = (index: number) => {
+        if (mode === 'individual') {
+            setImages((prev) => prev.filter((_, i) => i !== index))
+        } else {
+            setVariantRefs((prev) => prev.filter((_, i) => i !== index))
+        }
     }
 
     const capturePhoto = async () => {
@@ -321,10 +352,21 @@ export default function CatalogImagesPage() {
                             <div className="space-y-2">
                                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Vista previa ({previewUrls.length})</p>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                    {previewUrls.map((item) => (
+                                    {previewUrls.map((item, idx) => (
                                         <div key={item.name} className="space-y-1">
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src={item.url} alt={item.name} className="w-full rounded-lg border border-slate-800 object-cover h-24 bg-slate-950" />
+                                            <div className="relative">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={item.url} alt={item.name} className="w-full rounded-lg border border-slate-800 object-cover h-24 bg-slate-950" />
+                                                <Button
+                                                    type="button"
+                                                    size="icon"
+                                                    variant="destructive"
+                                                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                                                    onClick={() => removeSourceFile(idx)}
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </Button>
+                                            </div>
                                             <p className="text-[10px] text-slate-500 truncate">{item.name}</p>
                                         </div>
                                     ))}
@@ -424,18 +466,24 @@ export default function CatalogImagesPage() {
             </div>
 
             {cameraOpen && (
-                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-                    <div className="w-full max-w-2xl rounded-xl border border-slate-700 bg-slate-900 p-4 space-y-3">
+                <div className="fixed inset-0 z-50 bg-black flex items-center justify-center p-0 sm:p-4">
+                    <div className="w-full h-full sm:h-auto sm:max-h-[95vh] sm:max-w-5xl rounded-none sm:rounded-xl border-0 sm:border border-slate-700 bg-slate-900 p-3 sm:p-4 space-y-3">
                         <div className="flex items-center justify-between">
                             <h3 className="text-white font-semibold">Capturar foto</h3>
                             <Button variant="ghost" size="icon" onClick={closeCamera} className="text-slate-300">
                                 <X className="w-5 h-5" />
                             </Button>
                         </div>
-                        <video ref={videoRef} autoPlay playsInline className="w-full rounded-lg bg-black aspect-video object-cover" />
-                        <div className="flex gap-2 justify-end">
-                            <Button variant="outline" onClick={closeCamera} className="border-slate-700">Cancelar</Button>
-                            <Button onClick={capturePhoto} className="bg-emerald-600 hover:bg-emerald-700">Tomar foto</Button>
+                        <video
+                            ref={videoRef}
+                            autoPlay
+                            muted
+                            playsInline
+                            className="w-full h-[75vh] sm:h-[70vh] rounded-lg bg-black object-cover"
+                        />
+                        <div className="flex flex-col sm:flex-row gap-2 justify-end">
+                            <Button variant="outline" onClick={closeCamera} className="border-slate-700 w-full sm:w-auto">Cancelar</Button>
+                            <Button onClick={capturePhoto} className="bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto">Tomar foto</Button>
                         </div>
                     </div>
                 </div>
