@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 import JsBarcode from 'jsbarcode'
 import { jsPDF } from 'jspdf'
-import { api, type Product } from '@/lib/backend'
+import { api, type Product, type StockRow, type Warehouse } from '@/lib/backend'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -64,6 +64,8 @@ function GeneratingModal({ isOpen, total }: { isOpen: boolean; total: number }) 
 export function BarcodePrintPage() {
     const router = useRouter()
     const [products, setProducts] = useState<Product[]>([])
+    const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+    const [stockRows, setStockRows] = useState<StockRow[]>([])
     const [loading, setLoading] = useState(false)
     const [generating, setGenerating] = useState(false)
     const [search, setSearch] = useState('')
@@ -76,15 +78,47 @@ export function BarcodePrintPage() {
     const loadProducts = async () => {
         setLoading(true)
         try {
-            const response = await api.products.list({ limit: 1000 })
+            const [response, warehousesData, stockData] = await Promise.all([
+                api.products.list({ limit: 1000 }),
+                api.warehouses.list(),
+                api.inventory.stock({}),
+            ])
             const productsData = Array.isArray(response) ? response : (response?.data || [])
             // Only products with barcodes
             setProducts(productsData.filter((p: Product) => p.barcode))
+            setWarehouses(warehousesData)
+            setStockRows(stockData)
         } catch (e: any) {
             toast.error(e.message)
         } finally {
             setLoading(false)
         }
+    }
+
+    const stockByProductWarehouse = useMemo(() => {
+        const byProduct = new Map<string, Map<string, number>>()
+
+        for (const row of stockRows) {
+            const productMap = byProduct.get(row.productId) ?? new Map<string, number>()
+            productMap.set(row.warehouseId, (productMap.get(row.warehouseId) ?? 0) + (row.quantity ?? 0))
+            byProduct.set(row.productId, productMap)
+        }
+
+        return byProduct
+    }, [stockRows])
+
+    const sortedWarehouses = useMemo(
+        () => warehouses.slice().sort((a, b) => a.name.localeCompare(b.name)),
+        [warehouses]
+    )
+
+    const getProductStockByWarehouse = (productId: string) => {
+        const productMap = stockByProductWarehouse.get(productId)
+        return sortedWarehouses.map((warehouse) => ({
+            warehouseId: warehouse.id,
+            warehouseName: warehouse.name,
+            quantity: productMap?.get(warehouse.id) ?? 0,
+        }))
     }
 
     const filteredProducts = useMemo(() => {
@@ -348,6 +382,17 @@ export function BarcodePrintPage() {
                                             <div className="flex-1 min-w-0">
                                                 <div className="font-medium text-sm text-gray-900 truncate">{product.name}</div>
                                                 <div className="text-xs text-gray-500 font-mono">{product.barcode}</div>
+                                                {sortedWarehouses.length === 0 ? (
+                                                    <div className="mt-1.5 text-[11px] text-gray-500">Sin almacenes registrados</div>
+                                                ) : (
+                                                    <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-1 text-[11px] text-gray-600">
+                                                        {getProductStockByWarehouse(product.id).map((stock) => (
+                                                            <span key={`${product.id}-${stock.warehouseId}`} className="rounded bg-gray-100 px-1.5 py-0.5">
+                                                                {stock.warehouseName}: {stock.quantity}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                             {isSelected && (
                                                 <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-sm">
@@ -396,6 +441,17 @@ export function BarcodePrintPage() {
                                         <div className="flex-1 min-w-0">
                                             <div className="font-medium text-sm text-gray-900 truncate">{item.product.name}</div>
                                             <div className="text-xs text-gray-500 font-mono">{item.product.barcode}</div>
+                                            {sortedWarehouses.length === 0 ? (
+                                                <div className="mt-1.5 text-[11px] text-gray-500">Sin almacenes registrados</div>
+                                            ) : (
+                                                <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-1 text-[11px] text-gray-600">
+                                                    {getProductStockByWarehouse(item.product.id).map((stock) => (
+                                                        <span key={`${item.product.id}-${stock.warehouseId}`} className="rounded bg-gray-100 px-1.5 py-0.5">
+                                                            {stock.warehouseName}: {stock.quantity}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                         <Button
                                             variant="ghost"
