@@ -246,10 +246,10 @@ export default function CatalogImagesPage() {
                 <p className="text-slate-400">Modo individual o modo variantes del mismo producto (abierto/cerrado, etc.).</p>
             </div>
 
-            <div className="flex gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Button
                     variant={mode === 'individual' ? 'default' : 'outline'}
-                    className={mode === 'individual' ? 'bg-emerald-600 hover:bg-emerald-700' : 'border-slate-700 text-slate-200'}
+                    className={mode === 'individual' ? 'bg-emerald-600 hover:bg-emerald-700 text-white h-auto py-2 px-3 whitespace-normal text-left' : 'border-slate-700 text-slate-200 h-auto py-2 px-3 whitespace-normal text-left'}
                     onClick={() => {
                         setMode('individual')
                         setResults([])
@@ -259,7 +259,7 @@ export default function CatalogImagesPage() {
                 </Button>
                 <Button
                     variant={mode === 'variants' ? 'default' : 'outline'}
-                    className={mode === 'variants' ? 'bg-blue-600 hover:bg-blue-700' : 'border-slate-700 text-slate-200'}
+                    className={mode === 'variants' ? 'bg-blue-600 hover:bg-blue-700 text-white h-auto py-2 px-3 whitespace-normal text-left' : 'border-slate-700 text-slate-200 h-auto py-2 px-3 whitespace-normal text-left'}
                     onClick={() => {
                         setMode('variants')
                         setResults([])
@@ -303,7 +303,7 @@ export default function CatalogImagesPage() {
                                 <p className="text-xs text-slate-500">
                                     {mode === 'individual' ? 'Puedes subir hasta 5 productos.' : 'Puedes subir hasta 3 referencias del mismo producto.'}
                                 </p>
-                                <Button type="button" variant="outline" className="border-slate-700" onClick={() => openCamera(mode)}>
+                                <Button type="button" variant="outline" className="border-slate-700 text-slate-100 hover:bg-slate-800" onClick={() => openCamera(mode)}>
                                     <Camera className="w-4 h-4 mr-2" />
                                     Camara
                                 </Button>
@@ -467,7 +467,7 @@ export default function CatalogImagesPage() {
 
             {cameraOpen && (
                 <div className="fixed inset-0 z-50 bg-black flex items-center justify-center p-0 sm:p-4">
-                    <div className="w-full h-full sm:h-auto sm:max-h-[95vh] sm:max-w-5xl rounded-none sm:rounded-xl border-0 sm:border border-slate-700 bg-slate-900 p-3 sm:p-4 space-y-3">
+                    <div className="w-full h-full sm:h-auto sm:max-h-[95vh] sm:max-w-5xl rounded-none sm:rounded-xl border-0 sm:border border-slate-700 bg-slate-900 p-3 sm:p-4 space-y-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
                         <div className="flex items-center justify-between">
                             <h3 className="text-white font-semibold">Capturar foto</h3>
                             <Button variant="ghost" size="icon" onClick={closeCamera} className="text-slate-300">
@@ -481,9 +481,9 @@ export default function CatalogImagesPage() {
                             playsInline
                             className="w-full h-[75vh] sm:h-[70vh] rounded-lg bg-black object-cover"
                         />
-                        <div className="flex flex-col sm:flex-row gap-2 justify-end">
-                            <Button variant="outline" onClick={closeCamera} className="border-slate-700 w-full sm:w-auto">Cancelar</Button>
-                            <Button onClick={capturePhoto} className="bg-emerald-600 hover:bg-emerald-700 w-full sm:w-auto">Tomar foto</Button>
+                        <div className="fixed sm:static bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-0 right-0 px-3 sm:px-0 flex flex-col sm:flex-row gap-2 justify-end z-10">
+                            <Button variant="outline" onClick={closeCamera} className="border-slate-700 text-slate-100 bg-slate-900/95 w-full sm:w-auto">Cancelar</Button>
+                            <Button onClick={capturePhoto} className="bg-emerald-600 hover:bg-emerald-700 text-white w-full sm:w-auto">Tomar foto</Button>
                         </div>
                     </div>
                 </div>

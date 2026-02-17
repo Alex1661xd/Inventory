@@ -13,20 +13,20 @@ export declare class ProductsService {
     private generateBarcode;
     private generateUniqueBarcode;
     create(tenantId: string, dto: CreateProductDto, userId?: string): Promise<{
+        isPublic: boolean;
         id: string;
-        name: string;
         createdAt: Date;
-        updatedAt: Date;
+        name: string;
         tenantId: string;
+        updatedAt: Date;
         description: string | null;
-        barcode: string | null;
         sku: string | null;
+        images: string[];
         costPrice: import("@prisma/client/runtime/library").Decimal;
         salePrice: import("@prisma/client/runtime/library").Decimal;
-        isPublic: boolean;
-        categoryId: string | null;
-        images: string[];
         isSellable: boolean;
+        categoryId: string | null;
+        barcode: string | null;
         active: boolean;
     }>;
     findAllWithTotalStock(tenantId: string, page?: number, limit?: number, search?: string, filters?: {
@@ -39,20 +39,20 @@ export declare class ProductsService {
     findOne(tenantId: string, id: string, refresh?: boolean): Promise<any>;
     findByBarcode(tenantId: string, barcode: string): Promise<any>;
     update(tenantId: string, id: string, dto: UpdateProductDto): Promise<{
+        isPublic: boolean;
         id: string;
-        name: string;
         createdAt: Date;
-        updatedAt: Date;
+        name: string;
         tenantId: string;
+        updatedAt: Date;
         description: string | null;
-        barcode: string | null;
         sku: string | null;
+        images: string[];
         costPrice: import("@prisma/client/runtime/library").Decimal;
         salePrice: import("@prisma/client/runtime/library").Decimal;
-        isPublic: boolean;
-        categoryId: string | null;
-        images: string[];
         isSellable: boolean;
+        categoryId: string | null;
+        barcode: string | null;
         active: boolean;
     }>;
     remove(tenantId: string, id: string): Promise<{
