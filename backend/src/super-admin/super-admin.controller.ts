@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, BadRequestException, UseInterceptors, UploadedFile } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { Controller, Get, Post, Delete, Body, Param, UseGuards, BadRequestException, UseInterceptors, Req } from '@nestjs/common';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { SuperAdminService } from './super-admin.service';
 import { SuperAdminGuard } from './guards/super-admin.guard';
 import { GenerateCodesDto } from './dto/generate-codes.dto';
@@ -57,18 +57,25 @@ export class SuperAdminController {
 
     @Post('catalog-images/generate')
     @UseInterceptors(
-        FileInterceptor('image', {
+        AnyFilesInterceptor({
             limits: { fileSize: 15 * 1024 * 1024 },
         }),
     )
     generateCatalogImage(
-        @UploadedFile() image: any,
+        @Req() req: any,
         @Body() dto: GenerateCatalogImageDto,
     ) {
-        if (!image) {
-            throw new BadRequestException('Debes enviar una imagen en el campo "image"');
+        const files = (req.files || []) as any[];
+        const images = files.filter((file) => file.fieldname === 'image' || file.fieldname === 'images');
+
+        if (images.length === 0) {
+            throw new BadRequestException('Debes enviar al menos una imagen en "image" o "images"');
         }
 
-        return this.superAdminService.generateCatalogImage(image, dto.description, dto.whatsapp, dto.count);
+        const variants = [dto.variant1, dto.variant2, dto.variant3]
+            .map((value) => (value || '').trim())
+            .filter((value) => value.length > 0);
+
+        return this.superAdminService.generateCatalogImage(images, dto.description, dto.whatsapp, dto.count, variants);
     }
 }

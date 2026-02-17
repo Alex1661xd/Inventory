@@ -138,13 +138,13 @@ export class SuperAdminService {
         promptBase += `- El producto debe verse TAL CUAL es en la realidad\n`;
         promptBase += `- Ignorar el fondo, paredes y pisos de la imagen original\n\n`;
 
-        promptBase += `AMBIENTE DE TIENDA/ALMACEN:\n`;
-        promptBase += `- Fondo limpio y profesional que simule showroom o sala de exhibicion\n`;
-        promptBase += `- Iluminacion comercial profesional (luz blanca brillante y uniforme)\n`;
-        promptBase += `- Ambiente minimalista que NO compita con el producto\n`;
-        promptBase += `- Piso neutro (blanco, gris claro o beige)\n`;
-        promptBase += `- Opcional: sutil reflejo del producto en el piso para efecto premium\n`;
-        promptBase += `- Sin decoracion que distraiga; SOLO el producto es el protagonista\n\n`;
+        promptBase += `CONTEXTO ADAPTATIVO SEGUN TIPO DE PRODUCTO:\n`;
+        promptBase += `- Si el producto es mueble/hogar: usar showroom o ambiente de tienda de muebles\n`;
+        promptBase += `- Si es medicamento/salud: usar entorno limpio tipo farmacia/laboratorio, sin claims medicos\n`;
+        promptBase += `- Si es alimento/bebida: usar ambiente gastronomico o cocina/mesa acorde al producto\n`;
+        promptBase += `- Si es tecnologia/electronica: usar set moderno minimalista de retail tech\n`;
+        promptBase += `- Si no es claro el tipo: usar fondo neutro profesional de catalogo\n`;
+        promptBase += `- En todos los casos: el fondo NO debe competir con el producto principal\n\n`;
 
         promptBase += `ESTILO FOTOGRAFICO:\n`;
         promptBase += `- Fotografia de catalogo comercial profesional\n`;
@@ -161,6 +161,11 @@ export class SuperAdminService {
         }
 
         promptBase += `DETALLES DEL PRODUCTO ANALIZADO:\n${productDescription}\n\n`;
+
+        promptBase += `FOCO DE DETECCION DEL PRODUCTO:\n`;
+        promptBase += `- Identificar correctamente el producto principal y centrar toda la escena en ese producto\n`;
+        promptBase += `- Ignorar objetos secundarios de la foto original\n`;
+        promptBase += `- Mantener fidelidad visual al producto principal por encima del entorno\n\n`;
 
         promptBase += `OBJETIVO FINAL:\n`;
         promptBase += `La imagen debe parecer una fotografia profesional de catalogo comercial,\n`;
@@ -530,11 +535,16 @@ export class SuperAdminService {
 
         return { success: true, message: 'Todos los datos del negocio han sido eliminados' };
     }
-
-        async generateCatalogImage(image: any, description = '', whatsapp = '', count = 3) {
-        if (!image?.buffer) {
+    async generateCatalogImage(inputImages: any[], description = '', whatsapp = '', count = 3, variantStates: string[] = []) {
+        const validImages = (Array.isArray(inputImages) ? inputImages : [inputImages]).filter((img) => !!img?.buffer);
+        if (validImages.length === 0) {
             throw new BadRequestException('No se recibio una imagen valida');
         }
+
+        const refs = validImages.slice(0, 5).map((img) => ({
+            mimeType: this.detectMimeType(img),
+            base64: Buffer.from(img.buffer).toString('base64').replace(/\s/g, ''),
+        }));
 
         const textModelCandidates = [
             'gemini-2.0-flash-exp',
@@ -549,26 +559,29 @@ export class SuperAdminService {
             'gemini-2.0-flash-exp-image-generation',
         ];
 
-        const mimeType = this.detectMimeType(image);
-        const imageBase64 = Buffer.from(image.buffer).toString('base64').replace(/\s/g, '');
         const userDescription = (description || '').trim();
         const normalizedWhatsapp = (whatsapp || '').trim();
         const safeCount = Math.min(3, Math.max(1, Number(count) || 3));
 
+        const analysisParts: any[] = [
+            {
+                text: 'Analiza estas imagenes de referencia del MISMO producto y describe detalladamente SOLO el PRODUCTO PRINCIPAL. Debes detectar variantes visibles entre referencias (ejemplo: puertas abiertas/cerradas, angulos, posiciones), pero siempre manteniendo identidad exacta del producto. IGNORA fondo, paredes, pisos y objetos secundarios.',
+            },
+        ];
+
+        for (const ref of refs) {
+            analysisParts.push({
+                inline_data: {
+                    mime_type: ref.mimeType,
+                    data: ref.base64,
+                },
+            });
+        }
+
         const analysisPayload = {
             contents: [
                 {
-                    parts: [
-                        {
-                            text: 'Analiza esta imagen y describe detalladamente SOLO los PRODUCTOS PRINCIPALES (muebles, electrodomesticos, colchones, bases de cama, armarios, etc.). Enfocate en: tipo de producto, materiales, colores del producto, texturas, dimensiones aparentes, detalles como costuras, patas, herrajes, acabados, etiquetas, caracteristicas distintivas. IGNORA completamente: paredes, pisos, decoracion del ambiente, otros muebles secundarios. Se MUY preciso sobre las caracteristicas del PRODUCTO PRINCIPAL que se va a vender.',
-                        },
-                        {
-                            inline_data: {
-                                mime_type: mimeType,
-                                data: imageBase64,
-                            },
-                        },
-                    ],
+                    parts: analysisParts,
                 },
             ],
         };
@@ -596,45 +609,34 @@ export class SuperAdminService {
             'No fue posible obtener el prompt refinado desde Gemini',
         );
 
-        const generationPayload = {
-            contents: [
-                {
-                    parts: [
-                        { text: refinedPrompt },
-                        {
-                            inline_data: {
-                                mime_type: mimeType,
-                                data: imageBase64,
-                            },
-                        },
-                    ],
-                },
-            ],
-            generationConfig: {
-                temperature: 1,
-                topP: 0.95,
-                topK: 64,
-                maxOutputTokens: 8192,
-            },
-        };
-
         const images = await Promise.all(
             Array.from({ length: safeCount }).map(async (_, index) => {
-                const variantPayload = {
-                    ...generationPayload,
-                    contents: [
-                        {
-                            parts: [
-                                { text: `${refinedPrompt}\n\nVariacion ${index + 1} de ${safeCount}: cambia solo encuadre/iluminacion/fondo, manteniendo producto identico.` },
-                                {
-                                    inline_data: {
-                                        mime_type: mimeType,
-                                        data: imageBase64,
-                                    },
-                                },
-                            ],
+                const generationParts: any[] = [];
+                const variantInstruction = variantStates[index]
+                    ? `Variacion ${index + 1}: ${variantStates[index]}.`
+                    : `Variacion ${index + 1} de ${safeCount}: cambia solo encuadre/iluminacion/fondo, manteniendo producto identico.`;
+
+                generationParts.push({
+                    text: `${refinedPrompt}\n\n${variantInstruction}`,
+                });
+
+                for (const ref of refs) {
+                    generationParts.push({
+                        inline_data: {
+                            mime_type: ref.mimeType,
+                            data: ref.base64,
                         },
-                    ],
+                    });
+                }
+
+                const variantPayload = {
+                    contents: [{ parts: generationParts }],
+                    generationConfig: {
+                        temperature: 1,
+                        topP: 0.95,
+                        topK: 64,
+                        maxOutputTokens: 8192,
+                    },
                 };
 
                 const { data: generationResponse, modelUsed } = await this.callGeminiWithFallback(
@@ -669,12 +671,13 @@ export class SuperAdminService {
             whatsapp: normalizedWhatsapp,
             prompt_final: refinedPrompt,
             count: safeCount,
+            reference_count: refs.length,
+            variant_states: variantStates,
             images,
             image_base64: images[0]?.image_base64 || null,
             image_url: images[0]?.image_url || null,
         };
     }
-
     // Delete a registration code
     async deleteCode(codeId: string) {
         const code = await this.prisma.registrationCode.findUnique({
@@ -694,4 +697,5 @@ export class SuperAdminService {
         });
     }
 }
+
 

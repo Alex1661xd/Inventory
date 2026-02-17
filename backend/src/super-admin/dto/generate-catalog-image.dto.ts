@@ -16,4 +16,19 @@ export class GenerateCatalogImageDto {
     @Max(3)
     @IsOptional()
     count?: number = 3;
+
+    @IsString()
+    @IsOptional()
+    @MaxLength(500)
+    variant1?: string;
+
+    @IsString()
+    @IsOptional()
+    @MaxLength(500)
+    variant2?: string;
+
+    @IsString()
+    @IsOptional()
+    @MaxLength(500)
+    variant3?: string;
 }
