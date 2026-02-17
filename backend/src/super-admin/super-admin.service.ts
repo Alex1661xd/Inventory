@@ -114,6 +114,9 @@ export class SuperAdminService {
 
     private buildCatalogMetaPrompt(productDescription: string, userDescription: string, whatsapp?: string, variantStates: string[] = []) {
         let metaPrompt = `Tu tarea es refinar y mejorar el siguiente prompt para generacion de imagenes de catalogo comercial, con estas REGLAS ESTRICTAS:\n\n`;
+        metaPrompt += `REGLA CRITICA INNEGOCIABLE: La imagen final DEBE generarse DESDE CERO. No se permite editar, embellecer, retocar, superponer ni reutilizar la foto original.\n`;
+        metaPrompt += `La foto de entrada es SOLO referencia del producto (forma, color, materiales, proporciones), nunca base de composicion.\n`;
+        metaPrompt += `El fondo debe ser contextual al producto (escena realista acorde al uso del producto). Prohibido fondo blanco liso, fondo negro liso o recorte sobre fondo plano.\n\n`;
 
         if (userDescription.trim()) {
             metaPrompt += `REGLA CRITICA: El cliente ha solicitado lo siguiente y DEBE aparecer TEXTUALMENTE en tu prompt refinado:\n"${userDescription}"\n\n`;
@@ -133,7 +136,10 @@ export class SuperAdminService {
         metaPrompt += `Ahora refina este prompt para que sea claro, especifico y efectivo para un modelo de generacion de imagenes:\n\n---PROMPT A REFINAR---\n\n`;
 
         let promptBase = `INSTRUCCIONES PARA GENERACION DE IMAGEN PUBLICITARIA DE CATALOGO:\n\n`;
-        promptBase += `IMAGEN DE REFERENCIA: Se proporciona una imagen original del producto que debe usarse como referencia visual exacta.\n\n`;
+        promptBase += `IMAGEN DE REFERENCIA: Se proporciona una imagen original del producto que debe usarse SOLO como referencia visual exacta del PRODUCTO.\n`;
+        promptBase += `REGLA INNEGOCIABLE: GENERAR UNA FOTO COMPLETAMENTE NUEVA DESDE CERO.\n`;
+        promptBase += `PROHIBIDO: editar la foto original, mejorarla, retocarla, extenderla, usarla como lienzo base, hacer inpainting/outpainting o superponer elementos sobre ella.\n`;
+        promptBase += `OBLIGATORIO: nueva composicion, nueva iluminacion, nueva escena y nuevo fondo contextual al producto.\n\n`;
 
         if (userDescription.trim()) {
             promptBase += `REQUISITOS OBLIGATORIOS DEL CLIENTE (MAXIMA PRIORIDAD):\n${userDescription}\n\n`;
@@ -153,7 +159,8 @@ export class SuperAdminService {
         promptBase += `- Mantener forma, estructura, colores, materiales y acabados identicos\n`;
         promptBase += `- Preservar todos los detalles: etiquetas, costuras, herrajes, acabados\n`;
         promptBase += `- El producto debe verse TAL CUAL es en la realidad\n`;
-        promptBase += `- Ignorar el fondo, paredes y pisos de la imagen original\n\n`;
+        promptBase += `- Ignorar el fondo, paredes y pisos de la imagen original\n`;
+        promptBase += `- NO reutilizar pixeles de la foto original; la salida debe ser una fotografia nueva\n\n`;
 
         promptBase += `CONTEXTO ADAPTATIVO SEGUN TIPO DE PRODUCTO:\n`;
         promptBase += `- Si el producto es mueble/hogar: usar showroom o ambiente de tienda de muebles\n`;
@@ -161,7 +168,8 @@ export class SuperAdminService {
         promptBase += `- Si es alimento/bebida: usar ambiente gastronomico o cocina/mesa acorde al producto\n`;
         promptBase += `- Si es tecnologia/electronica: usar set moderno minimalista de retail tech\n`;
         promptBase += `- Si no es claro el tipo: usar fondo neutro profesional de catalogo\n`;
-        promptBase += `- En todos los casos: el fondo NO debe competir con el producto principal\n\n`;
+        promptBase += `- En todos los casos: el fondo NO debe competir con el producto principal\n`;
+        promptBase += `- PROHIBIDO fondo blanco liso o negro liso; el fondo debe ser contextual y coherente con el producto\n\n`;
 
         promptBase += `ESTILO FOTOGRAFICO:\n`;
         promptBase += `- Fotografia de catalogo comercial profesional\n`;
@@ -648,8 +656,13 @@ export class SuperAdminService {
                     '',
                     'REGLAS ESTRICTAS PARA ESTA SALIDA:',
                     `- ${variantInstruction}`,
+                    '- Generar imagen completamente nueva DESDE CERO.',
+                    '- Prohibido editar o embellecer la foto original.',
+                    '- Prohibido usar la foto original como base/lienzo/inpainting/outpainting.',
                     '- Mantener EXACTAMENTE el mismo producto de referencia.',
                     '- No cambiar color/material/estructura del producto.',
+                    '- Usar fondo contextual acorde al producto.',
+                    '- Prohibido fondo blanco liso o negro liso.',
                     '- No omitir requisitos del cliente si fueron definidos.',
                 ].join('\n');
 
