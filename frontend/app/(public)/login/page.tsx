@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -19,40 +19,29 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false)
     const supabase = createClient()
 
-    const performSmartRedirect = async (userId: string) => {
+    const performSmartRedirect = async () => {
         try {
-            console.log('Performing smart redirect for user:', userId);
+            const me = await api.auth.me()
 
-            // Usamos la API del backend para obtener el perfil/rol
-            // Esto es más seguro y evita errores de RLS o red directa con la DB
-            const me = await api.auth.me();
-
-            if (!me) {
-                console.warn('No user profile found');
-                return;
-            }
-
-            console.log('User role identified:', me.role);
+            if (!me) return
 
             if (me.role === 'SUPER_ADMIN') {
-                router.push('/super-admin')
+                router.replace('/super-admin')
             } else if (me.role === 'SELLER') {
-                router.push('/sales')
+                router.replace('/sales')
             } else {
-                router.push('/dashboard')
+                router.replace('/dashboard')
             }
-        } catch (error: any) {
-            console.error('Full redirect error:', error);
-            // Si el backend no responde, intentamos ir al dashboard por defecto
-            // o mostramos error si es algo crítico
-            router.push('/dashboard');
+        } catch (error) {
+            // Evita bucle login <-> dashboard cuando auth/me falla temporalmente.
+            console.error('Smart redirect failed:', error)
         }
     }
 
     useEffect(() => {
         supabase.auth.getUser().then(({ data: { user } }) => {
             if (user) {
-                performSmartRedirect(user.id)
+                performSmartRedirect()
             }
         })
     }, [])
@@ -72,10 +61,11 @@ export default function LoginPage() {
             toast.success('¡Bienvenido de nuevo!')
 
             if (data.user) {
-                await performSmartRedirect(data.user.id)
+                await performSmartRedirect()
             }
-        } catch (error: any) {
-            toast.error(error.message || 'Error al iniciar sesión')
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Error al iniciar sesión'
+            toast.error(message)
         } finally {
             setLoading(false)
         }
@@ -226,3 +216,5 @@ export default function LoginPage() {
         </div>
     )
 }
+
+
