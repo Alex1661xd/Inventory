@@ -19,7 +19,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "db:migrate": "prisma migrate dev",
-    "seed": "node prisma/seed-products.js"
+    "seed": "node prisma/seed-products.js",
+    "wipe:all:keep-super-admin": "node prisma/wipe-all-keep-super-admin.js --force"
   },
   "dependencies": {
     "@nestjs/cache-manager": "^3.1.0",
