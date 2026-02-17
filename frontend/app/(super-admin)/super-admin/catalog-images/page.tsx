@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { ImagePlus, Loader2, Sparkles, Download, ChevronLeft, ChevronRight, Camera, X, Trash2 } from 'lucide-react'
 
@@ -63,6 +64,7 @@ export default function CatalogImagesPage() {
 
     const [cameraOpen, setCameraOpen] = useState(false)
     const [cameraTarget, setCameraTarget] = useState<'individual' | 'variants'>('individual')
+    const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null)
     const videoRef = useRef<HTMLVideoElement | null>(null)
     const streamRef = useRef<MediaStream | null>(null)
 
@@ -453,7 +455,8 @@ export default function CatalogImagesPage() {
                                                     <img
                                                         src={img.image_url}
                                                         alt={`Imagen generada ${img.index}`}
-                                                        className="w-full rounded-xl border border-slate-800 object-contain h-40 bg-slate-950"
+                                                        className="w-full rounded-xl border border-slate-800 object-contain h-40 bg-slate-950 cursor-zoom-in"
+                                                        onClick={() => setZoomImageUrl(img.image_url)}
                                                     />
                                                     <a
                                                         href={img.image_url}
@@ -522,6 +525,21 @@ export default function CatalogImagesPage() {
                     </div>
                 </div>
             )}
+
+            <Dialog open={!!zoomImageUrl} onOpenChange={(open) => !open && setZoomImageUrl(null)}>
+                <DialogContent className="max-w-[95vw] w-[95vw] h-[90vh] bg-slate-950 border-slate-800 p-2 sm:p-4">
+                    {zoomImageUrl && (
+                        <div className="w-full h-full flex items-center justify-center">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src={zoomImageUrl}
+                                alt="Vista ampliada"
+                                className="max-w-full max-h-full object-contain rounded-lg"
+                            />
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
