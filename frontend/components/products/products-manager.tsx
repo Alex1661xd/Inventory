@@ -919,7 +919,7 @@ export function ProductsManager({
                                         {imagePreviews.length === 0 && (
                                             <div className="text-center p-2">
                                                 <p className="text-sm font-medium text-[rgb(120,115,110)]">Añadir imágenes (Max 3)</p>
-                                                <p className="text-xs text-[rgb(120,115,110)]/70">PNG, JPG, WEBP</p>
+                                                <p className="text-xs text-[rgb(120,115,110)]/70">PNG, JPG, WEBP · Puedes seleccionar varias a la vez</p>
                                             </div>
                                         )}
 
@@ -927,6 +927,7 @@ export function ProductsManager({
                                             id="image-upload"
                                             type="file"
                                             accept="image/png, image/jpeg, image/jpg, image/webp"
+                                            multiple
                                             className="hidden"
                                             onChange={handleFileSelect}
                                         />
