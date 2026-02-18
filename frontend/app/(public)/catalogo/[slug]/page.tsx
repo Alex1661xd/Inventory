@@ -283,6 +283,8 @@ export default function CatalogPage() {
                                         <ImageSlider
                                             images={product.images}
                                             name={product.name}
+                                            sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                                            quality={90}
                                         />
 
                                         {/* Availability Badge */}
@@ -363,6 +365,8 @@ export default function CatalogPage() {
                                     interval={5000}
                                     showControls={true}
                                     allowZoom={true}
+                                    sizes="(max-width: 768px) 100vw, 60vw"
+                                    quality={95}
                                 />
                                 <div className={cn(
                                     "absolute top-14 left-6 md:top-8 md:left-8 px-4 py-1.5 md:px-5 md:py-2 rounded-2xl text-[10px] font-black tracking-[0.2em] text-white z-40 shadow-2xl",

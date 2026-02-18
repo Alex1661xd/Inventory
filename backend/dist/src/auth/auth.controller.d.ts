@@ -13,9 +13,9 @@ export declare class AuthController {
     };
     register(dto: RegisterBusinessDto): Promise<{
         user: {
-            id: string;
             email: string;
             password: string;
+            id: string;
             name: string;
             role: import("@prisma/client").$Enums.Role;
             tenantId: string;
@@ -23,9 +23,9 @@ export declare class AuthController {
         };
         tenant: {
             id: string;
+            createdAt: Date;
             name: string;
             slug: string;
-            createdAt: Date;
             updatedAt: Date;
             isBanned: boolean;
             bannedAt: Date | null;

@@ -318,22 +318,27 @@ export function ProductsManager({
     }
 
     const uploadImage = async (file: File): Promise<string> => {
-        const options = {
-            maxSizeMB: 0.5,
-            maxWidthOrHeight: 1200,
-            useWebWorker: true,
-            fileType: 'image/webp',
-            initialQuality: 0.8,
-        }
+        const supabase = createClient()
         let fileToUpload = file
-        try {
-            const compressed = await imageCompression(file, options)
-            fileToUpload = compressed
-        } catch (error) {
-            console.warn('Compression failed, using original')
+        const shouldCompress = file.size > 1.5 * 1024 * 1024
+
+        if (shouldCompress) {
+            const options = {
+                maxSizeMB: 1.5,
+                maxWidthOrHeight: 1920,
+                useWebWorker: true,
+                fileType: 'image/webp',
+                initialQuality: 0.9,
+            }
+
+            try {
+                fileToUpload = await imageCompression(file, options)
+            } catch (error) {
+                console.warn('Compression failed, using original')
+                fileToUpload = file
+            }
         }
 
-        const supabase = createClient()
         const fileExt = fileToUpload.type === 'image/webp' ? 'webp' : file.name.split('.').pop()
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
         const filePath = `${fileName}`

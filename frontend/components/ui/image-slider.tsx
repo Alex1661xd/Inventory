@@ -13,6 +13,8 @@ interface ImageSliderProps {
     className?: string
     imageClassName?: string
     allowZoom?: boolean
+    sizes?: string
+    quality?: number
 }
 
 export function ImageSlider({
@@ -22,7 +24,9 @@ export function ImageSlider({
     showControls = false,
     className,
     imageClassName,
-    allowZoom = false
+    allowZoom = false,
+    sizes = "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw",
+    quality = 90,
 }: ImageSliderProps) {
     const [currentIndex, setCurrentIndex] = useState(0)
     const [isZoomOpen, setIsZoomOpen] = useState(false)
@@ -93,7 +97,8 @@ export function ImageSlider({
                         alt={`${name} - Imagen ${idx + 1}`}
                         fill
                         className={cn("object-cover", imageClassName)}
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        sizes={sizes}
+                        quality={quality}
                         priority={idx === 0}
                     />
                 </div>
@@ -162,6 +167,8 @@ export function ImageSlider({
                                     className="w-full h-full"
                                     imageClassName="object-contain"
                                     allowZoom={false}
+                                    sizes="100vw"
+                                    quality={95}
                                 />
                             </div>
                         </div>
