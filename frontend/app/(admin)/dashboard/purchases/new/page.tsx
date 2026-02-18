@@ -148,18 +148,18 @@ export default function NewPurchasePage() {
     }
 
     return (
-        <div className="space-y-8 animate-fade-in max-w-6xl mx-auto pb-20">
+        <div className="space-y-6 md:space-y-8 animate-fade-in max-w-6xl mx-auto pb-20 px-3 sm:px-4 md:px-0">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-start gap-3 md:items-center md:gap-4">
                     <Button variant="outline" size="icon" onClick={() => router.back()} className="rounded-full h-11 w-11 shadow-sm">
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
-                    <div>
-                        <h2 className="text-4xl font-bold text-[hsl(var(--foreground))]" style={{ fontFamily: 'var(--font-display)' }}>
+                    <div className="min-w-0">
+                        <h2 className="text-2xl md:text-4xl font-bold text-[hsl(var(--foreground))]" style={{ fontFamily: 'var(--font-display)' }}>
                             Nueva Compra
                         </h2>
-                        <div className="flex items-center gap-2 text-[hsl(var(--muted))] text-lg font-medium opacity-80">
+                        <div className="flex flex-wrap items-center gap-2 text-[hsl(var(--muted))] text-sm md:text-lg font-medium opacity-80">
                             <span>Ingresa los datos de la factura y recibe mercancía.</span>
                             {!loadingData && (
                                 <span className="text-xs bg-[hsl(var(--surface-elevated))] px-2 py-0.5 rounded-full border">
@@ -169,9 +169,9 @@ export default function NewPurchasePage() {
                         </div>
                     </div>
                 </div>
-                <div className="flex flex-col items-end">
+                <div className="flex flex-col items-start md:items-end">
                     <span className="text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest mb-1">Total Inversión</span>
-                    <span className="text-4xl font-black text-[hsl(var(--primary))] tracking-tighter shadow-sm border px-4 py-2 rounded-2xl bg-white">
+                    <span className="text-2xl md:text-4xl font-black text-[hsl(var(--primary))] tracking-tighter shadow-sm border px-3 md:px-4 py-2 rounded-2xl bg-white">
                         ${formatThousands(total)}
                     </span>
                 </div>
@@ -301,14 +301,14 @@ export default function NewPurchasePage() {
                                 Detalle de Productos
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="p-6">
+                        <CardContent className="p-4 md:p-6">
                             {/* Search Product Box */}
                             <div className="relative mb-8">
                                 <div className="relative">
                                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[hsl(var(--muted))]" />
                                     <Input
                                         placeholder={loadingData ? "Cargando catálogo..." : "Buscar producto a ingresar..."}
-                                        className="h-14 pl-12 rounded-2xl text-lg font-medium border-2 focus:border-[hsl(var(--primary))] disabled:opacity-50"
+                                        className="h-12 md:h-14 pl-12 rounded-2xl text-base md:text-lg font-medium border-2 focus:border-[hsl(var(--primary))] disabled:opacity-50"
                                         value={productSearch}
                                         disabled={loadingData}
                                         onChange={(e) => {
@@ -374,9 +374,57 @@ export default function NewPurchasePage() {
                                 )}
                             </div>
 
-                            {/* Table of Items */}
-                            <div className="rounded-2xl border border-[hsl(var(--border))] overflow-hidden h-[400px] overflow-y-auto bg-white/50">
-                                <table className="w-full">
+                            {/* Items (Mobile) */}
+                            <div className="md:hidden space-y-3 max-h-[420px] overflow-y-auto rounded-2xl border border-[hsl(var(--border))] bg-white/50 p-3">
+                                {items.length === 0 ? (
+                                    <div className="py-10 text-center">
+                                        <div className="text-4xl mb-4">[ ]</div>
+                                        <p className="text-[hsl(var(--muted))] font-bold italic">La lista esta vacia. Anade productos para comenzar.</p>
+                                    </div>
+                                ) : (
+                                    items.map((item, index) => (
+                                        <div key={index} className="rounded-xl border border-[hsl(var(--border))] bg-white p-3 space-y-3">
+                                            <div className="font-bold text-sm text-[hsl(var(--foreground))]">{item.name}</div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <Label className="text-[10px] font-black uppercase text-[hsl(var(--muted))]">Cantidad</Label>
+                                                    <Input
+                                                        type="number"
+                                                        className="h-10 text-center font-bold rounded-lg border-[hsl(var(--border))]"
+                                                        value={item.quantity}
+                                                        onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 0)}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label className="text-[10px] font-black uppercase text-[hsl(var(--muted))]">Costo Unit.</Label>
+                                                    <Input
+                                                        type="number"
+                                                        className="h-10 text-right font-bold rounded-lg border-[hsl(var(--border))]"
+                                                        value={item.costPrice}
+                                                        onChange={(e) => updateItem(index, 'costPrice', parseFloat(e.target.value) || 0)}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <div className="text-xs text-[hsl(var(--muted))] font-bold uppercase">Subtotal</div>
+                                                <div className="font-black text-[hsl(var(--foreground))]">${formatThousands(item.quantity * item.costPrice)}</div>
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                onClick={() => removeItem(index)}
+                                                className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg"
+                                            >
+                                                <Trash2 className="h-4 w-4 mr-2" />
+                                                Eliminar
+                                            </Button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+
+                            {/* Table of Items (Desktop) */}
+                            <div className="hidden md:block rounded-2xl border border-[hsl(var(--border))] overflow-hidden h-[400px] overflow-y-auto bg-white/50">
+                                <table className="w-full min-w-[720px]">
                                     <thead className="sticky top-0 bg-[hsl(var(--surface-elevated))] z-10 border-b">
                                         <tr>
                                             <th className="px-4 py-4 text-left text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Producto</th>
@@ -447,3 +495,5 @@ export default function NewPurchasePage() {
         </div>
     )
 }
+
+
