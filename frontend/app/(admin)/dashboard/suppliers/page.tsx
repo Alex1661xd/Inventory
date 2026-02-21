@@ -104,11 +104,21 @@ export default function SuppliersPage() {
 
         setIsSubmitting(true)
         try {
+            const payload = {
+                name: formData.name.trim(),
+                contactName: formData.contactName.trim() || undefined,
+                email: formData.email.trim() || undefined,
+                phone: formData.phone.trim() || undefined,
+                address: formData.address.trim() || undefined,
+                taxId: formData.taxId.trim() || undefined,
+                paymentTerms: formData.paymentTerms.trim() || undefined,
+            }
+
             if (editingSupplier) {
-                await api.suppliers.update(editingSupplier.id, formData)
+                await api.suppliers.update(editingSupplier.id, payload)
                 toast.success('Proveedor actualizado')
             } else {
-                await api.suppliers.create(formData)
+                await api.suppliers.create(payload)
                 toast.success('Proveedor creado')
             }
             setIsModalOpen(false)

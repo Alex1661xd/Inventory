@@ -128,35 +128,19 @@ export default function ExpensesPage() {
     const [breakdownCategory, setBreakdownCategory] = useState<string | null>(null)
     const itemsPerPage = 10
 
-    useEffect(() => {
-        loadData(1)
-    }, [startDate, endDate, filterCategory])
-
-    useEffect(() => {
-        loadData(currentPage)
-    }, [currentPage])
-
-    const loadData = async (page = 1) => {
+    const loadExpensesPage = async (page = 1) => {
         setLoading(true)
         try {
-            const [expensesResponse, suppliersData, plData] = await Promise.all([
-                api.expenses.list({
-                    startDate,
-                    endDate,
-                    category: filterCategory || undefined,
-                    page,
-                    limit: itemsPerPage
-                }),
-                api.suppliers.list({ limit: 500 }),
-                api.expenses.profitLoss(startDate, endDate)
-            ])
+            const expensesResponse = await api.expenses.list({
+                startDate,
+                endDate,
+                category: filterCategory || undefined,
+                page,
+                limit: itemsPerPage
+            })
             setExpenses(expensesResponse.data)
             setTotalPages(expensesResponse.totalPages)
             setCurrentPage(expensesResponse.page)
-
-            const suppliers = Array.isArray(suppliersData) ? suppliersData : (suppliersData?.data || [])
-            setSuppliers(suppliers)
-            setProfitLoss(plData)
         } catch (error) {
             console.error('Error loading data:', error)
             toast.error('Error al cargar los datos')
@@ -164,6 +148,33 @@ export default function ExpensesPage() {
             setLoading(false)
         }
     }
+
+    const loadSummaryData = async () => {
+        try {
+            const [suppliersData, plData] = await Promise.all([
+                api.suppliers.list({ limit: 500 }),
+                api.expenses.profitLoss(startDate, endDate)
+            ])
+            const suppliers = Array.isArray(suppliersData) ? suppliersData : (suppliersData?.data || [])
+            setSuppliers(suppliers)
+            setProfitLoss(plData)
+        } catch (error) {
+            console.error('Error loading summary data:', error)
+        }
+    }
+
+    useEffect(() => {
+        loadSummaryData()
+        if (currentPage !== 1) {
+            setCurrentPage(1)
+            return
+        }
+        loadExpensesPage(1)
+    }, [startDate, endDate, filterCategory])
+
+    useEffect(() => {
+        loadExpensesPage(currentPage)
+    }, [currentPage])
 
     const handleCreate = async () => {
         if (!formAmount || Number(parseThousands(formAmount)) <= 0) {
@@ -186,7 +197,12 @@ export default function ExpensesPage() {
             toast.success('Gasto registrado correctamente')
             setShowCreate(false)
             resetForm()
-            loadData()
+            await loadSummaryData()
+            if (currentPage !== 1) {
+                setCurrentPage(1)
+            } else {
+                await loadExpensesPage(1)
+            }
         } catch (error) {
             toast.error('Error al registrar el gasto')
         } finally {
@@ -207,7 +223,8 @@ export default function ExpensesPage() {
         try {
             await api.expenses.remove(expenseToDelete)
             toast.success('Gasto eliminado')
-            loadData()
+            await loadSummaryData()
+            await loadExpensesPage(currentPage)
         } catch (error) {
             toast.error('Error al eliminar')
         } finally {
@@ -228,7 +245,7 @@ export default function ExpensesPage() {
 
     return (
         <>
-            <LoadingModal isOpen={loading || submitting} message={loadingMessage} />
+            <LoadingModal isOpen={submitting} message={loadingMessage} />
 
             <div className="space-y-8">
                 {/* Header */}
@@ -426,7 +443,7 @@ export default function ExpensesPage() {
                 {profitLoss && (
                     <Card className="overflow-hidden">
                         <CardHeader className="bg-gradient-to-r from-slate-800 to-slate-700 text-white">
-                            <CardTitle className="flex items-center gap-2">
+                            <CardTitle className="flex items-center gap-2 !text-white">
                                 📊 Estado de Resultados
                                 <span className="text-sm font-normal text-white/70 ml-2">
                                     {new Date(startDate).toLocaleDateString('es-CO')} - {new Date(endDate).toLocaleDateString('es-CO')}
@@ -508,7 +525,7 @@ export default function ExpensesPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {loading ? (
+                        {loading && expenses.length === 0 ? (
                             <div className="text-center py-8 text-gray-500">Cargando gastos...</div>
                         ) : expenses.length === 0 ? (
                             <div className="text-center py-12">
@@ -520,6 +537,11 @@ export default function ExpensesPage() {
                             </div>
                         ) : (
                             <>
+                                {loading && (
+                                    <div className="mb-3 text-xs font-medium text-gray-500">
+                                        Actualizando página de gastos...
+                                    </div>
+                                )}
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -559,6 +581,7 @@ export default function ExpensesPage() {
                                                             size="icon"
                                                             className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
                                                             onClick={() => handleDelete(expense.id)}
+                                                            disabled={loading || submitting}
                                                         >
                                                             <Trash2 className="h-4 w-4" />
                                                         </Button>
@@ -582,7 +605,7 @@ export default function ExpensesPage() {
                                                 size="icon"
                                                 className="h-9 w-9 rounded-xl border-gray-200"
                                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                                disabled={currentPage === 1}
+                                                disabled={currentPage === 1 || loading}
                                             >
                                                 <ChevronLeft className="h-4 w-4 text-gray-600" />
                                             </Button>
@@ -597,6 +620,7 @@ export default function ExpensesPage() {
                                                             currentPage === page ? "bg-gray-900 text-white shadow-md" : "text-gray-600 hover:bg-gray-100"
                                                         )}
                                                         onClick={() => setCurrentPage(page)}
+                                                        disabled={loading}
                                                     >
                                                         {page}
                                                     </Button>
@@ -607,7 +631,7 @@ export default function ExpensesPage() {
                                                 size="icon"
                                                 className="h-9 w-9 rounded-xl border-gray-200"
                                                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                                disabled={currentPage === totalPages}
+                                                disabled={currentPage === totalPages || loading}
                                             >
                                                 <ChevronRight className="h-4 w-4 text-gray-600" />
                                             </Button>

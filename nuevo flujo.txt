@@ -1,0 +1,53 @@
+const parsed = $('Parsear Mensaje').first().json;
+const text = parsed.text.toLowerCase().trim();
+const historial = $input.first().json.historial || [];
+
+// 1. FILTRO DE SEGURIDAD (Hard Rules)
+// Si es un saludo corto, no molestamos a la IA con clasificaciones
+const saludos = ['hola', 'buenos dias', 'buenas tardes', 'buenas noches', 'buenas', 'hey'];
+let forceAction = null;
+
+if (saludos.includes(text) || text.length < 3) {
+  forceAction = {
+    accion: "PEDIR_INFO",
+    query: null,
+    respuesta: `¡Hola ${parsed.pushName}! 👋 Bienvenido a DKO Mueblería. ¿En qué puedo ayudarte hoy? ¿Buscas algún mueble en especial o quieres consultar el estado de un pedido?`
+  };
+}
+
+// 2. SYSTEM INSTRUCTION MEJORADO (Más estricto)
+const systemInstruction = `Eres el asistente de DKO Mueblería. 
+Tu UNICA prioridad es clasificar la intención del usuario.
+
+REGLAS DE ORO:
+1. Si el usuario SALUDA o hace una pregunta general -> Accion: PEDIR_INFO.
+2. Si el usuario pregunta por un mueble, sofá, cama, comedor, etc -> Accion: BUSCAR_PRODUCTO.
+3. Si el usuario está enojado o pide hablar con alguien -> Accion: ESCALAR_HUMANO.
+
+EJEMPLO DE SALUDO:
+Usuario: "Hola" -> {"accion": "PEDIR_INFO", "query": null, "respuesta": "¡Hola! ¿En qué puedo ayudarte?"}`;
+
+// 3. CONSTRUCCIÓN DEL PAYLOAD
+const geminiPayload = {
+  contents: [{
+    parts: [{
+      text: `Historial: ${JSON.stringify(historial)}\nMensaje del usuario: ${parsed.text}`
+    }]
+  }],
+  system_instruction: {
+    parts: [{ text: systemInstruction }]
+  },
+  generationConfig: {
+    responseMimeType: "application/json",
+    temperature: 0.1 // Bajamos la temperatura para que sea menos "creativo" y más exacto
+  }
+};
+
+return [{
+  json: {
+    ...parsed,
+    historial,
+    geminiPayload,
+    forceAction // Pasamos esto para usarlo en el Switch
+  }
+}];

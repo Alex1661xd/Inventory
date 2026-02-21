@@ -1,0 +1,699 @@
+﻿{
+    "name":  "DKO MueblerÃ­a - Bot WhatsApp v2",
+    "nodes":  [
+                  {
+                      "parameters":  {
+                                         "httpMethod":  "POST",
+                                         "path":  "dko-whatsapp",
+                                         "responseMode":  "responseNode",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "webhook-trigger",
+                      "name":  "Webhook Evolution API",
+                      "type":  "n8n-nodes-base.webhook",
+                      "typeVersion":  1,
+                      "position":  [
+                                       240,
+                                       300
+                                   ],
+                      "webhookId":  "dko-whatsapp"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const body = $input.first().json.body || $input.first().json;\nconst event = (body.event || \u0027\u0027).toLowerCase();\n\nif (event !== \u0027messages.upsert\u0027) {\n  return [{ json: { skip: true, skipReason: \u0027event_not_supported\u0027 } }];\n}\n\nconst data = body.data || {};\nconst key = data.key || {};\nconst message = data.message || {};\n\nif (key.fromMe) {\n  return [{ json: { skip: true, skipReason: \u0027from_me\u0027 } }];\n}\n\nconst remoteJid = key.remoteJid || \u0027\u0027;\nif (!remoteJid || remoteJid.includes(\u0027@broadcast\u0027) || remoteJid.includes(\u0027status@broadcast\u0027) || remoteJid.includes(\u0027@g.us\u0027)) {\n  return [{ json: { skip: true, skipReason: \u0027jid_not_supported\u0027 } }];\n}\n\nconst messageType = (data.messageType || Object.keys(message)[0] || \u0027\u0027).trim();\nconst allowedTypes = [\u0027conversation\u0027, \u0027extendedTextMessage\u0027];\nif (!allowedTypes.includes(messageType)) {\n  return [{ json: { skip: true, skipReason: \u0027message_type_not_supported\u0027 } }];\n}\n\nconst textRaw = message.conversation || message.extendedTextMessage?.text || \u0027\u0027;\nconst text = textRaw.trim();\nif (!text) {\n  return [{ json: { skip: true, skipReason: \u0027empty_text\u0027 } }];\n}\n\nconst messageTimestamp = Number(data.messageTimestamp || 0);\nconst nowSeconds = Math.floor(Date.now() / 1000);\nif (messageTimestamp \u003e 0 \u0026\u0026 Math.abs(nowSeconds - messageTimestamp) \u003e 600) {\n  return [{ json: { skip: true, skipReason: \u0027stale_message\u0027 } }];\n}\n\nconst pushName = data.pushName || body.pushName || \u0027Cliente\u0027;\nconst instanceName = body.instance || \u0027DKO-Muebles\u0027;\nconst messageId = key.id || `${remoteJid}:${messageTimestamp || nowSeconds}:${text.slice(0, 32)}`;\nconst phone = remoteJid.replace(\u0027@s.whatsapp.net\u0027, \u0027\u0027).replace(\u0027@g.us\u0027, \u0027\u0027);\n\nreturn [{\n  json: {\n    skip: false,\n    phone,\n    remoteJid,\n    text,\n    pushName,\n    instanceName,\n    messageId,\n    messageTimestamp,\n  }\n}];"
+                                     },
+                      "id":  "parse-message",
+                      "name":  "Parsear Mensaje",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       460,
+                                       300
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  false
+                                                                        },
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "leftValue":  "={{ $json.skip }}",
+                                                                                   "rightValue":  false,
+                                                                                   "operator":  {
+                                                                                                    "type":  "boolean",
+                                                                                                    "operation":  "equals"
+                                                                                                }
+                                                                               }
+                                                                           ]
+                                                        }
+                                     },
+                      "id":  "check-skip",
+                      "name":  "Â¿Ignorar?",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2,
+                      "position":  [
+                                       680,
+                                       300
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "respondWith":  "text",
+                                         "responseBody":  "ok"
+                                     },
+                      "id":  "respond-skip",
+                      "name":  "Responder OK (skip)",
+                      "type":  "n8n-nodes-base.respondToWebhook",
+                      "typeVersion":  1,
+                      "position":  [
+                                       900,
+                                       120
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "get",
+                                         "key":  "=dko:chat:{{ $(\u0027Parsear Mensaje\u0027).first().json.phone }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "redis-get",
+                      "name":  "Cargar Historial Redis",
+                      "type":  "n8n-nodes-base.redis",
+                      "typeVersion":  1,
+                      "position":  [
+                                       1300,
+                                       400
+                                   ],
+                      "continueOnFail":  true
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const historialRaw = $input.first().json.value || null;\nlet historial = [];\n\ntry {\n  if (historialRaw) historial = JSON.parse(historialRaw);\n} catch (e) {\n  historial = [];\n}\n\nif (!Array.isArray(historial)) historial = [];\nif (historial.length \u003e 10) historial = historial.slice(-10);\n\nconst parsed = $(\u0027Parsear Mensaje\u0027).first().json;\n\nconst systemInstruction = `Eres el asistente de DKO Mueblería.\nTu ÚNICA función es clasificar la intención del usuario.\n\nREGLAS:\n1. Si el usuario saluda o hace pregunta general -\u003e PEDIR_INFO\n2. Si menciona un mueble o producto concreto -\u003e BUSCAR_PRODUCTO\n3. Si quiere comprar, pagar, hablar con alguien -\u003e ESCALAR_HUMANO\n\nResponde solo con JSON válido con esta forma:\n{\"accion\":\"PEDIR_INFO|BUSCAR_PRODUCTO|ESCALAR_HUMANO\",\"query\":string|null,\"respuesta\":string|null}`;\n\nconst geminiPayload = {\n  system_instruction: { parts: [{ text: systemInstruction }] },\n  contents: [{ parts: [{ text: `Historial: ${JSON.stringify(historial)}\\nMensaje: ${parsed.text}` }] }],\n  generationConfig: {\n    temperature: 0.1,\n    maxOutputTokens: 300,\n    responseMimeType: \u0027application/json\u0027,\n  },\n};\n\nreturn [{\n  json: {\n    phone: parsed.phone,\n    remoteJid: parsed.remoteJid,\n    pushName: parsed.pushName,\n    instanceName: parsed.instanceName,\n    text: parsed.text,\n    historial,\n    geminiPayload,\n  }\n}];"
+                                     },
+                      "id":  "prepare-context",
+                      "name":  "Preparar Contexto",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1520,
+                                       400
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyCcVa0KCEGSk9nTrbIdzun5tKZRAoCM1dk",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ $json.geminiPayload }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "gemini-agente",
+                      "name":  "Gemini Agente (decide)",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       1740,
+                                       400
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const geminiRaw = $input.first().json;\nlet rawText = geminiRaw.candidates?.[0]?.content?.parts?.[0]?.text || \u0027{}\u0027;\n\nrawText = rawText.replace(/```json/g, \u0027\u0027).replace(/```/g, \u0027\u0027).trim();\n\nlet decision;\ntry {\n  decision = JSON.parse(rawText);\n} catch (e) {\n  decision = {\n    accion: \u0027PEDIR_INFO\u0027,\n    query: null,\n    respuesta: \u0027¡Hola! Bienvenido a DKO Mueblería. ¿En qué producto te puedo ayudar?\u0027,\n  };\n}\n\nconst ctx = $(\u0027Preparar Contexto\u0027).first().json;\nconst allowedActions = [\u0027BUSCAR_PRODUCTO\u0027, \u0027PEDIR_INFO\u0027, \u0027ESCALAR_HUMANO\u0027];\nconst accionRaw = (decision.accion || \u0027\u0027).toString().toUpperCase().trim();\nconst accion = allowedActions.includes(accionRaw) ? accionRaw : \u0027PEDIR_INFO\u0027;\nconst query = accion === \u0027BUSCAR_PRODUCTO\u0027\n  ? ((decision.query || ctx.text || \u0027\u0027).toString().trim() || ctx.text)\n  : null;\n\nlet respuesta = typeof decision.respuesta === \u0027string\u0027 ? decision.respuesta.trim() : null;\nif (!respuesta \u0026\u0026 accion === \u0027PEDIR_INFO\u0027) {\n  respuesta = \u0027¡Hola! Bienvenido a DKO Mueblería. ¿En qué producto te puedo ayudar?\u0027;\n}\nif (!respuesta \u0026\u0026 accion === \u0027ESCALAR_HUMANO\u0027) {\n  respuesta = \u0027Claro, en un momento uno de nuestros asesores de DKO Mueblería se pondrá en contacto contigo.\u0027;\n}\n\nreturn [{\n  json: {\n    accion,\n    query,\n    respuesta,\n    phone: ctx.phone,\n    remoteJid: ctx.remoteJid,\n    pushName: ctx.pushName,\n    instanceName: ctx.instanceName,\n    text: ctx.text,\n    historial: ctx.historial,\n  }\n}];"
+                                     },
+                      "id":  "parse-decision",
+                      "name":  "Parsear DecisiÃ³n",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1960,
+                                       400
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "options":  {
+                                                                            "caseSensitive":  false
+                                                                        },
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "leftValue":  "={{ $json.accion }}",
+                                                                                   "rightValue":  "BUSCAR_PRODUCTO",
+                                                                                   "operator":  {
+                                                                                                    "type":  "string",
+                                                                                                    "operation":  "equals"
+                                                                                                }
+                                                                               }
+                                                                           ]
+                                                        }
+                                     },
+                      "id":  "check-accion",
+                      "name":  "Â¿Buscar Producto?",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2,
+                      "position":  [
+                                       2180,
+                                       400
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "GET",
+                                         "url":  "https://inventory-production-6565.up.railway.app/integrations/n8n/products",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "x-api-key",
+                                                                                         "value":  "Gabo212121"
+                                                                                     },
+                                                                                     {
+                                                                                         "name":  "x-tenant-id",
+                                                                                         "value":  "deee962b-e9ed-49f5-aafe-eca39b83c148"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "sendQuery":  true,
+                                         "queryParameters":  {
+                                                                 "parameters":  [
+                                                                                    {
+                                                                                        "name":  "q",
+                                                                                        "value":  "={{ $json.query }}"
+                                                                                    },
+                                                                                    {
+                                                                                        "name":  "onlyAvailable",
+                                                                                        "value":  "true"
+                                                                                    },
+                                                                                    {
+                                                                                        "name":  "limit",
+                                                                                        "value":  "5"
+                                                                                    }
+                                                                                ]
+                                                             },
+                                         "options":  {
+                                                         "timeout":  8000
+                                                     }
+                                     },
+                      "id":  "buscar-producto",
+                      "name":  "Buscar Producto en DKO API",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       2400,
+                                       280
+                                   ],
+                      "continueOnFail":  true
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyCcVa0KCEGSk9nTrbIdzun5tKZRAoCM1dk",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={\n  \"system_instruction\": {\n    \"parts\": [{\n      \"text\": \"Eres el asistente virtual de DKO MueblerÃ­a. Responde al cliente de forma amable, cÃ¡lida y concisa (mÃ¡ximo 4 lÃ­neas). Usa los datos reales del producto. Si hay imÃ¡genes disponibles menciona que puedes compartirlas. Si el cliente quiere comprar dile que un asesor lo contactarÃ¡ pronto. Nunca inventes datos.\"\n    }]\n  },\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"Cliente: {{ $(\u0027Parsear DecisiÃ³n\u0027).first().json.pushName }}\\nPregunta: {{ $(\u0027Parsear DecisiÃ³n\u0027).first().json.text }}\\n\\nResultados encontrados:\\nTotal: {{ $(\u0027Buscar Producto en DKO API\u0027).first().json.count }}\\nProductos: {{ JSON.stringify($(\u0027Buscar Producto en DKO API\u0027).first().json.products, null, 2) }}\\n\\nSi count es 0, dile amablemente que no encontraste ese producto y que un asesor puede ayudarle.\"\n    }]\n  }],\n  \"generationConfig\": {\n    \"temperature\": 0.7,\n    \"maxOutputTokens\": 500\n  }\n}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "gemini-responde",
+                      "name":  "Gemini Responde con Producto",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       2620,
+                                       280
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const geminiRaw = $input.first().json;\nconst responseText = geminiRaw.candidates?.[0]?.content?.parts?.[0]?.text || \u0027Lo siento, no pude obtener la informaciÃ³n. Un asesor de DKO te contactarÃ¡ pronto.\u0027;\n\nconst ctx = $(\u0027Parsear DecisiÃ³n\u0027).first().json;\n\nreturn [{\n  json: {\n    responseText,\n    phone: ctx.phone,\n    remoteJid: ctx.remoteJid,\n    instanceName: ctx.instanceName,\n    text: ctx.text,\n    historial: ctx.historial,\n    accion: \u0027BUSCAR_PRODUCTO\u0027\n  }\n}];"
+                                     },
+                      "id":  "extract-product-response",
+                      "name":  "Preparar Respuesta Producto",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       2840,
+                                       280
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const ctx = $input.first().json;\nconst accion = (ctx.accion || \u0027\u0027).toUpperCase();\n\nlet responseText = \u0027\u0027;\n\nif (accion === \u0027PEDIR_INFO\u0027) {\n  responseText = ctx.respuesta || \u0027¡Hola! Bienvenido a DKO Mueblería. ¿En qué producto te puedo ayudar?\u0027;\n} else if (accion === \u0027ESCALAR_HUMANO\u0027) {\n  responseText = ctx.respuesta || \u0027Claro, en un momento uno de nuestros asesores de DKO Mueblería se pondrá en contacto contigo. ¡Gracias por tu paciencia!\u0027;\n} else {\n  responseText = \u0027Gracias por escribirnos. Un asesor de DKO Mueblería te atenderá en breve.\u0027;\n}\n\nreturn [{\n  json: {\n    responseText,\n    phone: ctx.phone,\n    remoteJid: ctx.remoteJid,\n    instanceName: ctx.instanceName,\n    text: ctx.text,\n    historial: ctx.historial || [],\n    accion: accion || \u0027PEDIR_INFO\u0027,\n  }\n}];"
+                                     },
+                      "id":  "prepare-other-response",
+                      "name":  "Preparar Respuesta (Pedir Info / Escalar)",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       2400,
+                                       520
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const item = $input.first().json;\nconst historial = item.historial || [];\n\nhistorial.push({ role: \u0027cliente\u0027, mensaje: item.text });\nhistorial.push({ role: \u0027bot\u0027, mensaje: item.responseText });\n\nconst historialActualizado = historial.slice(-10);\n\n// Payload formato Evolution API v2\nconst evolutionPayload = {\n  number: item.remoteJid,\n  text: item.responseText,\n  delay: 1200,\n  presence: \u0027composing\u0027\n};\n\nreturn [{\n  json: {\n    ...item,\n    historialActualizado,\n    evolutionPayload\n  }\n}];"
+                                     },
+                      "id":  "update-historial",
+                      "name":  "Actualizar Historial",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       3060,
+                                       400
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "set",
+                                         "key":  "=dko:chat:{{ $json.phone }}",
+                                         "value":  "={{ JSON.stringify($json.historialActualizado) }}",
+                                         "keyExpirationTimeouts":  3600,
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "redis-set",
+                      "name":  "Guardar Historial Redis",
+                      "type":  "n8n-nodes-base.redis",
+                      "typeVersion":  1,
+                      "position":  [
+                                       3280,
+                                       400
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://evolution-api-production-ed6c.up.railway.app/message/sendText/DKO-Muebles",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "apikey",
+                                                                                         "value":  "tu_clave_super_segura"
+                                                                                     },
+                                                                                     {
+                                                                                         "name":  "Content-Type",
+                                                                                         "value":  "application/json"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ $json.evolutionPayload }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "send-whatsapp",
+                      "name":  "Enviar Respuesta WhatsApp",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       3500,
+                                       400
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "respondWith":  "text",
+                                         "responseBody":  "ok"
+                                     },
+                      "id":  "respond-ok",
+                      "name":  "Responder OK",
+                      "type":  "n8n-nodes-base.respondToWebhook",
+                      "typeVersion":  1,
+                      "position":  [
+                                       3720,
+                                       400
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "get",
+                                         "key":  "=dko:msg:{{ $json.messageId }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "redis-idem-get",
+                      "name":  "Â¿Mensaje ya procesado?",
+                      "type":  "n8n-nodes-base.redis",
+                      "typeVersion":  1,
+                      "position":  [
+                                       900,
+                                       400
+                                   ],
+                      "continueOnFail":  true
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "operator":  {
+                                                                                                    "operation":  "equals",
+                                                                                                    "type":  "boolean"
+                                                                                                },
+                                                                                   "rightValue":  true,
+                                                                                   "leftValue":  "={{ (() =\u003e { const v = $json.value; return v === undefined || v === null || v === \u0027\u0027; })() }}"
+                                                                               }
+                                                                           ],
+                                                            "options":  {
+                                                                            "caseSensitive":  false
+                                                                        }
+                                                        }
+                                     },
+                      "id":  "redis-idem-check",
+                      "name":  "Â¿Es duplicado?",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1100,
+                                       400
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "set",
+                                         "key":  "=dko:msg:{{ $(\u0027Parsear Mensaje\u0027).first().json.messageId }}",
+                                         "value":  "1",
+                                         "keyExpirationTimeouts":  60,
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "redis-idem-set",
+                      "name":  "Marcar mensaje procesado",
+                      "type":  "n8n-nodes-base.redis",
+                      "typeVersion":  1,
+                      "position":  [
+                                       1300,
+                                       400
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "conditions":  {
+                                                            "conditions":  [
+                                                                               {
+                                                                                   "operator":  {
+                                                                                                    "operation":  "equals",
+                                                                                                    "type":  "boolean"
+                                                                                                },
+                                                                                   "rightValue":  true,
+                                                                                   "leftValue":  "={{ (() =\u003e { const t = (($(\u0027Parsear Mensaje\u0027).first().json.text || \u0027\u0027) + \u0027\u0027).toLowerCase().trim(); const saludos = [\u0027hola\u0027,\u0027holaa\u0027,\u0027buenos dias\u0027,\u0027buenos días\u0027,\u0027buenas tardes\u0027,\u0027buenas noches\u0027,\u0027buenas\u0027,\u0027hey\u0027,\u0027buen dia\u0027,\u0027buen día\u0027,\u0027hi\u0027,\u0027hello\u0027,\u0027ola\u0027]; const esSaludo = saludos.includes(t) || t.length \u003c 3; return !esSaludo; })() }}"
+                                                                               }
+                                                                           ],
+                                                            "options":  {
+                                                                            "caseSensitive":  false
+                                                                        }
+                                                        }
+                                     },
+                      "id":  "force-action-check",
+                      "name":  "Â¿Forzar AcciÃ³n?",
+                      "type":  "n8n-nodes-base.if",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1800,
+                                       400
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const parsed = $(\u0027Parsear Mensaje\u0027).first().json;\n\nreturn [{\n  json: {\n    accion: \u0027PEDIR_INFO\u0027,\n    query: null,\n    respuesta: `¡Hola ${parsed.pushName}! 👋 Bienvenido a DKO Mueblería. ¿Qué mueble estás buscando hoy?`,\n    phone: parsed.phone,\n    remoteJid: parsed.remoteJid,\n    pushName: parsed.pushName,\n    instanceName: parsed.instanceName,\n    text: parsed.text,\n    historial: [],\n  }\n}];"
+                                     },
+                      "id":  "apply-force-action",
+                      "name":  "Aplicar AcciÃ³n Forzada",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       2000,
+                                       220
+                                   ]
+                  }
+              ],
+    "connections":  {
+                        "Webhook Evolution API":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "node":  "Parsear Mensaje",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       }
+                                                                   ]
+                                                               ]
+                                                  },
+                        "Parsear Mensaje":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "Â¿Ignorar?",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            },
+                        "Â¿Ignorar?":  {
+                                           "main":  [
+                                                        [
+                                                            {
+                                                                "node":  "Â¿Mensaje ya procesado?",
+                                                                "type":  "main",
+                                                                "index":  0
+                                                            }
+                                                        ],
+                                                        [
+                                                            {
+                                                                "node":  "Responder OK (skip)",
+                                                                "type":  "main",
+                                                                "index":  0
+                                                            }
+                                                        ]
+                                                    ]
+                                       },
+                        "Cargar Historial Redis":  {
+                                                       "main":  [
+                                                                    [
+                                                                        {
+                                                                            "node":  "Preparar Contexto",
+                                                                            "type":  "main",
+                                                                            "index":  0
+                                                                        }
+                                                                    ]
+                                                                ]
+                                                   },
+                        "Preparar Contexto":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Gemini Agente (decide)",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Gemini Agente (decide)":  {
+                                                       "main":  [
+                                                                    [
+                                                                        {
+                                                                            "node":  "Parsear DecisiÃ³n",
+                                                                            "type":  "main",
+                                                                            "index":  0
+                                                                        }
+                                                                    ]
+                                                                ]
+                                                   },
+                        "Parsear DecisiÃ³n":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Â¿Buscar Producto?",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Â¿Buscar Producto?":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Buscar Producto en DKO API",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ],
+                                                                [
+                                                                    {
+                                                                        "node":  "Preparar Respuesta (Pedir Info / Escalar)",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Buscar Producto en DKO API":  {
+                                                           "main":  [
+                                                                        [
+                                                                            {
+                                                                                "node":  "Gemini Responde con Producto",
+                                                                                "type":  "main",
+                                                                                "index":  0
+                                                                            }
+                                                                        ]
+                                                                    ]
+                                                       },
+                        "Gemini Responde con Producto":  {
+                                                             "main":  [
+                                                                          [
+                                                                              {
+                                                                                  "node":  "Preparar Respuesta Producto",
+                                                                                  "type":  "main",
+                                                                                  "index":  0
+                                                                              }
+                                                                          ]
+                                                                      ]
+                                                         },
+                        "Preparar Respuesta Producto":  {
+                                                            "main":  [
+                                                                         [
+                                                                             {
+                                                                                 "node":  "Actualizar Historial",
+                                                                                 "type":  "main",
+                                                                                 "index":  0
+                                                                             }
+                                                                         ]
+                                                                     ]
+                                                        },
+                        "Preparar Respuesta (Pedir Info / Escalar)":  {
+                                                                          "main":  [
+                                                                                       [
+                                                                                           {
+                                                                                               "node":  "Actualizar Historial",
+                                                                                               "type":  "main",
+                                                                                               "index":  0
+                                                                                           }
+                                                                                       ]
+                                                                                   ]
+                                                                      },
+                        "Actualizar Historial":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Guardar Historial Redis",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "Guardar Historial Redis":  {
+                                                        "main":  [
+                                                                     [
+                                                                         {
+                                                                             "node":  "Enviar Respuesta WhatsApp",
+                                                                             "type":  "main",
+                                                                             "index":  0
+                                                                         }
+                                                                     ]
+                                                                 ]
+                                                    },
+                        "Enviar Respuesta WhatsApp":  {
+                                                          "main":  [
+                                                                       [
+                                                                           {
+                                                                               "node":  "Responder OK",
+                                                                               "type":  "main",
+                                                                               "index":  0
+                                                                           }
+                                                                       ]
+                                                                   ]
+                                                      },
+                        "Â¿Mensaje ya procesado?":  {
+                                                        "main":  [
+                                                                     [
+                                                                         {
+                                                                             "node":  "Â¿Es duplicado?",
+                                                                             "type":  "main",
+                                                                             "index":  0
+                                                                         }
+                                                                     ]
+                                                                 ]
+                                                    },
+                        "Â¿Es duplicado?":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "Marcar mensaje procesado",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ],
+                                                             [
+                                                                 {
+                                                                     "node":  "Responder OK (skip)",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            },
+                        "Marcar mensaje procesado":  {
+                                                         "main":  [
+                                                                      [
+                                                                          {
+                                                                              "node":  "Â¿Forzar AcciÃ³n?",
+                                                                              "type":  "main",
+                                                                              "index":  0
+                                                                          }
+                                                                      ]
+                                                                  ]
+                                                     },
+                        "Â¿Forzar AcciÃ³n?":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Cargar Historial Redis",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ],
+                                                               [
+                                                                   {
+                                                                       "node":  "Aplicar AcciÃ³n Forzada",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Aplicar AcciÃ³n Forzada":  {
+                                                        "main":  [
+                                                                     [
+                                                                         {
+                                                                             "node":  "Â¿Buscar Producto?",
+                                                                             "type":  "main",
+                                                                             "index":  0
+                                                                         }
+                                                                     ]
+                                                                 ]
+                                                    }
+                    },
+    "settings":  {
+                     "executionOrder":  "v1"
+                 }
+}

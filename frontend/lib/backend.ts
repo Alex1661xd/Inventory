@@ -16,6 +16,7 @@ async function backendFetch<T>(
     path: string,
     options: RequestInit & { json?: unknown } = {},
 ): Promise<T> {
+    const method = (options.method || 'GET').toUpperCase();
     const token = await getAccessToken();
 
     const headers = new Headers(options.headers);
@@ -44,7 +45,86 @@ async function backendFetch<T>(
         throw new Error(data?.message || `Request failed: ${res.status}`);
     }
 
+    if (method !== 'GET') {
+        // Any write may impact list ordering/counts, so clear prefetched page cache.
+        paginatedResponseCache.clear();
+        paginatedInFlight.clear();
+    }
+
     return data as T;
+}
+
+type PageLike = { page?: number; totalPages?: number };
+
+const PAGINATED_CACHE_TTL_MS = 30_000;
+const paginatedResponseCache = new Map<string, { expiresAt: number; data: unknown }>();
+const paginatedInFlight = new Map<string, Promise<unknown>>();
+
+function getCachedPaginated<T>(path: string): T | null {
+    const entry = paginatedResponseCache.get(path);
+    if (!entry) return null;
+    if (Date.now() > entry.expiresAt) {
+        paginatedResponseCache.delete(path);
+        return null;
+    }
+    return entry.data as T;
+}
+
+function setCachedPaginated(path: string, data: unknown) {
+    paginatedResponseCache.set(path, {
+        data,
+        expiresAt: Date.now() + PAGINATED_CACHE_TTL_MS,
+    });
+}
+
+async function fetchPaginatedCached<T>(path: string): Promise<T> {
+    const cached = getCachedPaginated<T>(path);
+    if (cached !== null) return cached;
+
+    const inFlight = paginatedInFlight.get(path) as Promise<T> | undefined;
+    if (inFlight) return inFlight;
+
+    const request = backendFetch<T>(path)
+        .then((response) => {
+            setCachedPaginated(path, response);
+            return response;
+        })
+        .finally(() => {
+            paginatedInFlight.delete(path);
+        });
+
+    paginatedInFlight.set(path, request as Promise<unknown>);
+    return request;
+}
+
+function prefetchPaginated(path: string) {
+    const cached = getCachedPaginated(path);
+    if (cached !== null || paginatedInFlight.has(path)) return;
+    void fetchPaginatedCached(path).catch(() => {
+        // Prefetch failures are non-blocking by design.
+    });
+}
+
+function buildPath(basePath: string, params: URLSearchParams) {
+    const query = params.toString();
+    return `${basePath}${query ? `?${query}` : ''}`;
+}
+
+function prefetchNextPage(basePath: string, params: URLSearchParams, response: PageLike) {
+    const currentPage = Number(response?.page || params.get('page') || 1);
+    const totalPages = Number(response?.totalPages || 1);
+    if (!Number.isFinite(currentPage) || !Number.isFinite(totalPages) || currentPage >= totalPages) return;
+
+    const nextParams = new URLSearchParams(params);
+    nextParams.set('page', String(currentPage + 1));
+    prefetchPaginated(buildPath(basePath, nextParams));
+}
+
+async function fetchPaginatedWithPrefetch<T extends PageLike>(basePath: string, params: URLSearchParams): Promise<T> {
+    const path = buildPath(basePath, params);
+    const response = await fetchPaginatedCached<T>(path);
+    prefetchNextPage(basePath, params, response);
+    return response;
 }
 
 export type Category = {
@@ -299,8 +379,10 @@ export const api = {
             if (options?.stockStatus) params.set('stockStatus', options.stockStatus);
             if (options?.refresh) params.set('refresh', '1');
             if (options?.sellableOnly) params.set('sellableOnly', '1');
-            const query = params.toString();
-            return backendFetch<PaginatedResponse<Product>>(`/products${query ? `?${query}` : ''}`);
+            if (options?.refresh) {
+                return backendFetch<PaginatedResponse<Product>>(buildPath('/products', params));
+            }
+            return fetchPaginatedWithPrefetch<PaginatedResponse<Product>>('/products', params);
         },
         get: (id: string, refresh = false) => backendFetch<Product>(`/products/${id}${refresh ? '?refresh=1' : ''}`),
         findByBarcode: (barcode: string) => {
@@ -375,8 +457,7 @@ export const api = {
             if (params.page) search.set('page', params.page.toString());
             if (params.limit) search.set('limit', params.limit.toString());
             if (params.search) search.set('search', params.search);
-            const q = search.toString();
-            return backendFetch<PaginatedResponse<StockRow>>(`/inventory/stock${q ? `?${q}` : ''}`);
+            return fetchPaginatedWithPrefetch<PaginatedResponse<StockRow>>('/inventory/stock', search);
         },
         kardex: (productId: string, warehouseId?: string) => {
             const search = new URLSearchParams();
@@ -403,8 +484,7 @@ export const api = {
             if (options?.page) params.set('page', options.page.toString());
             if (options?.limit) params.set('limit', options.limit.toString());
             if (options?.search) params.set('search', options.search);
-            const query = params.toString();
-            return backendFetch<PaginatedResponse<any>>(`/customers${query ? `?${query}` : ''}`);
+            return fetchPaginatedWithPrefetch<PaginatedResponse<any>>('/customers', params);
         },
         create: (payload: any) => backendFetch<any>('/customers', { method: 'POST', json: payload }),
         update: (id: string, payload: any) => backendFetch<any>(`/customers/${id}`, { method: 'PATCH', json: payload }),
@@ -420,8 +500,7 @@ export const api = {
             if (options?.from) params.set('from', options.from);
             if (options?.to) params.set('to', options.to);
             if (options?.status) params.set('status', options.status);
-            const query = params.toString();
-            return backendFetch<PaginatedResponse<any>>(`/invoices${query ? `?${query}` : ''}`);
+            return fetchPaginatedWithPrefetch<PaginatedResponse<any>>('/invoices', params);
         },
         get: (id: string) => backendFetch<any>(`/invoices/${id}`),
         cancel: (id: string) => backendFetch<any>(`/invoices/${id}/cancel`, { method: 'POST' }),
@@ -432,8 +511,7 @@ export const api = {
             if (options?.page) params.set('page', options.page.toString());
             if (options?.limit) params.set('limit', options.limit.toString());
             if (options?.search) params.set('search', options.search);
-            const query = params.toString();
-            return backendFetch<PaginatedResponse<Supplier>>(`/suppliers${query ? `?${query}` : ''}`);
+            return fetchPaginatedWithPrefetch<PaginatedResponse<Supplier>>('/suppliers', params);
         },
         create: (payload: { name: string; contactName?: string; email?: string; phone?: string; address?: string; taxId?: string; paymentTerms?: string }) =>
             backendFetch<Supplier>('/suppliers', { method: 'POST', json: payload }),
@@ -473,8 +551,7 @@ export const api = {
             if (filters?.category) params.set('category', filters.category);
             if (filters?.page) params.set('page', filters.page.toString());
             if (filters?.limit) params.set('limit', filters.limit.toString());
-            const query = params.toString();
-            return backendFetch<PaginatedResponse<Expense>>(`/expenses${query ? `?${query}` : ''}`);
+            return fetchPaginatedWithPrefetch<PaginatedResponse<Expense>>('/expenses', params);
         },
         create: (payload: { amount: number; description: string; category: ExpenseCategory; date?: string; supplierId?: string }) =>
             backendFetch<Expense>('/expenses', { method: 'POST', json: payload }),
@@ -521,8 +598,7 @@ export const api = {
             if (options?.search) params.set('search', options.search);
             if (options?.from) params.set('from', options.from);
             if (options?.to) params.set('to', options.to);
-            const query = params.toString();
-            return backendFetch<PaginatedResponse<Purchase>>(`/purchases${query ? `?${query}` : ''}`);
+            return fetchPaginatedWithPrefetch<PaginatedResponse<Purchase>>('/purchases', params);
         },
         get: (id: string) => backendFetch<Purchase>(`/purchases/${id}`),
         create: (payload: {
@@ -631,8 +707,7 @@ export const api = {
             if (options?.userId) params.set('userId', options.userId);
             if (options?.from) params.set('from', options.from);
             if (options?.to) params.set('to', options.to);
-            const query = params.toString();
-            return backendFetch<PaginatedResponse<AuditLog>>(`/audit${query ? `?${query}` : ''}`);
+            return fetchPaginatedWithPrefetch<PaginatedResponse<AuditLog>>('/audit', params);
         }
     }
 };

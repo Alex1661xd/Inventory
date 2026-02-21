@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Wallet, ArrowRight, TrendingUp, TrendingDown, Clock, Search, ChevronLeft, ChevronRight, History, Calendar, Filter, Loader2 } from 'lucide-react'
+import { Wallet, ArrowRight, TrendingUp, TrendingDown, Clock, Search, ChevronLeft, ChevronRight, History, Calendar, Filter } from 'lucide-react'
 import { formatThousands, cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -16,29 +16,9 @@ import { Label } from '@/components/ui/label'
 
 const ITEMS_PER_PAGE = 10
 
-// Componente de Modal de Carga
-function LoadingModal({ isOpen, message }: { isOpen: boolean; message: string }) {
-    if (!isOpen) return null
-
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 animate-in zoom-in-95 duration-300">
-                <div className="w-16 h-16 rounded-full bg-slate-900 flex items-center justify-center">
-                    <Loader2 className="h-8 w-8 text-white animate-spin" />
-                </div>
-                <div className="text-center">
-                    <p className="font-bold text-gray-900 text-xl">{message}</p>
-                    <p className="text-sm text-gray-500 mt-1">Por favor espera un momento...</p>
-                </div>
-            </div>
-        </div>
-    )
-}
-
 export default function CashFlowHistoryPage() {
     const [history, setHistory] = useState<CashShift[]>([])
     const [loading, setLoading] = useState(true)
-    const [loadingMessage, setLoadingMessage] = useState('Cargando historial...')
     const [searchTerm, setSearchTerm] = useState('')
     const [currentPage, setCurrentPage] = useState(1)
 
@@ -72,7 +52,6 @@ export default function CashFlowHistoryPage() {
     const handleQuickFilter = (type: string) => {
         if (type === activeDateFilter && type !== 'custom') return
 
-        setLoadingMessage('Actualizando período...')
         const now = new Date()
         const todayStr = now.toISOString().split('T')[0]
         setEndDate(todayStr)
@@ -107,8 +86,6 @@ export default function CashFlowHistoryPage() {
 
     return (
         <>
-            <LoadingModal isOpen={loading} message={loadingMessage} />
-
             <div className="space-y-8 pb-10 animate-in fade-in duration-700">
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
@@ -139,6 +116,9 @@ export default function CashFlowHistoryPage() {
                         </div>
                     </div>
                 </div>
+                {loading && history.length > 0 && (
+                    <div className="text-xs font-medium text-gray-500">Actualizando historial de caja...</div>
+                )}
 
                 {/* Filtros de Fecha */}
                 <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm rounded-3xl overflow-hidden">
@@ -251,7 +231,7 @@ export default function CashFlowHistoryPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {loading ? (
+                                {loading && paginatedHistory.length === 0 ? (
                                     Array.from({ length: 5 }).map((_, i) => (
                                         <TableRow key={i} className="animate-pulse">
                                             <TableCell colSpan={9} className="h-16 bg-gray-50/30" />
@@ -388,7 +368,7 @@ export default function CashFlowHistoryPage() {
                                     size="icon"
                                     className="h-9 w-9 rounded-xl border-gray-200 bg-white"
                                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                    disabled={currentPage === 1}
+                                    disabled={currentPage === 1 || loading}
                                 >
                                     <ChevronLeft className="h-4 w-4 text-gray-600" />
                                 </Button>
@@ -403,6 +383,7 @@ export default function CashFlowHistoryPage() {
                                                 currentPage === page ? "bg-gray-900 text-white shadow-md scale-105" : "text-gray-600 hover:bg-gray-100"
                                             )}
                                             onClick={() => setCurrentPage(page)}
+                                            disabled={loading}
                                         >
                                             {page}
                                         </Button>
@@ -413,7 +394,7 @@ export default function CashFlowHistoryPage() {
                                     size="icon"
                                     className="h-9 w-9 rounded-xl border-gray-200 bg-white"
                                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                    disabled={currentPage === totalPages}
+                                    disabled={currentPage === totalPages || loading}
                                 >
                                     <ChevronRight className="h-4 w-4 text-gray-600" />
                                 </Button>

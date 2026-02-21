@@ -97,35 +97,46 @@ export function ProductsManager({
         return () => clearTimeout(timer)
     }, [priceRange])
 
-    const load = async (page = 1, refresh = false) => {
-        setLoading(true)
+    const loadMeta = async () => {
         try {
-            const [response, ws, cats] = await Promise.all([
-                api.products.list({
-                    page,
-                    limit: itemsPerPage,
-                    search: debouncedSearch,
-                    categoryId: selectedCategory || undefined,
-                    minPrice: debouncedPriceRange.min ? parseFloat(debouncedPriceRange.min) : undefined,
-                    maxPrice: debouncedPriceRange.max ? parseFloat(debouncedPriceRange.max) : undefined,
-                    stockStatus: stockFilter !== 'all' ? stockFilter : undefined,
-                    refresh
-                }),
+            const [ws, cats] = await Promise.all([
                 api.warehouses.list(),
                 api.categories.list()
             ])
+            setWarehouses(ws)
+            setCategories(cats)
+        } catch (e: any) {
+            toast.error(e.message)
+        }
+    }
+
+    const load = async (page = 1, refresh = false) => {
+        setLoading(true)
+        try {
+            const response = await api.products.list({
+                page,
+                limit: itemsPerPage,
+                search: debouncedSearch,
+                categoryId: selectedCategory || undefined,
+                minPrice: debouncedPriceRange.min ? parseFloat(debouncedPriceRange.min) : undefined,
+                maxPrice: debouncedPriceRange.max ? parseFloat(debouncedPriceRange.max) : undefined,
+                stockStatus: stockFilter !== 'all' ? stockFilter : undefined,
+                refresh
+            })
             const productsData = Array.isArray(response) ? response : (response?.data || [])
             setProducts(productsData)
             setTotalItems(Array.isArray(response) ? response.length : (response.total || 0))
             setTotalPages(Array.isArray(response) ? 1 : (response.totalPages || 1))
-            setWarehouses(ws)
-            setCategories(cats)
         } catch (e: any) {
             toast.error(e.message)
         } finally {
             setLoading(false)
         }
     }
+
+    useEffect(() => {
+        loadMeta()
+    }, [])
 
     useEffect(() => {
         load(1)
@@ -726,6 +737,7 @@ export function ProductsManager({
                                 size="sm"
                                 className="h-7 text-[10px] font-bold"
                                 onClick={() => handleViewProduct(p)}
+                                disabled={loading}
                             >
                                 Ver
                             </Button>
@@ -734,6 +746,7 @@ export function ProductsManager({
                                 size="sm"
                                 className="h-7 text-[10px] font-bold"
                                 onClick={() => setBarcodeModal({ product: p, visible: true })}
+                                disabled={loading}
                             >
                                 Code
                             </Button>
@@ -744,7 +757,7 @@ export function ProductsManager({
                                         size="sm"
                                         className="h-7 text-[10px] font-bold flex items-center justify-center gap-1"
                                         onClick={() => toggleSellable(p)}
-                                        disabled={!!togglingId}
+                                        disabled={loading || !!togglingId}
                                     >
                                         {togglingId === p.id && <span className="animate-spin text-[8px]">⚙️</span>}
                                         {togglingId === p.id
@@ -756,6 +769,7 @@ export function ProductsManager({
                                         size="sm"
                                         className="h-7 text-[10px] font-bold"
                                         onClick={() => startEdit(p)}
+                                        disabled={loading}
                                     >
                                         Edit
                                     </Button>
@@ -764,6 +778,7 @@ export function ProductsManager({
                                         size="sm"
                                         className="h-7 text-[10px] font-bold col-span-2"
                                         onClick={() => remove(p.id)}
+                                        disabled={loading}
                                     >
                                         Eliminar
                                     </Button>
@@ -777,9 +792,14 @@ export function ProductsManager({
             {/* Pagination */}
             {totalPages > 1 && (
                 <div className="flex justify-center gap-2 mt-6">
-                    <Button variant="outline" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Anterior</Button>
+                    <Button variant="outline" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1 || loading}>Anterior</Button>
                     <span className="flex items-center px-4 font-medium text-sm">Página {currentPage} de {totalPages}</span>
-                    <Button variant="outline" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Siguiente</Button>
+                    <Button variant="outline" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || loading}>Siguiente</Button>
+                </div>
+            )}
+            {loading && products.length > 0 && (
+                <div className="flex justify-center">
+                    <span className="text-xs font-medium text-gray-500">Actualizando productos...</span>
                 </div>
             )}
 
