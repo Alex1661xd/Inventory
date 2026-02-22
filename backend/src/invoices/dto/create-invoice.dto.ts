@@ -16,6 +16,16 @@ class InvoiceItemDto {
     unitPrice: number;
 }
 
+class InvoiceComboLineDto {
+    @IsString()
+    @IsNotEmpty()
+    comboId: string;
+
+    @IsNumber()
+    @IsNotEmpty()
+    quantity: number;
+}
+
 export class CreateInvoiceDto {
     @IsNumber()
     @IsNotEmpty()
@@ -45,6 +55,12 @@ export class CreateInvoiceDto {
     @ValidateNested({ each: true })
     @Type(() => InvoiceItemDto)
     items: InvoiceItemDto[];
+
+    @IsArray()
+    @IsOptional()
+    @ValidateNested({ each: true })
+    @Type(() => InvoiceComboLineDto)
+    comboLines?: InvoiceComboLineDto[];
 
     @IsNumber()
     @IsOptional()

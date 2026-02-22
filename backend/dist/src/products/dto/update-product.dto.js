@@ -11,6 +11,37 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateProductDto = void 0;
 const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
+const class_validator_2 = require("class-validator");
+class ProductVisualVariantUpdateDto {
+    name;
+    image;
+    sortOrder;
+    isPublic;
+}
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(120),
+    __metadata("design:type", String)
+], ProductVisualVariantUpdateDto.prototype, "name", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(1200),
+    __metadata("design:type", String)
+], ProductVisualVariantUpdateDto.prototype, "image", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_2.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], ProductVisualVariantUpdateDto.prototype, "sortOrder", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], ProductVisualVariantUpdateDto.prototype, "isPublic", void 0);
 class UpdateProductDto {
     name;
     description;
@@ -21,6 +52,7 @@ class UpdateProductDto {
     isPublic;
     isSellable;
     categoryId;
+    visualVariants;
 }
 exports.UpdateProductDto = UpdateProductDto;
 __decorate([
@@ -74,4 +106,11 @@ __decorate([
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], UpdateProductDto.prototype, "categoryId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_2.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => ProductVisualVariantUpdateDto),
+    __metadata("design:type", Array)
+], UpdateProductDto.prototype, "visualVariants", void 0);
 //# sourceMappingURL=update-product.dto.js.map

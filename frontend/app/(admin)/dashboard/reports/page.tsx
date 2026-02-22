@@ -276,6 +276,26 @@ export default function ReportsPage() {
                                 <p className="text-xs font-bold uppercase tracking-widest">Sin datos de venta</p>
                             </div>
                         )}
+
+                        {data.comboStats?.length > 0 && (
+                            <>
+                                <div className="pt-3 mt-3 border-t border-[hsl(var(--border)/0.5)] text-[10px] font-black uppercase tracking-widest text-[hsl(var(--muted))]">
+                                    Top Combos
+                                </div>
+                                {data.comboStats.slice(0, 3).map((combo, i) => (
+                                    <div key={`combo-${i}`} className="flex items-center justify-between group">
+                                        <div className="flex flex-col">
+                                            <span className="text-xs font-bold text-[hsl(var(--foreground))] line-clamp-1">{combo.name}</span>
+                                            <span className="text-[10px] font-medium text-[hsl(var(--muted))]">{combo.quantity} combos vendidos</span>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-xs font-black text-emerald-600">${formatThousands(Math.round(combo.total))}</div>
+                                            <div className="text-[9px] font-bold text-amber-500">Rent: ${formatThousands(Math.round(combo.profit))}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </>
+                        )}
                     </CardContent>
                 </Card>
             </div>

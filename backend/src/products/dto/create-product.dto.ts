@@ -1,4 +1,25 @@
 import { IsString, IsOptional, IsNumber, IsBoolean, IsUUID, Min, MaxLength, IsInt, IsArray } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ValidateNested } from 'class-validator';
+
+class ProductVisualVariantDto {
+    @IsString()
+    @MaxLength(120)
+    name!: string;
+
+    @IsString()
+    @MaxLength(1200)
+    image!: string;
+
+    @IsOptional()
+    @IsInt()
+    @Min(0)
+    sortOrder?: number;
+
+    @IsOptional()
+    @IsBoolean()
+    isPublic?: boolean;
+}
 
 export class CreateProductDto {
     @IsString()
@@ -47,4 +68,10 @@ export class CreateProductDto {
     @IsOptional()
     @IsUUID()
     initialWarehouseId?: string;
+
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => ProductVisualVariantDto)
+    visualVariants?: ProductVisualVariantDto[];
 }

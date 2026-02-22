@@ -79,8 +79,17 @@ export class ProductsService {
         }
 
         try {
+            const normalizedVisualVariants = (dto.visualVariants || [])
+                .map((v, index) => ({
+                    name: String(v.name || '').trim(),
+                    image: String(v.image || '').trim(),
+                    sortOrder: Number(v.sortOrder ?? index),
+                    isPublic: v.isPublic ?? true,
+                }))
+                .filter(v => v.name.length > 0 && v.image.length > 0);
+
             const product = await this.prisma.$transaction(async (tx) => {
-                const product = await tx.product.create({
+                const product = await (tx.product as any).create({
                     data: {
                         tenantId,
                         name: dto.name,
@@ -92,6 +101,9 @@ export class ProductsService {
                         salePrice: dto.salePrice ?? 0,
                         isPublic: dto.isPublic ?? true,
                         categoryId: dto.categoryId,
+                        visualVariants: normalizedVisualVariants.length > 0 ? {
+                            create: normalizedVisualVariants
+                        } : undefined,
                     },
                 });
 
@@ -234,24 +246,36 @@ export class ProductsService {
         }
 
         const [products, total] = await Promise.all([
-            this.prisma.product.findMany({
+            (this.prisma.product as any).findMany({
                 where,
                 orderBy: { createdAt: 'desc' },
                 skip,
                 take: limit,
-                include: { inventory: true }
+                include: {
+                    inventory: true,
+                    visualVariants: {
+                        orderBy: { sortOrder: 'asc' }
+                    }
+                }
             }),
             this.prisma.product.count({ where })
         ]);
 
         const productsWithStock = products.map(p => {
-            const totalStock = (p.inventory || []).reduce((acc, s) => acc + s.quantity, 0);
+            const totalStock = (p.inventory || []).reduce((acc: number, s: any) => acc + s.quantity, 0);
             const { inventory, ...rest } = p;
             return {
                 ...rest,
                 costPrice: Number(p.costPrice),
                 salePrice: Number(p.salePrice),
-                totalStock
+                totalStock,
+            visualVariants: ((p as any).visualVariants || []).map((v: any) => ({
+                    id: v.id,
+                    name: v.name,
+                    image: v.image,
+                    sortOrder: v.sortOrder,
+                    isPublic: v.isPublic,
+                }))
             };
         });
 
@@ -284,11 +308,14 @@ export class ProductsService {
             if (cached) return cached;
         }
 
-        const product = await this.prisma.product.findFirst({
+        const product = await (this.prisma.product as any).findFirst({
             // @ts-ignore
             where: { id, tenantId, active: true },
             include: {
                 inventory: { select: { quantity: true } },
+                visualVariants: {
+                    orderBy: { sortOrder: 'asc' }
+                },
                 // @ts-ignore
                 stockBatches: {
                     where: { remainingQuantity: { gt: 0 } },
@@ -342,7 +369,12 @@ export class ProductsService {
             quantity
         })).sort((a, b) => b.cost - a.cost);
 
-        const result = { ...rest, totalStock, activeCosts };
+        const result = {
+            ...rest,
+            totalStock,
+            activeCosts,
+            visualVariants: (product as any).visualVariants || [],
+        };
 
         // Guardar en caché por 10 minutos
         await this.cacheService.set(cacheKey, result, 600);
@@ -394,9 +426,38 @@ export class ProductsService {
         if (!exists) throw new NotFoundException('Product not found');
 
         try {
-            const result = await this.prisma.product.update({
-                where: { id },
-                data: dto,
+            const normalizedVisualVariants = dto.visualVariants !== undefined
+                ? (dto.visualVariants || [])
+                    .map((v, index) => ({
+                        name: String(v?.name || '').trim(),
+                        image: String(v?.image || '').trim(),
+                        sortOrder: Number(v?.sortOrder ?? index),
+                        isPublic: v?.isPublic ?? true,
+                    }))
+                    .filter(v => v.name.length > 0 && v.image.length > 0)
+                : null;
+
+            const result = await this.prisma.$transaction(async (tx) => {
+                if (normalizedVisualVariants !== null) {
+                    await (tx as any).productVisualVariant.deleteMany({
+                        where: { tenantId, productId: id }
+                    });
+                    if (normalizedVisualVariants.length > 0) {
+                        await (tx as any).productVisualVariant.createMany({
+                            data: normalizedVisualVariants.map(v => ({
+                                ...v,
+                                tenantId,
+                                productId: id,
+                            }))
+                        });
+                    }
+                }
+
+                const { visualVariants, ...productData } = dto as any;
+                return (tx.product as any).update({
+                    where: { id },
+                    data: productData,
+                });
             });
 
             // Invalidar caché al actualizar

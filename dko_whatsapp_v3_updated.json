@@ -1,778 +1,783 @@
 ﻿{
-    "name":  "DKO MueblerÃ­a - Bot WhatsApp v3 (RAG \u0026 Handoff)",
-    "nodes":  [
-                  {
-                      "parameters":  {
-                                         "httpMethod":  "POST",
-                                         "path":  "dko-whatsapp",
-                                         "responseMode":  "responseNode",
-                                         "options":  {
-
-                                                     }
-                                     },
-                      "id":  "webhook-trigger",
-                      "name":  "Webhook Evolution API",
-                      "type":  "n8n-nodes-base.webhook",
-                      "typeVersion":  1,
-                      "position":  [
-                                       0,
-                                       300
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "jsCode":  "const body = $input.first().json.body || $input.first().json;\nconst event = (body.event || \u0027\u0027).toLowerCase();\n\nif (event !== \u0027messages.upsert\u0027) return [{ json: { skip: true, skipReason: \u0027event_not_supported\u0027 } }];\n\nconst data = body.data || {};\nconst key = data.key || {};\nconst message = data.message || {};\n\nif (key.fromMe || !key.remoteJid || key.remoteJid.includes(\u0027@broadcast\u0027) || key.remoteJid.includes(\u0027@g.us\u0027)) {\n  return [{ json: { skip: true, skipReason: \u0027invalid_sender\u0027 } }];\n}\n\nconst messageType = (data.messageType || Object.keys(message)[0] || \u0027\u0027).trim();\nif (![\u0027conversation\u0027, \u0027extendedTextMessage\u0027].includes(messageType)) {\n  return [{ json: { skip: true, skipReason: \u0027invalid_type\u0027 } }];\n}\n\nconst text = (message.conversation || message.extendedTextMessage?.text || \u0027\u0027).trim();\nif (!text) return [{ json: { skip: true, skipReason: \u0027empty_text\u0027 } }];\n\nconst pushName = data.pushName || body.pushName || \u0027Cliente\u0027;\nconst instanceName = body.instance || \u0027DKO-Muebles\u0027;\nconst ts = data.messageTimestamp || Math.floor(Date.now() / 1000);\nconst messageId = key.id || `${key.remoteJid}:${ts}:${text.slice(0, 32)}`;\nconst phone = key.remoteJid.replace(\u0027@s.whatsapp.net\u0027, \u0027\u0027);\n\nreturn [{\n  json: { skip: false, phone, remoteJid: key.remoteJid, text, pushName, instanceName, messageId }\n}];"
-                                     },
-                      "id":  "parse-message",
-                      "name":  "Parsear Mensaje",
-                      "type":  "n8n-nodes-base.code",
-                      "typeVersion":  2,
-                      "position":  [
-                                       220,
-                                       300
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "conditions":  {
-                                                            "boolean":  [
-                                                                            {
-                                                                                "value1":  "={{ $json.skip }}",
-                                                                                "value2":  false
-                                                                            }
-                                                                        ]
-                                                        }
-                                     },
-                      "id":  "check-skip",
-                      "name":  "Â¿Ignorar?",
-                      "type":  "n8n-nodes-base.if",
-                      "typeVersion":  2,
-                      "position":  [
-                                       440,
-                                       300
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "respondWith":  "text",
-                                         "responseBody":  "ok"
-                                     },
-                      "id":  "respond-skip",
-                      "name":  "Responder OK (skip)",
-                      "type":  "n8n-nodes-base.respondToWebhook",
-                      "typeVersion":  1,
-                      "position":  [
-                                       660,
-                                       100
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "operation":  "get",
-                                         "key":  "=dko:msg:{{ $json.messageId }}",
-                                         "propertyName":  "value"
-                                     },
-                      "id":  "redis-idem-get",
-                      "name":  "Â¿Mensaje Duplicado?",
-                      "type":  "n8n-nodes-base.redis",
-                      "typeVersion":  1,
-                      "position":  [
-                                       660,
-                                       300
-                                   ],
-                      "continueOnFail":  true
-                  },
-                  {
-                      "parameters":  {
-                                         "conditions":  {
-                                                            "boolean":  [
-                                                                            {
-                                                                                "value2":  true,
-                                                                                "value1":  "={{ (() =\u003e {\n  const direct = $json.value;\n  const keys = Object.keys($json || {});\n  const firstProp = keys.length ? $json[keys[0]] : undefined;\n  const v = direct !== undefined ? direct : firstProp;\n  return v === \u00271\u0027 || v === 1 || v === true;\n})() }}"
-                                                                            }
-                                                                        ]
-                                                        }
-                                     },
-                      "id":  "redis-idem-check",
-                      "name":  "Â¿Es duplicado?",
-                      "type":  "n8n-nodes-base.if",
-                      "typeVersion":  2,
-                      "position":  [
-                                       880,
-                                       300
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "operation":  "set",
-                                         "key":  "=dko:msg:{{ $(\u0027Parsear Mensaje\u0027).first().json.messageId }}",
-                                         "value":  "1",
-                                         "keyExpirationTimeouts":  60
-                                     },
-                      "id":  "redis-idem-set",
-                      "name":  "Marcar Procesado",
-                      "type":  "n8n-nodes-base.redis",
-                      "typeVersion":  1,
-                      "position":  [
-                                       1100,
-                                       480
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "operation":  "get",
-                                         "key":  "=dko:human:{{ $(\u0027Parsear Mensaje\u0027).first().json.phone }}",
-                                         "propertyName":  "value"
-                                     },
-                      "id":  "redis-human-get",
-                      "name":  "Â¿Modo Humano Activo?",
-                      "type":  "n8n-nodes-base.redis",
-                      "typeVersion":  1,
-                      "position":  [
-                                       1320,
-                                       480
-                                   ],
-                      "continueOnFail":  true
-                  },
-                  {
-                      "parameters":  {
-                                         "conditions":  {
-                                                            "boolean":  [
-                                                                            {
-                                                                                "value1":  "={{ $json.value === \u00271\u0027 }}",
-                                                                                "value2":  true
-                                                                            }
-                                                                        ]
-                                                        }
-                                     },
-                      "id":  "check-human-mode",
-                      "name":  "Â¿Pausar Bot?",
-                      "type":  "n8n-nodes-base.if",
-                      "typeVersion":  2,
-                      "position":  [
-                                       1540,
-                                       480
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "operation":  "get",
-                                         "key":  "=dko:chat:{{ $(\u0027Parsear Mensaje\u0027).first().json.phone }}",
-                                         "propertyName":  "value"
-                                     },
-                      "id":  "redis-get-history",
-                      "name":  "Cargar Historial",
-                      "type":  "n8n-nodes-base.redis",
-                      "typeVersion":  1,
-                      "position":  [
-                                       1760,
-                                       600
-                                   ],
-                      "continueOnFail":  true
-                  },
-                  {
-                      "parameters":  {
-                                         "jsCode":  "const historialRaw = $input.first().json.value || null;\nlet historial = [];\ntry { if (historialRaw) historial = JSON.parse(historialRaw); } catch (e) {}\nif (historial.length \u003e 10) historial = historial.slice(-10);\n\nconst parsed = $(\u0027Parsear Mensaje\u0027).first().json;\nconst text = parsed.text.toLowerCase().trim();\n\n// 1. FILTRO DE SEGURIDAD (Hard Rules)\nconst saludos = [\u0027hola\u0027, \u0027buenos dias\u0027, \u0027buenas tardes\u0027, \u0027buenas noches\u0027, \u0027buenas\u0027, \u0027hey\u0027, \u0027buen dia\u0027, \u0027hi\u0027, \u0027hello\u0027, \u0027ola\u0027, \u0027buenas!\u0027, \u0027hola!\u0027];\nlet forceAction = null;\n\nif (saludos.includes(text) || text.length \u003c 3) {\n  forceAction = {\n    accion: \"PEDIR_INFO\",\n    query: null,\n    respuesta: `Â¡Hola ${parsed.pushName}! ðŸ‘‹ Bienvenido a DKO MueblerÃ­a. Â¿En quÃ© puedo ayudarte hoy? Â¿Buscas algÃºn mueble en especial o quieres consultar el estado de un pedido?`\n  };\n}\n\n// 2. SYSTEM INSTRUCTION\nconst systemInstruction = `Eres el asistente de DKO MueblerÃ­a.\nTu UNICA prioridad es clasificar la intenciÃ³n del usuario.\n\nREGLAS DE ORO:\n1. Si el usuario SALUDA o hace una pregunta general -\u003e Accion: PEDIR_INFO.\n2. Si el usuario pregunta por un mueble, sofÃ¡, cama, comedor, etc -\u003e Accion: BUSCAR_PRODUCTO.\n3. Si el usuario estÃ¡ enojado o pide hablar con alguien -\u003e Accion: ESCALAR_HUMANO.\n\nEJEMPLO DE SALUDO:\nUsuario: \"Hola\" -\u003e {\"accion\": \"PEDIR_INFO\", \"query\": null, \"respuesta\": \"Â¡Hola! Â¿En quÃ© puedo ayudarte?\"}`;\n\n// 3. CONSTRUCCIÃ“N DEL PAYLOAD\nconst geminiPayload = {\n  system_instruction: { parts: [{ text: systemInstruction }] },\n  contents: [{ parts: [{ text: `Historial: ${JSON.stringify(historial)}\\nMensaje del usuario: ${parsed.text}` }] }],\n  generationConfig: {\n    responseMimeType: \"application/json\",\n    temperature: 0.1\n  }\n};\n\nreturn [{\n  json: {\n    ...parsed,\n    historial,\n    geminiPayload,\n    forceAction\n  }\n}];"
-                                     },
-                      "id":  "prepare-context",
-                      "name":  "Preparar Contexto IA",
-                      "type":  "n8n-nodes-base.code",
-                      "typeVersion":  2,
-                      "position":  [
-                                       1980,
-                                       600
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "method":  "POST",
-                                         "url":  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyCcVa0KCEGSk9nTrbIdzun5tKZRAoCM1dk",
-                                         "sendBody":  true,
-                                         "specifyBody":  "json",
-                                         "jsonBody":  "={{ $json.geminiPayload }}"
-                                     },
-                      "id":  "gemini-intent",
-                      "name":  "Gemini (Decide)",
-                      "type":  "n8n-nodes-base.httpRequest",
-                      "typeVersion":  4.2,
-                      "position":  [
-                                       2420,
-                                       600
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "jsCode":  "const geminiRaw = $input.first().json;\nlet rawText = geminiRaw.candidates?.[0]?.content?.parts?.[0]?.text || \u0027{}\u0027;\nrawText = rawText.replace(/```json/g, \u0027\u0027).replace(/```/g, \u0027\u0027).trim();\n\nlet decision;\ntry { decision = JSON.parse(rawText); } catch (e) { decision = { accion: \u0027PEDIR_INFO\u0027, query: null }; }\n\nconst ctx = $(\u0027Preparar Contexto IA\u0027).first().json;\nreturn [{ json: { ...ctx, accion: decision.accion, query: decision.query } }];"
-                                     },
-                      "id":  "parse-decision",
-                      "name":  "Parsear DecisiÃ³n",
-                      "type":  "n8n-nodes-base.code",
-                      "typeVersion":  2,
-                      "position":  [
-                                       2640,
-                                       600
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "dataType":  "string",
-                                         "value1":  "={{ $json.accion }}",
-                                         "rules":  {
-                                                       "rules":  [
-                                                                     {
-                                                                         "value2":  "BUSCAR_PRODUCTO",
-                                                                         "output":  0
-                                                                     },
-                                                                     {
-                                                                         "value2":  "PEDIR_INFO",
-                                                                         "output":  1
-                                                                     },
-                                                                     {
-                                                                         "value2":  "ESCALAR_HUMANO",
-                                                                         "output":  2
-                                                                     }
-                                                                 ]
-                                                   },
-                                         "fallbackOutput":  1
-                                     },
-                      "id":  "route-intent",
-                      "name":  "Enrutar IntenciÃ³n",
-                      "type":  "n8n-nodes-base.switch",
-                      "typeVersion":  1,
-                      "position":  [
-                                       2860,
-                                       600
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "method":  "GET",
-                                         "url":  "https://inventory-production-6565.up.railway.app/integrations/n8n/products",
-                                         "sendHeaders":  true,
-                                         "headerParameters":  {
-                                                                  "parameters":  [
-                                                                                     {
-                                                                                         "name":  "x-api-key",
-                                                                                         "value":  "Gabo212121"
-                                                                                     },
-                                                                                     {
-                                                                                         "name":  "x-tenant-id",
-                                                                                         "value":  "deee962b-e9ed-49f5-aafe-eca39b83c148"
-                                                                                     }
-                                                                                 ]
-                                                              },
-                                         "sendQuery":  true,
-                                         "queryParameters":  {
-                                                                 "parameters":  [
-                                                                                    {
-                                                                                        "name":  "q",
-                                                                                        "value":  "={{ $json.query }}"
-                                                                                    },
-                                                                                    {
-                                                                                        "name":  "limit",
-                                                                                        "value":  "5"
-                                                                                    }
-                                                                                ]
-                                                             }
-                                     },
-                      "id":  "api-products",
-                      "name":  "Consultar DKO API",
-                      "type":  "n8n-nodes-base.httpRequest",
-                      "typeVersion":  4.2,
-                      "position":  [
-                                       3120,
-                                       400
-                                   ],
-                      "continueOnFail":  true
-                  },
-                  {
-                      "parameters":  {
-                                         "method":  "POST",
-                                         "url":  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyCcVa0KCEGSk9nTrbIdzun5tKZRAoCM1dk",
-                                         "sendBody":  true,
-                                         "specifyBody":  "json",
-                                         "jsonBody":  "={\n  \"system_instruction\": { \"parts\": [{ \"text\": \"Eres el asistente virtual de DKO MueblerÃ­a. Responde amable y conciso (mÃ¡x 3 lÃ­neas). Usa los datos reales del catÃ¡logo proporcionado. Si no hay productos (count 0), dilo amablemente.\" }] },\n  \"contents\": [{ \"parts\": [{ \"text\": \"Cliente: {{ $(\u0027Parsear DecisiÃ³n\u0027).first().json.pushName }}\\nPregunta: {{ $(\u0027Parsear DecisiÃ³n\u0027).first().json.text }}\\n\\nCatÃ¡logo:\\nTotal: {{ $json.count }}\\nProductos: {{ JSON.stringify($json.products) }}\" }] }],\n  \"generationConfig\": { \"temperature\": 0.6 }\n}"
-                                     },
-                      "id":  "gemini-product-response",
-                      "name":  "Generar Respuesta Producto",
-                      "type":  "n8n-nodes-base.httpRequest",
-                      "typeVersion":  4.2,
-                      "position":  [
-                                       3340,
-                                       400
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "jsCode":  "const ctx = $(\u0027Parsear DecisiÃ³n\u0027).first().json;\nreturn [{ json: { ...ctx, responseText: $input.first().json.candidates?.[0]?.content?.parts?.[0]?.text || \u0027Lo siento, tuvimos un error buscando tu producto.\u0027 } }];"
-                                     },
-                      "id":  "format-product-response",
-                      "name":  "Formatear Res. Producto",
-                      "type":  "n8n-nodes-base.code",
-                      "typeVersion":  2,
-                      "position":  [
-                                       3560,
-                                       400
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "jsCode":  "const ctx = $(\u0027Parsear DecisiÃ³n\u0027).first().json;\nreturn [{ json: { ...ctx, responseText: `Â¡Hola ${ctx.pushName}! ðŸ‘‹ Bienvenido a DKO MueblerÃ­a. Â¿QuÃ© tipo de mueble estÃ¡s buscando hoy?` } }];"
-                                     },
-                      "id":  "format-info-response",
-                      "name":  "Formatear Res. Info",
-                      "type":  "n8n-nodes-base.code",
-                      "typeVersion":  2,
-                      "position":  [
-                                       3120,
-                                       600
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "operation":  "set",
-                                         "key":  "=dko:human:{{ $json.phone }}",
-                                         "value":  "1",
-                                         "keyExpirationTimeouts":  43200
-                                     },
-                      "id":  "redis-set-human",
-                      "name":  "Activar Modo Humano (12h)",
-                      "type":  "n8n-nodes-base.redis",
-                      "typeVersion":  1,
-                      "position":  [
-                                       3120,
-                                       800
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "jsCode":  "const ctx = $(\u0027Parsear DecisiÃ³n\u0027).first().json;\nreturn [{ json: { ...ctx, responseText: \u0027Entendido. ðŸ§‘â€ðŸ’» Te estoy transfiriendo con un asesor de ventas de DKO. Te responderemos por aquÃ­ lo mÃ¡s pronto posible.\u0027 } }];"
-                                     },
-                      "id":  "format-human-response",
-                      "name":  "Formatear Res. Humano",
-                      "type":  "n8n-nodes-base.code",
-                      "typeVersion":  2,
-                      "position":  [
-                                       3340,
-                                       800
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "jsCode":  "const item = $input.first().json;\nconst historial = item.historial || [];\nhistorial.push({ role: \u0027user\u0027, content: item.text });\nhistorial.push({ role: \u0027model\u0027, content: item.responseText });\n\nreturn [{\n  json: {\n    ...item,\n    historialActualizado: historial.slice(-10),\n    evolutionPayload: { number: item.remoteJid, text: item.responseText, delay: 1000, presence: \u0027composing\u0027 }\n  }\n}];"
-                                     },
-                      "id":  "prepare-final-payload",
-                      "name":  "Preparar EnvÃ­o \u0026 Historial",
-                      "type":  "n8n-nodes-base.code",
-                      "typeVersion":  2,
-                      "position":  [
-                                       3820,
-                                       600
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "operation":  "set",
-                                         "key":  "=dko:chat:{{ $json.phone }}",
-                                         "value":  "={{ JSON.stringify($json.historialActualizado) }}",
-                                         "keyExpirationTimeouts":  3600
-                                     },
-                      "id":  "redis-save-history",
-                      "name":  "Guardar Historial",
-                      "type":  "n8n-nodes-base.redis",
-                      "typeVersion":  1,
-                      "position":  [
-                                       4040,
-                                       600
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "method":  "POST",
-                                         "url":  "https://evolution-api-production-ed6c.up.railway.app/message/sendText/DKO-Muebles",
-                                         "sendHeaders":  true,
-                                         "headerParameters":  {
-                                                                  "parameters":  [
-                                                                                     {
-                                                                                         "name":  "apikey",
-                                                                                         "value":  "tu_clave_super_segura"
-                                                                                     },
-                                                                                     {
-                                                                                         "name":  "Content-Type",
-                                                                                         "value":  "application/json"
-                                                                                     }
-                                                                                 ]
-                                                              },
-                                         "sendBody":  true,
-                                         "specifyBody":  "json",
-                                         "jsonBody":  "={{ $json.evolutionPayload }}"
-                                     },
-                      "id":  "send-evolution",
-                      "name":  "Enviar WhatsApp",
-                      "type":  "n8n-nodes-base.httpRequest",
-                      "typeVersion":  4.2,
-                      "position":  [
-                                       4260,
-                                       600
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "respondWith":  "text",
-                                         "responseBody":  "ok"
-                                     },
-                      "id":  "respond-final-ok",
-                      "name":  "Responder OK Final",
-                      "type":  "n8n-nodes-base.respondToWebhook",
-                      "typeVersion":  1,
-                      "position":  [
-                                       4480,
-                                       600
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "conditions":  {
-                                                            "boolean":  [
-                                                                            {
-                                                                                "value1":  "={{ $json.forceAction !== null }}",
-                                                                                "value2":  true
-                                                                            }
-                                                                        ]
-                                                        }
-                                     },
-                      "id":  "force-action-check",
-                      "name":  "Â¿Forzar AcciÃ³n?",
-                      "type":  "n8n-nodes-base.if",
-                      "typeVersion":  2,
-                      "position":  [
-                                       2200,
-                                       600
-                                   ]
-                  },
-                  {
-                      "parameters":  {
-                                         "jsCode":  "const ctx = $(\u0027Preparar Contexto IA\u0027).first().json;\nconst fa = ctx.forceAction;\nreturn [{ json: { ...ctx, accion: fa.accion, query: fa.query, responseText: fa.respuesta } }];"
-                                     },
-                      "id":  "apply-force-action",
-                      "name":  "Aplicar AcciÃ³n Forzada",
-                      "type":  "n8n-nodes-base.code",
-                      "typeVersion":  2,
-                      "position":  [
-                                       2420,
-                                       420
-                                   ]
-                  }
-              ],
-    "connections":  {
-                        "Webhook Evolution API":  {
-                                                      "main":  [
-                                                                   [
-                                                                       {
-                                                                           "node":  "Parsear Mensaje",
-                                                                           "type":  "main",
-                                                                           "index":  0
-                                                                       }
-                                                                   ]
-                                                               ]
-                                                  },
-                        "Parsear Mensaje":  {
-                                                "main":  [
-                                                             [
-                                                                 {
-                                                                     "node":  "Â¿Ignorar?",
-                                                                     "type":  "main",
-                                                                     "index":  0
-                                                                 }
-                                                             ]
-                                                         ]
-                                            },
-                        "Â¿Ignorar?":  {
-                                           "main":  [
-                                                        [
-                                                            {
-                                                                "node":  "Â¿Mensaje Duplicado?",
-                                                                "type":  "main",
-                                                                "index":  0
-                                                            }
-                                                        ],
-                                                        [
-                                                            {
-                                                                "node":  "Responder OK (skip)",
-                                                                "type":  "main",
-                                                                "index":  0
-                                                            }
-                                                        ]
-                                                    ]
-                                       },
-                        "Â¿Mensaje Duplicado?":  {
-                                                     "main":  [
-                                                                  [
-                                                                      {
-                                                                          "node":  "Â¿Es duplicado?",
-                                                                          "type":  "main",
-                                                                          "index":  0
-                                                                      }
-                                                                  ]
-                                                              ]
-                                                 },
-                        "Â¿Es duplicado?":  {
-                                                "main":  [
-                                                             [
-                                                                 {
-                                                                     "node":  "Responder OK (skip)",
-                                                                     "type":  "main",
-                                                                     "index":  0
-                                                                 }
-                                                             ],
-                                                             [
-                                                                 {
-                                                                     "node":  "Marcar Procesado",
-                                                                     "type":  "main",
-                                                                     "index":  0
-                                                                 }
-                                                             ]
-                                                         ]
-                                            },
-                        "Marcar Procesado":  {
-                                                 "main":  [
-                                                              [
-                                                                  {
-                                                                      "node":  "Â¿Modo Humano Activo?",
-                                                                      "type":  "main",
-                                                                      "index":  0
-                                                                  }
-                                                              ]
-                                                          ]
-                                             },
-                        "Â¿Modo Humano Activo?":  {
-                                                      "main":  [
-                                                                   [
-                                                                       {
-                                                                           "node":  "Â¿Pausar Bot?",
-                                                                           "type":  "main",
-                                                                           "index":  0
-                                                                       }
-                                                                   ]
-                                                               ]
-                                                  },
-                        "Â¿Pausar Bot?":  {
-                                              "main":  [
-                                                           [
-                                                               {
-                                                                   "node":  "Responder OK (skip)",
-                                                                   "type":  "main",
-                                                                   "index":  0
-                                                               }
-                                                           ],
-                                                           [
-                                                               {
-                                                                   "node":  "Cargar Historial",
-                                                                   "type":  "main",
-                                                                   "index":  0
-                                                               }
-                                                           ]
-                                                       ]
-                                          },
-                        "Cargar Historial":  {
-                                                 "main":  [
-                                                              [
-                                                                  {
-                                                                      "node":  "Preparar Contexto IA",
-                                                                      "type":  "main",
-                                                                      "index":  0
-                                                                  }
-                                                              ]
-                                                          ]
-                                             },
-                        "Preparar Contexto IA":  {
-                                                     "main":  [
-                                                                  [
-                                                                      {
-                                                                          "node":  "Â¿Forzar AcciÃ³n?",
-                                                                          "type":  "main",
-                                                                          "index":  0
-                                                                      }
-                                                                  ]
-                                                              ]
-                                                 },
-                        "Gemini (Decide)":  {
-                                                "main":  [
-                                                             [
-                                                                 {
-                                                                     "node":  "Parsear DecisiÃ³n",
-                                                                     "type":  "main",
-                                                                     "index":  0
-                                                                 }
-                                                             ]
-                                                         ]
-                                            },
-                        "Parsear DecisiÃ³n":  {
-                                                  "main":  [
-                                                               [
-                                                                   {
-                                                                       "node":  "Enrutar IntenciÃ³n",
-                                                                       "type":  "main",
-                                                                       "index":  0
-                                                                   }
-                                                               ]
-                                                           ]
-                                              },
-                        "Enrutar IntenciÃ³n":  {
-                                                   "main":  [
-                                                                [
-                                                                    {
-                                                                        "node":  "Consultar DKO API",
-                                                                        "type":  "main",
-                                                                        "index":  0
-                                                                    }
-                                                                ],
-                                                                [
-                                                                    {
-                                                                        "node":  "Formatear Res. Info",
-                                                                        "type":  "main",
-                                                                        "index":  0
-                                                                    }
-                                                                ],
-                                                                [
-                                                                    {
-                                                                        "node":  "Activar Modo Humano (12h)",
-                                                                        "type":  "main",
-                                                                        "index":  0
-                                                                    }
-                                                                ]
-                                                            ]
-                                               },
-                        "Consultar DKO API":  {
-                                                  "main":  [
-                                                               [
-                                                                   {
-                                                                       "node":  "Generar Respuesta Producto",
-                                                                       "type":  "main",
-                                                                       "index":  0
-                                                                   }
-                                                               ]
-                                                           ]
-                                              },
-                        "Generar Respuesta Producto":  {
-                                                           "main":  [
-                                                                        [
-                                                                            {
-                                                                                "node":  "Formatear Res. Producto",
-                                                                                "type":  "main",
-                                                                                "index":  0
-                                                                            }
-                                                                        ]
-                                                                    ]
-                                                       },
-                        "Formatear Res. Producto":  {
-                                                        "main":  [
-                                                                     [
-                                                                         {
-                                                                             "node":  "Preparar EnvÃ­o \u0026 Historial",
-                                                                             "type":  "main",
-                                                                             "index":  0
-                                                                         }
-                                                                     ]
-                                                                 ]
-                                                    },
-                        "Formatear Res. Info":  {
-                                                    "main":  [
-                                                                 [
-                                                                     {
-                                                                         "node":  "Preparar EnvÃ­o \u0026 Historial",
-                                                                         "type":  "main",
-                                                                         "index":  0
-                                                                     }
-                                                                 ]
-                                                             ]
-                                                },
-                        "Activar Modo Humano (12h)":  {
-                                                          "main":  [
-                                                                       [
-                                                                           {
-                                                                               "node":  "Formatear Res. Humano",
-                                                                               "type":  "main",
-                                                                               "index":  0
-                                                                           }
-                                                                       ]
-                                                                   ]
-                                                      },
-                        "Formatear Res. Humano":  {
-                                                      "main":  [
-                                                                   [
-                                                                       {
-                                                                           "node":  "Preparar EnvÃ­o \u0026 Historial",
-                                                                           "type":  "main",
-                                                                           "index":  0
-                                                                       }
-                                                                   ]
-                                                               ]
-                                                  },
-                        "Preparar EnvÃ­o \u0026 Historial":  {
-                                                                 "main":  [
-                                                                              [
-                                                                                  {
-                                                                                      "node":  "Guardar Historial",
-                                                                                      "type":  "main",
-                                                                                      "index":  0
-                                                                                  }
-                                                                              ]
-                                                                          ]
-                                                             },
-                        "Guardar Historial":  {
-                                                  "main":  [
-                                                               [
-                                                                   {
-                                                                       "node":  "Enviar WhatsApp",
-                                                                       "type":  "main",
-                                                                       "index":  0
-                                                                   }
-                                                               ]
-                                                           ]
-                                              },
-                        "Enviar WhatsApp":  {
-                                                "main":  [
-                                                             [
-                                                                 {
-                                                                     "node":  "Responder OK Final",
-                                                                     "type":  "main",
-                                                                     "index":  0
-                                                                 }
-                                                             ]
-                                                         ]
-                                            },
-                        "Â¿Forzar AcciÃ³n?":  {
-                                                  "main":  [
-                                                               [
-                                                                   {
-                                                                       "node":  "Aplicar AcciÃ³n Forzada",
-                                                                       "type":  "main",
-                                                                       "index":  0
-                                                                   }
-                                                               ],
-                                                               [
-                                                                   {
-                                                                       "node":  "Gemini (Decide)",
-                                                                       "type":  "main",
-                                                                       "index":  0
-                                                                   }
-                                                               ]
-                                                           ]
-                                              },
-                        "Aplicar AcciÃ³n Forzada":  {
-                                                        "main":  [
-                                                                     [
-                                                                         {
-                                                                             "node":  "Preparar EnvÃ­o \u0026 Historial",
-                                                                             "type":  "main",
-                                                                             "index":  0
-                                                                         }
-                                                                     ]
-                                                                 ]
-                                                    }
-                    },
-    "settings":  {
-                     "executionOrder":  "v1"
-                 }
+  "name": "DKO Mueblería - Bot WhatsApp v3 (RAG & Handoff)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dko-whatsapp",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Evolution API",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst event = (body.event || '').toLowerCase();\n\nif (event !== 'messages.upsert') return [{ json: { skip: true, skipReason: 'event_not_supported' } }];\n\nconst data = body.data || {};\nconst key = data.key || {};\nconst message = data.message || {};\n\nif (key.fromMe || !key.remoteJid || key.remoteJid.includes('@broadcast') || key.remoteJid.includes('@g.us')) {\n  return [{ json: { skip: true, skipReason: 'invalid_sender' } }];\n}\n\nconst messageType = (data.messageType || Object.keys(message)[0] || '').trim();\nif (!['conversation', 'extendedTextMessage'].includes(messageType)) {\n  return [{ json: { skip: true, skipReason: 'invalid_type' } }];\n}\n\nconst text = (message.conversation || message.extendedTextMessage?.text || '').trim();\nif (!text) return [{ json: { skip: true, skipReason: 'empty_text' } }];\n\nconst pushName = data.pushName || body.pushName || 'Cliente';\nconst instanceName = body.instance || 'DKO-Muebles';\nconst ts = data.messageTimestamp || Math.floor(Date.now() / 1000);\nconst messageId = key.id || `${key.remoteJid}:${ts}:${text.slice(0, 32)}`;\nconst phone = key.remoteJid.replace('@s.whatsapp.net', '');\n\nreturn [{\n  json: { skip: false, phone, remoteJid: key.remoteJid, text, pushName, instanceName, messageId }\n}];"
+      },
+      "id": "parse-message",
+      "name": "Parsear Mensaje",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.skip }}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "id": "check-skip",
+      "name": "¿Ignorar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "ok"
+      },
+      "id": "respond-skip",
+      "name": "Responder OK (skip)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        660,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "key": "=dko:msg:{{ $json.messageId }}",
+        "propertyName": "value"
+      },
+      "id": "redis-idem-get",
+      "name": "¿Mensaje Duplicado?",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        660,
+        300
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.value }}",
+              "rightValue": "1",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "redis-idem-check",
+      "name": "¿Es duplicado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "=dko:msg:{{ $('Parsear Mensaje').first().json.messageId }}",
+        "value": "1",
+        "keyExpirationTimeouts": 60
+      },
+      "id": "redis-idem-set",
+      "name": "Marcar Procesado",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "key": "=dko:human:{{ $('Parsear Mensaje').first().json.phone }}",
+        "propertyName": "value"
+      },
+      "id": "redis-human-get",
+      "name": "¿Modo Humano Activo?",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        480
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.value === '1' }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-human-mode",
+      "name": "¿Pausar Bot?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "key": "=dko:chat:{{ $('Parsear Mensaje').first().json.phone }}",
+        "propertyName": "value"
+      },
+      "id": "redis-get-history",
+      "name": "Cargar Historial",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        600
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const historialRaw = $input.first().json.value || null;\nlet historial = [];\ntry { if (historialRaw) historial = JSON.parse(historialRaw); } catch (e) {}\nif (historial.length > 10) historial = historial.slice(-10);\n\nconst parsed = $('Parsear Mensaje').first().json;\nconst text = parsed.text.toLowerCase().trim();\n\n// 1. FILTRO DE SEGURIDAD (Hard Rules)\nconst saludos = ['hola', 'buenos dias', 'buenas tardes', 'buenas noches', 'buenas', 'hey', 'buen dia', 'hi', 'hello', 'ola', 'buenas!', 'hola!'];\nlet forceAction = null;\n\nif (saludos.includes(text) || text.length < 3) {\n  forceAction = {\n    accion: \"PEDIR_INFO\",\n    query: null,\n    respuesta: `¡Hola ${parsed.pushName}! 👋 Bienvenido a DKO Mueblería. ¿En qué puedo ayudarte hoy? ¿Buscas algún mueble en especial o quieres consultar el estado de un pedido?`\n  };\n}\n\n// 2. SYSTEM INSTRUCTION\nconst systemInstruction = `Eres el asistente de DKO Mueblería.\nTu UNICA prioridad es clasificar la intención del usuario.\n\nREGLAS DE ORO:\n1. Si el usuario SALUDA o hace una pregunta general -> Accion: PEDIR_INFO.\n2. Si el usuario pregunta por un mueble, sofá, cama, comedor, etc -> Accion: BUSCAR_PRODUCTO.\n3. Si el usuario está enojado o pide hablar con alguien -> Accion: ESCALAR_HUMANO.\n\nEJEMPLO DE SALUDO:\nUsuario: \"Hola\" -> {\"accion\": \"PEDIR_INFO\", \"query\": null, \"respuesta\": \"¡Hola! ¿En qué puedo ayudarte?\"}`;\n\n// 3. CONSTRUCCIÓN DEL PAYLOAD\nconst geminiPayload = {\n  system_instruction: { parts: [{ text: systemInstruction }] },\n  contents: [{ parts: [{ text: `Historial: ${JSON.stringify(historial)}\\nMensaje del usuario: ${parsed.text}` }] }],\n  generationConfig: {\n    responseMimeType: \"application/json\",\n    temperature: 0.1\n  }\n};\n\nreturn [{\n  json: {\n    ...parsed,\n    historial,\n    geminiPayload,\n    forceAction\n  }\n}];"
+      },
+      "id": "prepare-context",
+      "name": "Preparar Contexto IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyCcVa0KCEGSk9nTrbIdzun5tKZRAoCM1dk",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.geminiPayload }}"
+      },
+      "id": "gemini-intent",
+      "name": "Gemini (Decide)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const geminiRaw = $input.first().json;\nlet rawText = geminiRaw.candidates?.[0]?.content?.parts?.[0]?.text || '{}';\nrawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();\n\nlet decision;\ntry { decision = JSON.parse(rawText); } catch (e) { decision = { accion: 'PEDIR_INFO', query: null }; }\n\nconst ctx = $('Preparar Contexto IA').first().json;\nreturn [{ json: { ...ctx, accion: decision.accion, query: decision.query } }];"
+      },
+      "id": "parse-decision",
+      "name": "Parsear Decisión",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.accion }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "BUSCAR_PRODUCTO",
+              "output": 0
+            },
+            {
+              "value2": "PEDIR_INFO",
+              "output": 1
+            },
+            {
+              "value2": "ESCALAR_HUMANO",
+              "output": 2
+            }
+          ]
+        },
+        "fallbackOutput": 1
+      },
+      "id": "route-intent",
+      "name": "Enrutar Intención",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        2860,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://inventory-production-6565.up.railway.app/integrations/n8n/products",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "Gabo212121"
+            },
+            {
+              "name": "x-tenant-id",
+              "value": "deee962b-e9ed-49f5-aafe-eca39b83c148"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $json.query }}"
+            },
+            {
+              "name": "limit",
+              "value": "5"
+            }
+          ]
+        }
+      },
+      "id": "api-products",
+      "name": "Consultar DKO API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        400
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyCcVa0KCEGSk9nTrbIdzun5tKZRAoCM1dk",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"system_instruction\": { \"parts\": [{ \"text\": \"Eres el asistente virtual de DKO Mueblería. Responde amable y conciso (máx 3 líneas). Usa los datos reales del catálogo proporcionado. Si no hay productos (count 0), dilo amablemente.\" }] },\n  \"contents\": [{ \"parts\": [{ \"text\": \"Cliente: {{ $('Parsear Decisión').first().json.pushName }}\\nPregunta: {{ $('Parsear Decisión').first().json.text }}\\n\\nCatálogo:\\nTotal: {{ $json.count }}\\nProductos: {{ JSON.stringify($json.products) }}\" }] }],\n  \"generationConfig\": { \"temperature\": 0.6 }\n}"
+      },
+      "id": "gemini-product-response",
+      "name": "Generar Respuesta Producto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3340,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Parsear Decisión').first().json;\nreturn [{ json: { ...ctx, responseText: $input.first().json.candidates?.[0]?.content?.parts?.[0]?.text || 'Lo siento, tuvimos un error buscando tu producto.' } }];"
+      },
+      "id": "format-product-response",
+      "name": "Formatear Res. Producto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3560,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Parsear Decisión').first().json;\nreturn [{ json: { ...ctx, responseText: `¡Hola ${ctx.pushName}! 👋 Bienvenido a DKO Mueblería. ¿Qué tipo de mueble estás buscando hoy?` } }];"
+      },
+      "id": "format-info-response",
+      "name": "Formatear Res. Info",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "=dko:human:{{ $json.phone }}",
+        "value": "1",
+        "keyExpirationTimeouts": 43200
+      },
+      "id": "redis-set-human",
+      "name": "Activar Modo Humano (12h)",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        3120,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Parsear Decisión').first().json;\nreturn [{ json: { ...ctx, responseText: 'Entendido. 🧑‍💻 Te estoy transfiriendo con un asesor de ventas de DKO. Te responderemos por aquí lo más pronto posible.' } }];"
+      },
+      "id": "format-human-response",
+      "name": "Formatear Res. Humano",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3340,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst historial = item.historial || [];\nhistorial.push({ role: 'user', content: item.text });\nhistorial.push({ role: 'model', content: item.responseText });\n\nreturn [{\n  json: {\n    ...item,\n    historialActualizado: historial.slice(-10),\n    evolutionPayload: { number: item.remoteJid, text: item.responseText, delay: 1000, presence: 'composing' }\n  }\n}];"
+      },
+      "id": "prepare-final-payload",
+      "name": "Preparar Envío & Historial",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3820,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "=dko:chat:{{ $json.phone }}",
+        "value": "={{ JSON.stringify($json.historialActualizado) }}",
+        "keyExpirationTimeouts": 3600
+      },
+      "id": "redis-save-history",
+      "name": "Guardar Historial",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        4040,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://evolution-api-production-ed6c.up.railway.app/message/sendText/DKO-Muebles",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "tu_clave_super_segura"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.evolutionPayload }}"
+      },
+      "id": "send-evolution",
+      "name": "Enviar WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4260,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "ok"
+      },
+      "id": "respond-final-ok",
+      "name": "Responder OK Final",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        4480,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.forceAction !== null }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "force-action-check",
+      "name": "¿Forzar Acción?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Preparar Contexto IA').first().json;\nconst fa = ctx.forceAction;\nreturn [{ json: { ...ctx, accion: fa.accion, query: fa.query, responseText: fa.respuesta } }];"
+      },
+      "id": "apply-force-action",
+      "name": "Aplicar Acción Forzada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Evolution API": {
+      "main": [
+        [
+          {
+            "node": "Parsear Mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear Mensaje": {
+      "main": [
+        [
+          {
+            "node": "¿Ignorar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Ignorar?": {
+      "main": [
+        [
+          {
+            "node": "¿Mensaje Duplicado?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder OK (skip)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Mensaje Duplicado?": {
+      "main": [
+        [
+          {
+            "node": "¿Es duplicado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es duplicado?": {
+      "main": [
+        [
+          {
+            "node": "Responder OK (skip)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Marcar Procesado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar Procesado": {
+      "main": [
+        [
+          {
+            "node": "¿Modo Humano Activo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Modo Humano Activo?": {
+      "main": [
+        [
+          {
+            "node": "¿Pausar Bot?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Pausar Bot?": {
+      "main": [
+        [
+          {
+            "node": "Responder OK (skip)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cargar Historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cargar Historial": {
+      "main": [
+        [
+          {
+            "node": "Preparar Contexto IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Contexto IA": {
+      "main": [
+        [
+          {
+            "node": "¿Forzar Acción?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini (Decide)": {
+      "main": [
+        [
+          {
+            "node": "Parsear Decisión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear Decisión": {
+      "main": [
+        [
+          {
+            "node": "Enrutar Intención",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrutar Intención": {
+      "main": [
+        [
+          {
+            "node": "Consultar DKO API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Formatear Res. Info",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Activar Modo Humano (12h)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar DKO API": {
+      "main": [
+        [
+          {
+            "node": "Generar Respuesta Producto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Respuesta Producto": {
+      "main": [
+        [
+          {
+            "node": "Formatear Res. Producto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear Res. Producto": {
+      "main": [
+        [
+          {
+            "node": "Preparar Envío & Historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear Res. Info": {
+      "main": [
+        [
+          {
+            "node": "Preparar Envío & Historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Activar Modo Humano (12h)": {
+      "main": [
+        [
+          {
+            "node": "Formatear Res. Humano",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear Res. Humano": {
+      "main": [
+        [
+          {
+            "node": "Preparar Envío & Historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Envío & Historial": {
+      "main": [
+        [
+          {
+            "node": "Guardar Historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar Historial": {
+      "main": [
+        [
+          {
+            "node": "Enviar WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Responder OK Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Forzar Acción?": {
+      "main": [
+        [
+          {
+            "node": "Aplicar Acción Forzada",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gemini (Decide)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aplicar Acción Forzada": {
+      "main": [
+        [
+          {
+            "node": "Preparar Envío & Historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

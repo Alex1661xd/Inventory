@@ -11,6 +11,35 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateProductDto = void 0;
 const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
+const class_validator_2 = require("class-validator");
+class ProductVisualVariantDto {
+    name;
+    image;
+    sortOrder;
+    isPublic;
+}
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(120),
+    __metadata("design:type", String)
+], ProductVisualVariantDto.prototype, "name", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(1200),
+    __metadata("design:type", String)
+], ProductVisualVariantDto.prototype, "image", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], ProductVisualVariantDto.prototype, "sortOrder", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], ProductVisualVariantDto.prototype, "isPublic", void 0);
 class CreateProductDto {
     name;
     description;
@@ -23,6 +52,7 @@ class CreateProductDto {
     categoryId;
     initialStock;
     initialWarehouseId;
+    visualVariants;
 }
 exports.CreateProductDto = CreateProductDto;
 __decorate([
@@ -83,4 +113,11 @@ __decorate([
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], CreateProductDto.prototype, "initialWarehouseId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_2.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => ProductVisualVariantDto),
+    __metadata("design:type", Array)
+], CreateProductDto.prototype, "visualVariants", void 0);
 //# sourceMappingURL=create-product.dto.js.map

@@ -1,3 +1,9 @@
+declare class ProductVisualVariantDto {
+    name: string;
+    image: string;
+    sortOrder?: number;
+    isPublic?: boolean;
+}
 export declare class CreateProductDto {
     name: string;
     description?: string;
@@ -10,4 +16,6 @@ export declare class CreateProductDto {
     categoryId: string;
     initialStock?: number;
     initialWarehouseId?: string;
+    visualVariants?: ProductVisualVariantDto[];
 }
+export {};

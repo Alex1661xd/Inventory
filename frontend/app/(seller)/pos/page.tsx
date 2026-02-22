@@ -42,6 +42,33 @@ interface CartItem extends Product {
     quantity: number
 }
 
+interface ComboItemRequirement {
+    productId: string
+    productName: string
+    quantity: number
+}
+
+interface ComboForPOS {
+    id: string
+    name: string
+    description?: string | null
+    image?: string | null
+    finalUnitPrice: number
+    baseUnitPrice: number
+    available: boolean
+    maxUnitsInWarehouse: number | null
+    items: ComboItemRequirement[]
+}
+
+interface ComboCartItem {
+    comboId: string
+    comboName: string
+    quantity: number
+    unitPrice: number
+    baseUnitPrice: number
+    items: ComboItemRequirement[]
+}
+
 // Stock map type: { productId: availableQuantity }
 type StockMap = { [productId: string]: number }
 
@@ -321,13 +348,20 @@ function POSMobileView(props: {
     selectedCustomer: Customer | null;
     setSelectedCustomer: (c: Customer | null) => void;
     cart: CartItem[];
+    comboCart: ComboCartItem[];
     grandTotal: number;
     search: string;
     setSearch: (s: string) => void;
     filteredProducts: Product[];
+    filteredCombos: ComboForPOS[];
     addToCart: (p: Product) => void;
+    addComboToCart: (combo: ComboForPOS) => void;
     removeFromCart: (id: string) => void;
+    removeComboFromCart: (comboId: string) => void;
     updateQuantity: (id: string, quantity: number) => void;
+    updateComboQuantity: (comboId: string, quantity: number) => void;
+    getAvailableProductStock: (productId: string) => number;
+    getComboAvailableUnits: (combo: ComboForPOS) => number;
     pauseSale: () => void;
     processing: boolean;
     canProceedToStep2: boolean;
@@ -348,6 +382,7 @@ function POSMobileView(props: {
     discountApplied: number | string;
     setDiscountApplied: (val: number | string) => void;
     subtotal: number;
+    comboSubtotal: number;
 }) {
     const {
         mobileStep,
@@ -355,13 +390,20 @@ function POSMobileView(props: {
         selectedCustomer,
         setSelectedCustomer,
         cart,
+        comboCart,
         grandTotal,
         search,
         setSearch,
         filteredProducts,
+        filteredCombos,
         addToCart,
+        addComboToCart,
         removeFromCart,
+        removeComboFromCart,
         updateQuantity,
+        updateComboQuantity,
+        getAvailableProductStock,
+        getComboAvailableUnits,
         pauseSale,
         processing,
         canProceedToStep2,
@@ -381,7 +423,8 @@ function POSMobileView(props: {
         setAmountReceived,
         discountApplied,
         setDiscountApplied,
-        subtotal
+        subtotal,
+        comboSubtotal
     } = props;
 
     const stepLabels = [
@@ -533,12 +576,12 @@ function POSMobileView(props: {
                         </Card>
 
                         {/* Cart Summary */}
-                        {cart.length > 0 && (
+                        {(cart.length > 0 || comboCart.length > 0) && (
                             <Card className="bg-primary text-white">
                                 <CardContent className="p-4">
                                     <div className="flex justify-between items-center">
                                         <div>
-                                            <div className="text-sm opacity-90">{cart.length} producto(s)</div>
+                                            <div className="text-sm opacity-90">{cart.length + comboCart.length} item(s)</div>
                                             <div className="text-2xl font-bold">${formatThousands(grandTotal)}</div>
                                         </div>
                                         <Button
@@ -557,6 +600,83 @@ function POSMobileView(props: {
 
                         {/* Products List & Pagination */}
                         <div className="space-y-4">
+                            {filteredCombos.length > 0 && (
+                                <div className="space-y-2">
+                                    <div className="text-xs font-bold uppercase tracking-wider text-amber-700">Combos disponibles</div>
+                                    {filteredCombos.slice(0, 6).map(combo => {
+                                        const inCart = comboCart.find(c => c.comboId === combo.id)?.quantity ?? 0
+                                        const maxUnits = getComboAvailableUnits(combo)
+                                        return (
+                                            <Card key={`combo-${combo.id}`} className="overflow-hidden border-amber-200">
+                                                <CardContent className="p-3">
+                                                    <div className="flex gap-3">
+                                                        <div className="w-16 h-16 bg-amber-50 rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                                            {combo.image ? (
+                                                                <img src={combo.image} alt="" className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <span className="text-2xl">🎁</span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="font-semibold text-sm">{combo.name}</div>
+                                                            <div className="text-xs text-gray-500 line-clamp-2">
+                                                                {combo.items.map(i => `${i.quantity}x ${i.productName}`).join(', ')}
+                                                            </div>
+                                                            <div className="text-xs text-gray-400 mt-0.5">
+                                                                Disponibles: {maxUnits}
+                                                            </div>
+                                                            <div className="font-black text-amber-700 mt-1">
+                                                                ${formatThousands(Number(combo.finalUnitPrice))}
+                                                            </div>
+                                                        </div>
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={() => addComboToCart(combo)}
+                                                            className="self-center"
+                                                            disabled={inCart >= maxUnits}
+                                                        >
+                                                            <Plus className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                    {inCart > 0 && (
+                                                        <div className="mt-3 pt-3 border-t flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => updateComboQuantity(combo.id, inCart - 1)}
+                                                                    className="h-8 w-8 p-0"
+                                                                >
+                                                                    <Minus className="h-3 w-3" />
+                                                                </Button>
+                                                                <span className="w-12 text-center font-semibold">{inCart}</span>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => updateComboQuantity(combo.id, inCart + 1)}
+                                                                    className="h-8 w-8 p-0"
+                                                                    disabled={inCart >= maxUnits}
+                                                                >
+                                                                    <Plus className="h-3 w-3" />
+                                                                </Button>
+                                                            </div>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => removeComboFromCart(combo.id)}
+                                                                className="text-red-600"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                </CardContent>
+                                            </Card>
+                                        )
+                                    })}
+                                </div>
+                            )}
+
                             <div className="space-y-2">
                                 {filteredProducts.slice((mobilePage - 1) * 3, mobilePage * 3).map(product => (
                                     <Card key={product.id} className="overflow-hidden">
@@ -573,7 +693,7 @@ function POSMobileView(props: {
                                                     <div className="font-medium text-sm">{product.name}</div>
                                                     <div className="text-xs text-gray-500">{product.barcode}</div>
                                                     <div className="text-xs text-gray-400 mt-0.5">
-                                                        Stock: {stockMap[product.id] ?? 0}
+                                                        Stock: {getAvailableProductStock(product.id)}
                                                     </div>
                                                     <div className="font-bold text-gray-900 mt-1">
                                                         ${formatThousands(Number(product.salePrice))}
@@ -583,7 +703,7 @@ function POSMobileView(props: {
                                                     size="sm"
                                                     onClick={() => addToCart(product)}
                                                     className="self-center"
-                                                    disabled={(stockMap[product.id] ?? 0) <= (cart.find(i => i.id === product.id)?.quantity ?? 0)}
+                                                    disabled={getAvailableProductStock(product.id) <= (cart.find(i => i.id === product.id)?.quantity ?? 0)}
                                                 >
                                                     <Plus className="h-4 w-4" />
                                                 </Button>
@@ -613,7 +733,7 @@ function POSMobileView(props: {
                                                                 if (item) updateQuantity(product.id, item.quantity + 1)
                                                             }}
                                                             className="h-8 w-8 p-0"
-                                                            disabled={(cart.find(i => i.id === product.id)?.quantity ?? 0) >= (stockMap[product.id] ?? 0)}
+                                                            disabled={(cart.find(i => i.id === product.id)?.quantity ?? 0) >= getAvailableProductStock(product.id)}
                                                         >
                                                             <Plus className="h-3 w-3" />
                                                         </Button>
@@ -704,8 +824,34 @@ function POSMobileView(props: {
                                     </div>
                                 </div>
 
+                                {comboCart.length > 0 && (
+                                    <div>
+                                        <div className="text-xs text-amber-700 mb-2 font-bold uppercase tracking-wider">Combos ({comboCart.length})</div>
+                                        <div className="space-y-2">
+                                            {comboCart.map(comboLine => (
+                                                <div key={comboLine.comboId} className="flex justify-between text-sm">
+                                                    <span>{comboLine.quantity}x {comboLine.comboName}</span>
+                                                    <span className="font-semibold text-amber-700">
+                                                        ${formatThousands(Number(comboLine.unitPrice) * comboLine.quantity)}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Subtotal y Descuento */}
                                 <div className="space-y-3 pt-3 border-t">
+                                    <div className="flex justify-between items-center text-sm text-gray-500">
+                                        <span>Subtotal productos</span>
+                                        <span>${formatThousands(subtotal - comboSubtotal)}</span>
+                                    </div>
+                                    {comboSubtotal > 0 && (
+                                        <div className="flex justify-between items-center text-sm text-amber-700">
+                                            <span>Subtotal combos</span>
+                                            <span>${formatThousands(comboSubtotal)}</span>
+                                        </div>
+                                    )}
                                     <div className="flex justify-between items-center text-sm text-gray-500">
                                         <span>Subtotal</span>
                                         <span>${formatThousands(subtotal)}</span>
@@ -803,7 +949,7 @@ function POSMobileView(props: {
                             size="lg"
                             className="flex-shrink-0 text-red-500 border-red-200 hover:bg-red-50"
                             onClick={onReset}
-                            disabled={cart.length === 0 && !selectedCustomer}
+                            disabled={cart.length === 0 && comboCart.length === 0 && !selectedCustomer}
                         >
                             <Trash2 className="h-5 w-5" />
                         </Button>
@@ -841,14 +987,22 @@ function POSMobileView(props: {
 function POSDesktopView(props: {
     loading: boolean;
     filteredProducts: Product[];
+    filteredCombos: ComboForPOS[];
+    allCombos: ComboForPOS[];
     search: string;
     setSearch: (s: string) => void;
     setShowScanner: (b: boolean) => void;
     goToSales: () => void;
     addToCart: (p: Product) => void;
+    addComboToCart: (combo: ComboForPOS) => void;
     cart: CartItem[];
+    comboCart: ComboCartItem[];
     removeFromCart: (id: string) => void;
+    removeComboFromCart: (comboId: string) => void;
     updateQuantity: (id: string, quantity: number) => void;
+    updateComboQuantity: (comboId: string, quantity: number) => void;
+    getAvailableProductStock: (productId: string) => number;
+    getComboAvailableUnits: (combo: ComboForPOS) => number;
     grandTotal: number;
     selectedCustomer: Customer | null;
     stockMap: StockMap;
@@ -865,18 +1019,27 @@ function POSDesktopView(props: {
     discountApplied: string | number;
     setDiscountApplied: (val: string | number) => void;
     subtotal: number;
+    comboSubtotal: number;
 }) {
     const {
         loading,
         filteredProducts,
+        filteredCombos,
+        allCombos,
         search,
         setSearch,
         setShowScanner,
         goToSales,
         addToCart,
+        addComboToCart,
         cart,
+        comboCart,
         removeFromCart,
+        removeComboFromCart,
         updateQuantity,
+        updateComboQuantity,
+        getAvailableProductStock,
+        getComboAvailableUnits,
         grandTotal,
         selectedCustomer,
         setSelectedCustomer,
@@ -890,7 +1053,8 @@ function POSDesktopView(props: {
         onCreateNewCustomer,
         discountApplied,
         setDiscountApplied,
-        subtotal
+        subtotal,
+        comboSubtotal
     } = props;
 
     return (
@@ -944,6 +1108,41 @@ function POSDesktopView(props: {
                     </div>
                 </div>
 
+                {filteredCombos.length > 0 && (
+                    <div className="px-4 pt-3 pb-2 border-b bg-amber-50/50">
+                        <div className="text-xs font-black uppercase tracking-wider text-amber-700 mb-2">Combos</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {filteredCombos.slice(0, 6).map(combo => {
+                                const inCart = comboCart.find(c => c.comboId === combo.id)?.quantity ?? 0
+                                const maxUnits = getComboAvailableUnits(combo)
+                                return (
+                                    <div key={`desktop-combo-${combo.id}`} className="rounded-lg border border-amber-200 bg-white p-2">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div className="min-w-0">
+                                                <div className="font-semibold text-sm truncate">{combo.name}</div>
+                                                <div className="text-[11px] text-gray-500 truncate">{combo.items.map(i => `${i.quantity}x ${i.productName}`).join(', ')}</div>
+                                                <div className="text-[11px] text-gray-400">Disponibles: {maxUnits}</div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-sm font-black text-amber-700">${formatThousands(Number(combo.finalUnitPrice))}</div>
+                                                <Button
+                                                    size="sm"
+                                                    className="mt-1"
+                                                    onClick={() => addComboToCart(combo)}
+                                                    disabled={inCart >= maxUnits}
+                                                >
+                                                    <Plus className="h-4 w-4 mr-1" />
+                                                    {inCart > 0 ? inCart : 'Agregar'}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                )}
+
                 {/* Products Table */}
                 <div className="flex-1 overflow-y-auto">
                     {loading ? (
@@ -983,7 +1182,7 @@ function POSDesktopView(props: {
                                                 <div className="min-w-0">
                                                     <div className="font-medium text-sm">{product.name}</div>
                                                     <div className="text-xs text-gray-500 truncate">{product.barcode}</div>
-                                                    <div className="text-xs text-gray-400">Stock: {stockMap[product.id] ?? 0}</div>
+                                                    <div className="text-xs text-gray-400">Stock: {getAvailableProductStock(product.id)}</div>
                                                 </div>
                                             </div>
                                         </td>
@@ -1000,7 +1199,7 @@ function POSDesktopView(props: {
                                                     e.stopPropagation()
                                                     addToCart(product)
                                                 }}
-                                                disabled={(stockMap[product.id] ?? 0) <= (cart.find(i => i.id === product.id)?.quantity ?? 0)}
+                                                disabled={getAvailableProductStock(product.id) <= (cart.find(i => i.id === product.id)?.quantity ?? 0)}
                                             >
                                                 <Plus className="h-4 w-4" />
                                             </Button>
@@ -1027,63 +1226,125 @@ function POSDesktopView(props: {
 
                 {/* Cart Items */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                    {cart.length === 0 ? (
+                    {(cart.length === 0 && comboCart.length === 0) ? (
                         <div className="flex flex-col items-center justify-center h-full text-gray-500">
                             <div className="text-5xl mb-2">🛒</div>
                             <p className="text-sm">Carrito vacío</p>
                         </div>
                     ) : (
-                        cart.map(item => (
-                            <div key={item.id} className="p-3 bg-gray-50 rounded-lg">
-                                <div className="flex items-start justify-between mb-2">
-                                    <div className="flex-1 min-w-0 pr-2">
-                                        <div className="font-medium text-sm">{item.name}</div>
-                                        <div className="text-xs text-gray-500">
-                                            ${formatThousands(Number(item.salePrice))} c/u
+                        <>
+                            {comboCart.map(comboLine => {
+                                const comboDef = allCombos.find(c => c.id === comboLine.comboId)
+                                const maxUnits = comboDef ? getComboAvailableUnits(comboDef) : comboLine.quantity
+                                return (
+                                    <div key={`cart-combo-${comboLine.comboId}`} className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                                        <div className="flex items-start justify-between mb-2">
+                                            <div className="flex-1 min-w-0 pr-2">
+                                                <div className="font-semibold text-sm text-amber-800">🎁 {comboLine.comboName}</div>
+                                                <div className="text-xs text-amber-700">
+                                                    ${formatThousands(Number(comboLine.unitPrice))} c/u
+                                                </div>
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => removeComboFromCart(comboLine.comboId)}
+                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => updateComboQuantity(comboLine.comboId, comboLine.quantity - 1)}
+                                                    className="h-8 w-8 p-0"
+                                                >
+                                                    <Minus className="h-3 w-3" />
+                                                </Button>
+                                                <span className="w-12 text-center font-semibold">{comboLine.quantity}</span>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => updateComboQuantity(comboLine.comboId, comboLine.quantity + 1)}
+                                                    className="h-8 w-8 p-0"
+                                                    disabled={comboLine.quantity >= maxUnits}
+                                                >
+                                                    <Plus className="h-3 w-3" />
+                                                </Button>
+                                            </div>
+                                            <div className="font-bold text-amber-700">
+                                                ${formatThousands(Number(comboLine.unitPrice) * comboLine.quantity)}
+                                            </div>
                                         </div>
                                     </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => removeFromCart(item.id)}
-                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
+                                )
+                            })}
+
+                            {cart.map(item => (
+                                <div key={item.id} className="p-3 bg-gray-50 rounded-lg">
+                                    <div className="flex items-start justify-between mb-2">
+                                        <div className="flex-1 min-w-0 pr-2">
+                                            <div className="font-medium text-sm">{item.name}</div>
+                                            <div className="text-xs text-gray-500">
+                                                ${formatThousands(Number(item.salePrice))} c/u
+                                            </div>
+                                        </div>
                                         <Button
-                                            variant="outline"
+                                            variant="ghost"
                                             size="sm"
-                                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                            className="h-8 w-8 p-0"
+                                            onClick={() => removeFromCart(item.id)}
+                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                         >
-                                            <Minus className="h-3 w-3" />
-                                        </Button>
-                                        <span className="w-12 text-center font-semibold">{item.quantity}</span>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                            className="h-8 w-8 p-0"
-                                            disabled={item.quantity >= (stockMap[item.id] ?? 0)}
-                                        >
-                                            <Plus className="h-3 w-3" />
+                                            <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </div>
-                                    <div className="font-bold">
-                                        ${formatThousands(Number(item.salePrice) * item.quantity)}
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                                className="h-8 w-8 p-0"
+                                            >
+                                                <Minus className="h-3 w-3" />
+                                            </Button>
+                                            <span className="w-12 text-center font-semibold">{item.quantity}</span>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                                className="h-8 w-8 p-0"
+                                                disabled={item.quantity >= getAvailableProductStock(item.id)}
+                                            >
+                                                <Plus className="h-3 w-3" />
+                                            </Button>
+                                        </div>
+                                        <div className="font-bold">
+                                            ${formatThousands(Number(item.salePrice) * item.quantity)}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))
+                            ))}
+                        </>
                     )}
                 </div>
 
                 {/* Cart Footer */}
                 <div className="border-t bg-gray-50 p-4 space-y-3">
                     <div className="space-y-2 pb-2">
+                        <div className="flex justify-between text-sm text-gray-500">
+                            <span>Subtotal productos</span>
+                            <span>${formatThousands(subtotal - comboSubtotal)}</span>
+                        </div>
+                        {comboSubtotal > 0 && (
+                            <div className="flex justify-between text-sm text-amber-700">
+                                <span>Subtotal combos</span>
+                                <span>${formatThousands(comboSubtotal)}</span>
+                            </div>
+                        )}
                         <div className="flex justify-between text-sm text-gray-500">
                             <span>Subtotal</span>
                             <span>${formatThousands(subtotal)}</span>
@@ -1113,7 +1374,7 @@ function POSDesktopView(props: {
                     <Button
                         size="lg"
                         className="w-full h-14 text-lg font-bold shadow-lg"
-                        disabled={cart.length === 0 || !selectedCustomer}
+                        disabled={(cart.length === 0 && comboCart.length === 0) || !selectedCustomer}
                         onClick={() => setIsCheckoutOpen(true)}
                     >
                         COBRAR
@@ -1128,7 +1389,7 @@ function POSDesktopView(props: {
                         <Pause className="mr-2 h-5 w-5" />
                         Pausar Venta
                     </Button>
-                    {(cart.length > 0 || selectedCustomer) && (
+                    {(cart.length > 0 || comboCart.length > 0 || selectedCustomer) && (
                         <Button
                             variant="ghost"
                             size="lg"
@@ -1153,7 +1414,9 @@ export default function POSPage() {
     const resumeId = searchParams.get('resume')
 
     const [products, setProducts] = useState<Product[]>([])
+    const [combos, setCombos] = useState<ComboForPOS[]>([])
     const [cart, setCart] = useState<CartItem[]>([])
+    const [comboCart, setComboCart] = useState<ComboCartItem[]>([])
     const [loading, setLoading] = useState(false)
     const [search, setSearch] = useState('')
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
@@ -1248,14 +1511,31 @@ export default function POSPage() {
 
             setWarehouseId(userWarehouseId)
 
-            // Load products and stock for the user's warehouse
-            const [prodsRes, stockData] = await Promise.all([
+            // Load products, combos and stock for the user's warehouse
+            const [prodsRes, combosRes, stockData] = await Promise.all([
                 api.products.list({ limit: 1000, sellableOnly: true }),
+                api.combos.list({ warehouseId: userWarehouseId }),
                 api.inventory.stock({ warehouseId: userWarehouseId })
             ])
 
             const prods = Array.isArray(prodsRes) ? prodsRes : (prodsRes?.data || [])
             setProducts(prods)
+            const comboList = (combosRes || []).map((combo: any) => ({
+                id: combo.id,
+                name: combo.name,
+                description: combo.description,
+                image: combo.image,
+                finalUnitPrice: Number(combo.finalUnitPrice || 0),
+                baseUnitPrice: Number(combo.baseUnitPrice || 0),
+                available: !!combo.available,
+                maxUnitsInWarehouse: combo.maxUnitsInWarehouse,
+                items: (combo.items || []).map((item: any) => ({
+                    productId: item.productId,
+                    productName: item.productName,
+                    quantity: Number(item.quantity || 0),
+                }))
+            }))
+            setCombos(comboList)
 
             // Build stock map: { productId: quantity }
             const stockMapData: StockMap = {}
@@ -1293,28 +1573,99 @@ export default function POSPage() {
                     currentStockMap[row.productId] = row.quantity
                 })
 
-                // 3. Cruzar productos pausados con stock actual
+                // 3. Rehidratar combos pendientes (si existen)
+                const virtualStockMap: StockMap = { ...currentStockMap }
                 let hasAdjustments = false
-                const adjustedItems = invoice.items.map((item: any) => {
-                    const available = currentStockMap[item.productId] ?? 0
-                    let finalQuantity = item.quantity
 
-                    if (item.quantity > available) {
-                        hasAdjustments = true
-                        finalQuantity = Math.max(0, available)
+                const comboLines: ComboCartItem[] = []
+                for (const comboLine of (invoice.comboLines || [])) {
+                    const comboId = comboLine.comboId
+                    if (!comboId) continue
+
+                    let comboDef: any = null
+                    try {
+                        comboDef = await api.combos.get(comboId, { warehouseId: currentWarehouseId })
+                    } catch {
+                        comboDef = null
                     }
 
-                    return {
-                        ...item.product,
-                        quantity: finalQuantity,
-                        salePrice: item.unitPrice
-                    }
-                }).filter((item: any) => {
-                    // Si el stock es 0, lo dejamos en el carrito con cantidad 0 para que el usuario lo vea
-                    // pero no lo eliminamos para que sepa que "debía" estar ahí.
-                    return true
-                })
+                    const comboItems: ComboItemRequirement[] = (comboDef?.items || [])
+                        .map((item: any) => ({
+                            productId: item.productId,
+                            productName: item.productName,
+                            quantity: Number(item.quantity || 0),
+                        }))
+                        .filter((item: any) => item.quantity > 0)
 
+                    // Fallback: reconstruir items desde invoice.items si el combo ya no existe
+                    if (comboItems.length === 0) {
+                        const grouped: Record<string, { name: string; qty: number }> = {}
+                        const lineQty = Math.max(1, Number(comboLine.quantity || 1))
+                        ;(invoice.items || []).forEach((item: any) => {
+                            if (item.comboId !== comboId) return
+                            const key = item.productId
+                            const baseQty = Math.max(1, Math.round(Number(item.quantity || 0) / lineQty))
+                            if (!grouped[key]) {
+                                grouped[key] = { name: item.product?.name || 'Producto', qty: baseQty }
+                            }
+                        })
+                        Object.entries(grouped).forEach(([productId, data]) => {
+                            comboItems.push({
+                                productId,
+                                productName: data.name,
+                                quantity: data.qty,
+                            })
+                        })
+                    }
+
+                    if (comboItems.length === 0) continue
+
+                    let maxUnits = Number.POSITIVE_INFINITY
+                    comboItems.forEach(item => {
+                        const available = virtualStockMap[item.productId] ?? 0
+                        maxUnits = Math.min(maxUnits, Math.floor(available / Math.max(1, item.quantity)))
+                    })
+                    const requestedQty = Number(comboLine.quantity || 0)
+                    const finalQty = Math.max(0, Math.min(requestedQty, Number.isFinite(maxUnits) ? maxUnits : 0))
+
+                    if (finalQty < requestedQty) hasAdjustments = true
+
+                    comboItems.forEach(item => {
+                        virtualStockMap[item.productId] = (virtualStockMap[item.productId] ?? 0) - (item.quantity * finalQty)
+                    })
+
+                    comboLines.push({
+                        comboId,
+                        comboName: comboLine.comboName,
+                        quantity: finalQty,
+                        unitPrice: Number(comboLine.finalUnitPrice || comboDef?.finalUnitPrice || 0),
+                        baseUnitPrice: Number(comboLine.baseUnitPrice || comboDef?.baseUnitPrice || 0),
+                        items: comboItems,
+                    })
+                }
+
+                // 4. Cruzar productos directos pausados con stock restante actual
+                const adjustedItems = (invoice.items || [])
+                    .filter((item: any) => !item.comboId)
+                    .map((item: any) => {
+                        const available = virtualStockMap[item.productId] ?? 0
+                        let finalQuantity = Number(item.quantity || 0)
+
+                        if (finalQuantity > available) {
+                            hasAdjustments = true
+                            finalQuantity = Math.max(0, available)
+                        }
+
+                        virtualStockMap[item.productId] = available - finalQuantity
+
+                        return {
+                            ...item.product,
+                            quantity: finalQuantity,
+                            salePrice: item.unitPrice
+                        }
+                    })
+
+                setComboCart(comboLines.filter(line => line.quantity > 0))
                 setCart(adjustedItems)
                 setStockMap(currentStockMap)
 
@@ -1337,12 +1688,41 @@ export default function POSPage() {
         }
     }
 
+    const getReservedByCombos = (productId: string, source: ComboCartItem[] = comboCart) => {
+        return source.reduce((sum, comboLine) => {
+            const item = comboLine.items.find(i => i.productId === productId)
+            if (!item) return sum
+            return sum + (item.quantity * comboLine.quantity)
+        }, 0)
+    }
+
+    const getAvailableProductStock = (productId: string, comboSource: ComboCartItem[] = comboCart) => {
+        const totalStock = stockMap[productId] ?? 0
+        const reservedByCombos = getReservedByCombos(productId, comboSource)
+        return Math.max(0, totalStock - reservedByCombos)
+    }
+
+    const getComboAvailableUnits = (combo: ComboForPOS, currentComboQty = 0, comboSource: ComboCartItem[] = comboCart) => {
+        if (!combo.items.length) return 0
+
+        let maxUnits = Number.POSITIVE_INFINITY
+        for (const item of combo.items) {
+            const totalStock = stockMap[item.productId] ?? 0
+            const directQty = cart.find(p => p.id === item.productId)?.quantity ?? 0
+            const reservedByCombos = getReservedByCombos(item.productId, comboSource) - (currentComboQty * item.quantity)
+            const availableUnits = Math.floor((totalStock - directQty - Math.max(0, reservedByCombos)) / Math.max(1, item.quantity))
+            maxUnits = Math.min(maxUnits, availableUnits)
+        }
+
+        return Number.isFinite(maxUnits) ? Math.max(0, maxUnits) : 0
+    }
+
     const addToCart = (product: Product) => {
         if (!product.isSellable) {
             toast.error(`"${product.name}" no está habilitado para venta`)
             return
         }
-        const availableStock = stockMap[product.id] ?? 0
+        const availableStock = getAvailableProductStock(product.id)
         const currentInCart = cart.find(item => item.id === product.id)?.quantity ?? 0
 
         if (availableStock <= 0) {
@@ -1368,6 +1748,62 @@ export default function POSPage() {
         })
     }
 
+    const addComboToCart = (combo: ComboForPOS) => {
+        const existing = comboCart.find(c => c.comboId === combo.id)
+        const currentQty = existing?.quantity ?? 0
+        const maxQty = getComboAvailableUnits(combo, currentQty)
+
+        if (maxQty <= currentQty) {
+            toast.error(`No hay stock suficiente para agregar más unidades del combo "${combo.name}"`)
+            return
+        }
+
+        setComboCart(prev => {
+            const found = prev.find(c => c.comboId === combo.id)
+            if (found) {
+                return prev.map(c => c.comboId === combo.id ? { ...c, quantity: c.quantity + 1 } : c)
+            }
+            return [
+                ...prev,
+                {
+                    comboId: combo.id,
+                    comboName: combo.name,
+                    quantity: 1,
+                    unitPrice: Number(combo.finalUnitPrice),
+                    baseUnitPrice: Number(combo.baseUnitPrice),
+                    items: combo.items,
+                }
+            ]
+        })
+    }
+
+    const removeComboFromCart = (comboId: string) => {
+        setComboCart(prev => prev.filter(c => c.comboId !== comboId))
+    }
+
+    const updateComboQuantity = (comboId: string, quantity: number) => {
+        if (quantity < 1) {
+            removeComboFromCart(comboId)
+            return
+        }
+
+        const comboDef = combos.find(c => c.id === comboId)
+        if (!comboDef) {
+            toast.error('No se encontró la definición del combo')
+            return
+        }
+
+        const currentQty = comboCart.find(c => c.comboId === comboId)?.quantity ?? 0
+        const maxQty = getComboAvailableUnits(comboDef, currentQty)
+
+        if (quantity > maxQty) {
+            toast.error(`Stock máximo para este combo: ${maxQty} unidades`)
+            return
+        }
+
+        setComboCart(prev => prev.map(c => c.comboId === comboId ? { ...c, quantity } : c))
+    }
+
     const removeFromCart = (id: string) => {
         setCart(prev => prev.filter(item => item.id !== id))
     }
@@ -1378,7 +1814,7 @@ export default function POSPage() {
             return
         }
 
-        const availableStock = stockMap[id] ?? 0
+        const availableStock = getAvailableProductStock(id)
         if (quantity > availableStock) {
             toast.error(`Stock máximo: ${availableStock} unidades`)
             return
@@ -1389,7 +1825,9 @@ export default function POSPage() {
         ))
     }
 
-    const subtotal = cart.reduce((acc, item) => acc + (Number(item.salePrice) * item.quantity), 0)
+    const productSubtotal = cart.reduce((acc, item) => acc + (Number(item.salePrice) * item.quantity), 0)
+    const comboSubtotal = comboCart.reduce((acc, comboLine) => acc + (Number(comboLine.unitPrice) * comboLine.quantity), 0)
+    const subtotal = productSubtotal + comboSubtotal
     const grandTotal = Math.max(0, subtotal - parseThousands(String(discountApplied)))
 
     const handleScan = (code: string) => {
@@ -1399,7 +1837,7 @@ export default function POSPage() {
             return
         }
 
-        const availableStock = stockMap[found.id] ?? 0
+        const availableStock = getAvailableProductStock(found.id)
         if (availableStock <= 0) {
             toast.error(`"${found.name}" no tiene stock disponible en tu almacén`)
             setShowScanner(false)
@@ -1419,7 +1857,7 @@ export default function POSPage() {
     }
 
     const pauseSale = async () => {
-        if (cart.length === 0) {
+        if (cart.length === 0 && comboCart.length === 0) {
             toast.error('El carrito está vacío')
             return
         }
@@ -1439,11 +1877,15 @@ export default function POSPage() {
                 paymentMethod: 'CASH', // Default for pending
                 customerId: selectedCustomer?.id,
                 warehouseId,
-                items: cart.map(item => ({
+                items: cart.filter(item => item.quantity > 0).map(item => ({
                     productId: item.id,
                     quantity: item.quantity,
                     unitPrice: Number(item.salePrice)
-                }))
+                })),
+                comboLines: comboCart.map(comboLine => ({
+                    comboId: comboLine.comboId,
+                    quantity: comboLine.quantity,
+                })),
             })
 
             // If we were resuming an old one, cancel it
@@ -1455,6 +1897,7 @@ export default function POSPage() {
 
             // Reset
             setCart([])
+            setComboCart([])
             setSelectedCustomer(null)
             setResumedSaleId(null)
             setMobileStep(1)
@@ -1477,6 +1920,7 @@ export default function POSPage() {
         }
 
         setCart([])
+        setComboCart([])
         setSelectedCustomer(null)
         setResumedSaleId(null)
         setMobileStep(1)
@@ -1489,6 +1933,10 @@ export default function POSPage() {
     const handleCheckout = async () => {
         if (!selectedCustomer) {
             toast.error('Debes seleccionar un cliente')
+            return
+        }
+        if (cart.length === 0 && comboCart.length === 0) {
+            toast.error('Debes agregar productos o combos')
             return
         }
         if (!warehouseId) {
@@ -1505,10 +1953,14 @@ export default function POSPage() {
                 paymentMethod,
                 customerId: selectedCustomer.id,
                 warehouseId,
-                items: cart.map(item => ({
+                items: cart.filter(item => item.quantity > 0).map(item => ({
                     productId: item.id,
                     quantity: item.quantity,
                     unitPrice: Number(item.salePrice)
+                })),
+                comboLines: comboCart.map(comboLine => ({
+                    comboId: comboLine.comboId,
+                    quantity: comboLine.quantity,
                 })),
                 amountReceived: paymentMethod === 'CASH' ? parseThousands(String(amountReceived)) : undefined,
                 amountReturned: paymentMethod === 'CASH' ? (parseThousands(String(amountReceived)) - grandTotal) : undefined
@@ -1521,6 +1973,7 @@ export default function POSPage() {
 
             toast.success('Venta registrada exitosamente')
             setCart([])
+            setComboCart([])
             setSelectedCustomer(null)
             setResumedSaleId(null)
             setIsCheckoutOpen(false)
@@ -1541,6 +1994,11 @@ export default function POSPage() {
         p.name.toLowerCase().includes(search.toLowerCase()) ||
         p.barcode?.toLowerCase().includes(search.toLowerCase()) ||
         p.sku?.toLowerCase().includes(search.toLowerCase())
+    )
+
+    const filteredCombos = combos.filter(c =>
+        c.name.toLowerCase().includes(search.toLowerCase()) ||
+        c.description?.toLowerCase().includes(search.toLowerCase())
     )
 
     // Reset mobile pagination when search changes
@@ -1588,7 +2046,7 @@ export default function POSPage() {
     }, [handleScan])
 
     const canProceedToStep2 = selectedCustomer !== null
-    const canProceedToStep3 = cart.length > 0
+    const canProceedToStep3 = cart.length > 0 || comboCart.length > 0
 
     if (isMobile === null) {
         return null
@@ -1617,13 +2075,20 @@ export default function POSPage() {
                     selectedCustomer={selectedCustomer}
                     setSelectedCustomer={setSelectedCustomer}
                     cart={cart}
+                    comboCart={comboCart}
                     grandTotal={grandTotal}
                     search={search}
                     setSearch={setSearch}
                     filteredProducts={filteredProducts}
+                    filteredCombos={filteredCombos}
                     addToCart={addToCart}
+                    addComboToCart={addComboToCart}
                     removeFromCart={removeFromCart}
+                    removeComboFromCart={removeComboFromCart}
                     updateQuantity={updateQuantity}
+                    updateComboQuantity={updateComboQuantity}
+                    getAvailableProductStock={getAvailableProductStock}
+                    getComboAvailableUnits={getComboAvailableUnits}
                     pauseSale={pauseSale}
                     processing={processing}
                     canProceedToStep2={canProceedToStep2}
@@ -1644,19 +2109,28 @@ export default function POSPage() {
                     discountApplied={discountApplied}
                     setDiscountApplied={setDiscountApplied}
                     subtotal={subtotal}
+                    comboSubtotal={comboSubtotal}
                 />
             ) : (
                 <POSDesktopView
                     loading={loading}
                     filteredProducts={filteredProducts}
+                    filteredCombos={filteredCombos}
+                    allCombos={combos}
                     search={search}
                     setSearch={setSearch}
                     setShowScanner={setShowScanner}
                     goToSales={() => router.push('/sales')}
                     addToCart={addToCart}
+                    addComboToCart={addComboToCart}
                     cart={cart}
+                    comboCart={comboCart}
                     removeFromCart={removeFromCart}
+                    removeComboFromCart={removeComboFromCart}
                     updateQuantity={updateQuantity}
+                    updateComboQuantity={updateComboQuantity}
+                    getAvailableProductStock={getAvailableProductStock}
+                    getComboAvailableUnits={getComboAvailableUnits}
                     grandTotal={grandTotal}
                     selectedCustomer={selectedCustomer}
                     setSelectedCustomer={setSelectedCustomer}
@@ -1673,6 +2147,7 @@ export default function POSPage() {
                     discountApplied={discountApplied}
                     setDiscountApplied={setDiscountApplied}
                     subtotal={subtotal}
+                    comboSubtotal={comboSubtotal}
                 />
             )}
 
@@ -1737,7 +2212,7 @@ export default function POSPage() {
                                 </div>
                                 <div className="flex justify-between text-sm">
                                     <span className="text-gray-600">Productos</span>
-                                    <span className="font-medium">{cart.length} items</span>
+                                    <span className="font-medium">{cart.length + comboCart.length} items</span>
                                 </div>
                                 <div className="pt-2 border-t flex justify-between">
                                     <span className="text-lg font-semibold">Total</span>

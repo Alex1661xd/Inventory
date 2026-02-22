@@ -12,23 +12,7 @@ export declare class ProductsService {
     constructor(prisma: PrismaService, cacheService: CacheService, supabaseService: SupabaseService, auditService: AuditService);
     private generateBarcode;
     private generateUniqueBarcode;
-    create(tenantId: string, dto: CreateProductDto, userId?: string): Promise<{
-        isPublic: boolean;
-        id: string;
-        createdAt: Date;
-        name: string;
-        tenantId: string;
-        updatedAt: Date;
-        description: string | null;
-        sku: string | null;
-        images: string[];
-        costPrice: import("@prisma/client/runtime/library").Decimal;
-        salePrice: import("@prisma/client/runtime/library").Decimal;
-        isSellable: boolean;
-        categoryId: string | null;
-        barcode: string | null;
-        active: boolean;
-    }>;
+    create(tenantId: string, dto: CreateProductDto, userId?: string): Promise<any>;
     findAllWithTotalStock(tenantId: string, page?: number, limit?: number, search?: string, filters?: {
         categoryId?: string;
         minPrice?: number;
@@ -38,23 +22,7 @@ export declare class ProductsService {
     }, refresh?: boolean): Promise<any>;
     findOne(tenantId: string, id: string, refresh?: boolean): Promise<any>;
     findByBarcode(tenantId: string, barcode: string): Promise<any>;
-    update(tenantId: string, id: string, dto: UpdateProductDto): Promise<{
-        isPublic: boolean;
-        id: string;
-        createdAt: Date;
-        name: string;
-        tenantId: string;
-        updatedAt: Date;
-        description: string | null;
-        sku: string | null;
-        images: string[];
-        costPrice: import("@prisma/client/runtime/library").Decimal;
-        salePrice: import("@prisma/client/runtime/library").Decimal;
-        isSellable: boolean;
-        categoryId: string | null;
-        barcode: string | null;
-        active: boolean;
-    }>;
+    update(tenantId: string, id: string, dto: UpdateProductDto): Promise<any>;
     remove(tenantId: string, id: string): Promise<{
         success: boolean;
     }>;

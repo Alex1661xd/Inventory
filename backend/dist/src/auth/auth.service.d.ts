@@ -8,10 +8,10 @@ export declare class AuthService {
     private formatPrismaError;
     registerBusiness(dto: RegisterBusinessDto): Promise<{
         user: {
-            email: string;
-            password: string;
             id: string;
             name: string;
+            email: string;
+            password: string;
             role: import("@prisma/client").$Enums.Role;
             tenantId: string;
             warehouseId: string | null;

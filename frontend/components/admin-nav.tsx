@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -6,21 +6,21 @@ import { cn } from '@/lib/utils'
 
 const navSections = [
     {
-        title: "PRINCIPAL",
+        title: 'PRINCIPAL',
         links: [
             { href: '/dashboard', label: 'Inicio', icon: '📊' },
             { href: '/dashboard/reports', label: 'Reportes y BI', icon: '📈' },
         ]
     },
     {
-        title: "FINANZAS",
+        title: 'FINANZAS',
         links: [
             { href: '/dashboard/cash-flow', label: 'Arqueos de Caja', icon: '💵' },
             { href: '/dashboard/expenses', label: 'Gastos y Utilidad', icon: '💰' },
         ]
     },
     {
-        title: "OPERACIONES",
+        title: 'OPERACIONES',
         links: [
             { href: '/dashboard/products', label: 'Productos', icon: '📦' },
             { href: '/dashboard/inventory', label: 'Inventario', icon: '📋' },
@@ -30,7 +30,7 @@ const navSections = [
         ]
     },
     {
-        title: "GESTIÓN",
+        title: 'GESTIÓN',
         links: [
             { href: '/dashboard/sellers', label: 'Vendedores', icon: '👥' },
             { href: '/dashboard/suppliers', label: 'Proveedores', icon: '🏭' },
@@ -39,7 +39,7 @@ const navSections = [
         ]
     },
     {
-        title: "MI NEGOCIO",
+        title: 'MI NEGOCIO',
         links: [
             { href: '/dashboard/catalog', label: 'Mi Catálogo', icon: '📖' },
             { href: '/dashboard/backup', label: 'Respaldos (Drive)', icon: '🛡️' },
@@ -78,8 +78,8 @@ export function AdminNav() {
                                     )}
                                 >
                                     <span className={cn(
-                                        "text-lg transition-transform duration-300",
-                                        active ? "scale-110" : "group-hover:scale-110"
+                                        'text-lg transition-transform duration-300',
+                                        active ? 'scale-110' : 'group-hover:scale-110'
                                     )}>
                                         {l.icon}
                                     </span>

@@ -33,6 +33,11 @@ enum PaymentMethod {
   OTHER
 }
 
+enum ComboPricingType {
+  FIXED
+  PERCENT_OFF
+}
+
 enum InvoiceStatus {
   PAID
   PENDING
@@ -89,6 +94,9 @@ model Tenant {
   purchases   Purchase[]
   purchasePayments PurchasePayment[]
   stockBatches StockBatch[]
+  visualVariants ProductVisualVariant[]
+  combos      Combo[]
+  invoiceCombos InvoiceCombo[]
   auditLogs   AuditLog[]
   tenantSequences TenantSequence[]
   // Backups
@@ -217,6 +225,8 @@ model Product {
   inventory   Stock[]       // Relación con almacenes
   invoiceItems InvoiceItem[]
   stockMovements StockMovement[] // Kardex del producto
+  comboItems    ComboItem[]
+  visualVariants ProductVisualVariant[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -226,6 +236,26 @@ model Product {
   @@index([tenantId])
   purchaseItems PurchaseItem[]
   stockBatches  StockBatch[]
+}
+
+model ProductVisualVariant {
+  id          String   @id @default(uuid())
+  name        String
+  image       String
+  sortOrder   Int      @default(0)
+  isPublic    Boolean  @default(true)
+
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, productId])
+  @@index([productId, sortOrder])
 }
 
 model Warehouse {
@@ -246,8 +276,48 @@ model Warehouse {
   
   stockMovements StockMovement[] // Movimientos en este almacén
   stockBatches    StockBatch[]
+  invoices        Invoice[]
 
   @@index([tenantId])
+}
+
+model Combo {
+  id              String            @id @default(uuid())
+  name            String
+  description     String?
+  image           String?
+  pricingType     ComboPricingType  @default(FIXED)
+  fixedPrice      Decimal           @default(0)
+  discountPercent Decimal           @default(0)
+  isActive        Boolean           @default(true)
+  isPublic        Boolean           @default(true)
+
+  tenantId        String
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+
+  items           ComboItem[]
+  invoiceItems    InvoiceItem[]
+  invoiceCombos   InvoiceCombo[]
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([tenantId])
+  @@index([isActive])
+}
+
+model ComboItem {
+  id          String   @id @default(uuid())
+  quantity    Int
+
+  comboId     String
+  combo       Combo    @relation(fields: [comboId], references: [id], onDelete: Cascade)
+
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+
+  @@unique([comboId, productId])
+  @@index([productId])
 }
 
 // TABLA PIVOTE: Relaciona Producto con Almacén y guarda la cantidad
@@ -349,11 +419,13 @@ model Invoice {
   
   // Almacén del que se descontó el stock (necesario para revertir al cancelar)
   warehouseId     String?
+  warehouse       Warehouse?    @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
   
   amountReceived  Decimal?
   amountReturned  Decimal?
   
   items           InvoiceItem[]
+  comboLines      InvoiceCombo[]
 }
 
 // Detalle de la factura (Qué productos se llevaron)
@@ -373,6 +445,33 @@ model InvoiceItem {
   
   productId       String
   product         Product  @relation(fields: [productId], references: [id])
+
+  comboId         String?
+  combo           Combo?   @relation(fields: [comboId], references: [id], onDelete: SetNull)
+  comboName       String?
+}
+
+model InvoiceCombo {
+  id              String   @id @default(uuid())
+  quantity        Int
+  baseUnitPrice   Decimal
+  finalUnitPrice  Decimal
+  discountPerUnit Decimal  @default(0)
+  comboName       String
+
+  invoiceId       String
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  comboId         String?
+  combo           Combo?   @relation(fields: [comboId], references: [id], onDelete: SetNull)
+
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+
+  createdAt       DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([invoiceId])
 }
 
 // --------------------------------------

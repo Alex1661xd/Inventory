@@ -22,6 +22,12 @@ interface CatalogProduct {
     categoryId: string | null
     categoryName: string
     available: boolean
+    type?: 'PRODUCT' | 'COMBO'
+    comboItems?: Array<{
+        productId: string
+        productName: string
+        quantity: number
+    }>
 }
 
 interface Category {
@@ -184,9 +190,9 @@ export default function CatalogPage() {
             {/* Search & Filters */}
             <div className="sticky top-[68px] md:top-[88px] z-40 bg-white/70 backdrop-blur-xl border-b border-[hsl(var(--border)/0.5)] shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 py-3 md:py-4">
-                    <div className="flex flex-col md:flex-row gap-4 items-center">
+                    <div className="flex flex-col gap-4">
                         {/* Search */}
-                        <div className="w-full md:flex-1 relative group">
+                        <div className="w-full relative group">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--muted))] group-focus-within:text-[hsl(var(--primary))] transition-colors" />
                             <input
                                 type="text"
@@ -198,11 +204,11 @@ export default function CatalogPage() {
                         </div>
 
                         {/* Category Filter */}
-                        <div className="w-full md:w-auto flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                        <div className="w-full flex gap-2 overflow-x-auto pb-1 no-scrollbar">
                             <button
                                 onClick={() => setSelectedCategory(null)}
                                 className={cn(
-                                    "px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all",
+                                    "px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0",
                                     !selectedCategory
                                         ? "text-white shadow-xl shadow-black/10 scale-105"
                                         : "bg-white text-[hsl(var(--muted))] border-2 border-[hsl(var(--border))] hover:bg-[hsl(var(--muted-light))]"
@@ -303,6 +309,12 @@ export default function CatalogPage() {
                                         <div className="absolute bottom-2 left-2 px-2 py-1 rounded-full text-[10px] md:text-xs font-medium bg-black/50 text-white backdrop-blur-sm z-30">
                                             {product.categoryName}
                                         </div>
+
+                                        {product.type === 'COMBO' && (
+                                            <div className="absolute bottom-2 right-2 px-2 py-1 rounded-full text-[10px] md:text-xs font-black bg-amber-500/90 text-white backdrop-blur-sm z-30">
+                                                COMBO
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Product Info */}
@@ -403,6 +415,18 @@ export default function CatalogPage() {
                                         <p className="text-[hsl(var(--foreground))] text-base leading-relaxed font-medium">
                                             {selectedProduct.description || "Este producto es parte de nuestra colección exclusiva. Contáctanos para más detalles técnicos."}
                                         </p>
+                                        {selectedProduct.type === 'COMBO' && selectedProduct.comboItems && selectedProduct.comboItems.length > 0 && (
+                                            <div className="space-y-2">
+                                                <h5 className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-[0.25em]">Incluye</h5>
+                                                <div className="space-y-1">
+                                                    {selectedProduct.comboItems.map((item) => (
+                                                        <div key={`${selectedProduct.id}-${item.productId}`} className="text-sm font-semibold text-[hsl(var(--foreground))]">
+                                                            {item.quantity}x {item.productName}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 

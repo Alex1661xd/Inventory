@@ -1,3 +1,9 @@
+declare class ProductVisualVariantUpdateDto {
+    name?: string;
+    image?: string;
+    sortOrder?: number;
+    isPublic?: boolean;
+}
 export declare class UpdateProductDto {
     name?: string;
     description?: string;
@@ -8,4 +14,6 @@ export declare class UpdateProductDto {
     isPublic?: boolean;
     isSellable?: boolean;
     categoryId?: string;
+    visualVariants?: ProductVisualVariantUpdateDto[];
 }
+export {};

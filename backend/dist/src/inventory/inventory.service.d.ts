@@ -16,11 +16,11 @@ export declare class InventoryService {
         product: {
             id: string;
             name: string;
+            barcode: string | null;
             sku: string | null;
             costPrice: import("@prisma/client/runtime/library").Decimal;
             salePrice: import("@prisma/client/runtime/library").Decimal;
             categoryId: string | null;
-            barcode: string | null;
         };
         warehouse: {
             id: string;
@@ -35,11 +35,11 @@ export declare class InventoryService {
             product: {
                 id: string;
                 name: string;
+                barcode: string | null;
                 sku: string | null;
                 costPrice: import("@prisma/client/runtime/library").Decimal;
                 salePrice: import("@prisma/client/runtime/library").Decimal;
                 categoryId: string | null;
-                barcode: string | null;
             };
             warehouse: {
                 id: string;

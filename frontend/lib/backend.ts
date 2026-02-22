@@ -210,6 +210,47 @@ export type Product = {
     categoryId?: string | null;
     totalStock?: number;
     activeCosts?: { cost: number; quantity: number }[];
+    visualVariants?: Array<{
+        id?: string;
+        name: string;
+        image: string;
+        sortOrder?: number;
+        isPublic?: boolean;
+    }>;
+};
+
+export type ComboPricingType = 'FIXED' | 'PERCENT_OFF';
+
+export type ComboItem = {
+    productId: string;
+    productName: string;
+    quantity: number;
+    productSalePrice: number;
+    productCostPrice: number;
+    globalStock: number;
+    warehouseStock?: number | null;
+    productImage?: string | null;
+};
+
+export type Combo = {
+    id: string;
+    name: string;
+    description?: string | null;
+    image?: string | null;
+    pricingType: ComboPricingType;
+    fixedPrice: number;
+    discountPercent: number;
+    isActive: boolean;
+    isPublic: boolean;
+    items: ComboItem[];
+    baseUnitPrice: number;
+    finalUnitPrice: number;
+    discountPerUnit: number;
+    maxUnitsGlobal: number;
+    maxUnitsInWarehouse: number | null;
+    available: boolean;
+    createdAt: string;
+    updatedAt: string;
 };
 
 export type PaginatedResponse<T> = {
@@ -359,10 +400,11 @@ export type AnalyticsDashboard = {
     };
     salesOverTime: Array<{ date: string; total: number; profit: number }>;
     topProducts: Array<{ name: string; quantity: number; revenue: number; profit: number }>;
-    topSellers: Array<{ name: string; total: number; salesCount: number }>;
-    warehouseStats: Array<{ name: string; total: number; salesCount: number }>;
-    categoryStats: Array<{ name: string; total: number }>;
+    topSellers: Array<{ name: string; total: number; profit: number; salesCount: number }>;
+    warehouseStats: Array<{ name: string; total: number; profit: number; salesCount: number }>;
+    categoryStats: Array<{ name: string; total: number; profit: number }>;
     paymentMethodStats: Array<{ name: string; total: number }>;
+    comboStats: Array<{ name: string; total: number; profit: number; quantity: number; salesCount: number }>;
     deadStock: Array<{ id: string; name: string; sku: string | null; stock: number; value: number }>;
 };
 
@@ -403,6 +445,7 @@ export const api = {
             initialStock?: number;
             initialWarehouseId?: string;
             categoryId?: string;
+            visualVariants?: Array<{ name: string; image: string; sortOrder?: number; isPublic?: boolean }>;
         }) => backendFetch<Product>('/products', { method: 'POST', json: payload }),
         update: (id: string, payload: Partial<{
             name: string;
@@ -414,6 +457,7 @@ export const api = {
             isPublic?: boolean;
             isSellable?: boolean;
             categoryId?: string;
+            visualVariants?: Array<{ name: string; image: string; sortOrder?: number; isPublic?: boolean }>;
         }>) => backendFetch<Product>(`/products/${id}`, { method: 'PATCH', json: payload }),
         remove: (id: string) => backendFetch<Product>(`/products/${id}`, { method: 'DELETE' }),
     },
@@ -437,6 +481,45 @@ export const api = {
             description?: string;
         }>) => backendFetch<Category>(`/categories/${id}`, { method: 'PATCH', json: payload }),
         remove: (id: string) => backendFetch<Category>(`/categories/${id}`, { method: 'DELETE' }),
+    },
+    combos: {
+        list: (options?: { warehouseId?: string; includeInactive?: boolean; publicOnly?: boolean }) => {
+            const params = new URLSearchParams();
+            if (options?.warehouseId) params.set('warehouseId', options.warehouseId);
+            if (options?.includeInactive) params.set('includeInactive', '1');
+            if (options?.publicOnly) params.set('publicOnly', '1');
+            const q = params.toString();
+            return backendFetch<Combo[]>(`/combos${q ? `?${q}` : ''}`);
+        },
+        get: (id: string, options?: { warehouseId?: string }) => {
+            const params = new URLSearchParams();
+            if (options?.warehouseId) params.set('warehouseId', options.warehouseId);
+            const q = params.toString();
+            return backendFetch<Combo>(`/combos/${id}${q ? `?${q}` : ''}`);
+        },
+        create: (payload: {
+            name: string;
+            description?: string;
+            image?: string;
+            pricingType: ComboPricingType;
+            fixedPrice?: number;
+            discountPercent?: number;
+            isActive?: boolean;
+            isPublic?: boolean;
+            items: Array<{ productId: string; quantity: number }>;
+        }) => backendFetch<Combo>('/combos', { method: 'POST', json: payload }),
+        update: (id: string, payload: Partial<{
+            name: string;
+            description?: string;
+            image?: string;
+            pricingType: ComboPricingType;
+            fixedPrice?: number;
+            discountPercent?: number;
+            isActive?: boolean;
+            isPublic?: boolean;
+            items: Array<{ productId: string; quantity: number }>;
+        }>) => backendFetch<Combo>(`/combos/${id}`, { method: 'PATCH', json: payload }),
+        remove: (id: string) => backendFetch<{ success: boolean; message: string }>(`/combos/${id}`, { method: 'DELETE' }),
     },
     inventory: {
         updateStock: (payload: { productId: string; warehouseId: string; quantityDelta: number; type?: StockMovementType }) =>

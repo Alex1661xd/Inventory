@@ -55,7 +55,7 @@ export class AnalyticsService {
         const endDate = to ? addHours(endOfDay(parseISO(to)), absOffset) : endOfDay(new Date());
 
         // 1. Obtener todas las facturas pagas del periodo
-        const invoices = await this.prisma.invoice.findMany({
+        const invoices: any[] = await (this.prisma.invoice as any).findMany({
             where: {
                 tenantId,
                 status: 'PAID',
@@ -71,9 +71,12 @@ export class AnalyticsService {
                         }
                     }
                 },
+                comboLines: true,
+                warehouse: true,
                 seller: {
-                    include: {
-                        warehouse: true
+                    select: {
+                        id: true,
+                        name: true,
                     }
                 },
                 customer: true,
@@ -156,6 +159,9 @@ export class AnalyticsService {
         // Ventas por Método de Pago
         const paymentMethodStatsMap = new Map<string, { name: string, total: number }>();
 
+        // Ventas por Combo
+        const comboStatsMap = new Map<string, { name: string, total: number, profit: number, quantity: number, salesCount: number }>();
+
         const soldProductIds = new Set<string>();
 
         invoices.forEach(inv => {
@@ -206,7 +212,7 @@ export class AnalyticsService {
             sStat.salesCount += 1;
             sellerStatsMap.set(inv.sellerId, sStat);
 
-            const warehouse = inv.seller.warehouse;
+            const warehouse = inv.warehouse;
             const wId = warehouse?.id || 'unassigned';
             const wName = warehouse?.name || 'Sin Almacén';
 
@@ -221,6 +227,41 @@ export class AnalyticsService {
             const pmStat = paymentMethodStatsMap.get(pmName) || { name: pmName, total: 0 };
             pmStat.total += invoiceRevenue;
             paymentMethodStatsMap.set(pmName, pmStat);
+
+            const comboCostById = new Map<string, number>();
+            inv.items.forEach((item: any) => {
+                if (!item.comboId) return;
+                // @ts-ignore
+                const itemCost = item.totalCost ? Number(item.totalCost) : (item.quantity * Number(item.product.costPrice || 0));
+                comboCostById.set(item.comboId, (comboCostById.get(item.comboId) || 0) + itemCost);
+            });
+
+            const comboLineGroups = new Map<string, { name: string, comboId?: string, revenue: number, quantity: number, lineCount: number }>();
+            (inv.comboLines || []).forEach((comboLine: any) => {
+                const key = comboLine.comboId || `snapshot:${comboLine.comboName}`;
+                const revenue = Number(comboLine.finalUnitPrice || 0) * Number(comboLine.quantity || 0);
+                const current = comboLineGroups.get(key) || {
+                    name: comboLine.comboName || 'Combo',
+                    comboId: comboLine.comboId || undefined,
+                    revenue: 0,
+                    quantity: 0,
+                    lineCount: 0,
+                };
+                current.revenue += revenue;
+                current.quantity += Number(comboLine.quantity || 0);
+                current.lineCount += 1;
+                comboLineGroups.set(key, current);
+            });
+
+            comboLineGroups.forEach((group, key) => {
+                const comboCost = group.comboId ? (comboCostById.get(group.comboId) || 0) : 0;
+                const stat = comboStatsMap.get(key) || { name: group.name, total: 0, profit: 0, quantity: 0, salesCount: 0 };
+                stat.total += group.revenue;
+                stat.profit += (group.revenue - comboCost);
+                stat.quantity += group.quantity;
+                stat.salesCount += group.lineCount;
+                comboStatsMap.set(key, stat);
+            });
         });
 
         // Convertir Maps a Arrays y ordenar
@@ -241,6 +282,10 @@ export class AnalyticsService {
 
         const paymentMethodStats = Array.from(paymentMethodStatsMap.values())
             .sort((a, b) => b.total - a.total);
+
+        const comboStats = Array.from(comboStatsMap.values())
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 10);
 
         // Identificar Productos Hueso (con stock > 0 pero 0 ventas en 30 días)
         const deadStock = allProducts
@@ -288,6 +333,7 @@ export class AnalyticsService {
             warehouseStats,
             categoryStats,
             paymentMethodStats,
+            comboStats,
             deadStock,
         };
 

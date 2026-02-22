@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
 import { StockMovementType } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../cache/cache.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { AuditService } from '../audit/audit.service';
@@ -16,7 +16,6 @@ export class InvoicesService {
     ) { }
 
     private async invalidateInvoicesCache(tenantId: string, invoiceId?: string, sellerId?: string) {
-        // Invalidate all variants of paginated lists (all sellers, filters, etc)
         const listPattern = this.cacheService.generateKey(tenantId, 'invoices', 'list', '*');
         await this.cacheService.invalidatePattern(listPattern);
 
@@ -25,41 +24,255 @@ export class InvoicesService {
             await this.cacheService.invalidate(detailKey);
         }
 
-        // TAMBIÉN INVALIDAR ANALYTICS, PRODUCTOS E INVENTARIO
         await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'analytics', '*'));
         await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'expenses', '*'));
         await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'products', '*'));
         await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'inventory', '*'));
 
-        // Fallback explícito para la lista de productos (importante para stock real-time)
         await this.cacheService.invalidate(this.cacheService.generateKey(tenantId, 'products', 'list'));
     }
 
-    async create(tenantId: string, sellerId: string, dto: CreateInvoiceDto) {
-        // ✅ VALIDACIÓN: Recalcular el total desde los ítems para prevenir fraude
-        const calculatedSubtotal = dto.items.reduce(
-            (sum, item) => sum + (item.quantity * item.unitPrice), 0
-        );
-        const calculatedTotal = calculatedSubtotal - (dto.discount || 0);
+    private roundMoney(value: number) {
+        return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+    }
 
-        if (Math.abs(calculatedTotal - dto.total) > 0.01) {
+    private computeComboPricing(pricingType: string, fixedPrice: number, discountPercent: number, baseUnitPrice: number) {
+        const base = Math.max(0, Number(baseUnitPrice || 0));
+        let final = base;
+
+        if (pricingType === 'FIXED') {
+            final = Math.max(0, Number(fixedPrice || 0));
+        } else {
+            const pct = Math.max(0, Math.min(100, Number(discountPercent || 0)));
+            final = base * (1 - pct / 100);
+        }
+
+        return {
+            baseUnitPrice: this.roundMoney(base),
+            finalUnitPrice: this.roundMoney(final),
+            discountPerUnit: this.roundMoney(base - final),
+        };
+    }
+
+    async create(tenantId: string, sellerId: string, dto: CreateInvoiceDto) {
+        const seller = await this.prisma.user.findFirst({
+            where: { id: sellerId, tenantId },
+            select: { id: true, role: true, warehouseId: true },
+        });
+
+        if (!seller) throw new NotFoundException('Vendedor no encontrado');
+
+        if (seller.role === 'SELLER' && !seller.warehouseId) {
+            throw new BadRequestException('No tienes una sede asignada para vender.');
+        }
+
+        if (seller.role === 'SELLER' && seller.warehouseId !== dto.warehouseId) {
+            throw new BadRequestException('No puedes vender fuera de tu sede asignada.');
+        }
+
+        const normalizedDirectItems = (dto.items || [])
+            .map((item) => ({
+                productId: item.productId,
+                quantity: Math.floor(Number(item.quantity || 0)),
+                unitPrice: Number(item.unitPrice || 0),
+            }))
+            .filter(item => item.quantity > 0);
+
+        if (normalizedDirectItems.some(item => !item.productId || item.unitPrice < 0)) {
+            throw new BadRequestException('Hay productos directos invalidos en la venta.');
+        }
+
+        const comboLineMap = new Map<string, number>();
+        for (const comboLine of (dto.comboLines || [])) {
+            const comboId = comboLine?.comboId;
+            const quantity = Math.floor(Number(comboLine?.quantity || 0));
+            if (!comboId || quantity <= 0) continue;
+            comboLineMap.set(comboId, (comboLineMap.get(comboId) || 0) + quantity);
+        }
+
+        const comboIds = Array.from(comboLineMap.keys());
+        const comboSnapshots: Array<{
+            comboId: string;
+            comboName: string;
+            quantity: number;
+            baseUnitPrice: number;
+            finalUnitPrice: number;
+            discountPerUnit: number;
+        }> = [];
+
+        const expandedComboItems: Array<{
+            productId: string;
+            quantity: number;
+            unitPrice: number;
+            comboId: string;
+            comboName: string;
+        }> = [];
+
+        if (comboIds.length > 0) {
+            const combos = await (this.prisma as any).combo.findMany({
+                where: {
+                    tenantId,
+                    id: { in: comboIds },
+                    isActive: true,
+                },
+                include: {
+                    items: {
+                        include: {
+                            product: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    salePrice: true,
+                                    active: true,
+                                    isSellable: true,
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            if (combos.length !== comboIds.length) {
+                throw new BadRequestException('Uno o mas combos no existen o estan desactivados.');
+            }
+
+            const comboById = new Map(combos.map(combo => [combo.id, combo]));
+
+            for (const [comboId, comboQty] of comboLineMap.entries()) {
+                const combo: any = comboById.get(comboId);
+                if (!combo) throw new BadRequestException(`Combo invalido: ${comboId}`);
+                if (!combo.items?.length) throw new BadRequestException(`El combo "${combo.name}" no tiene productos.`);
+
+                for (const comboItem of combo.items) {
+                    if (!comboItem.product?.active || !comboItem.product?.isSellable) {
+                        throw new BadRequestException(
+                            `El combo "${combo.name}" contiene productos inactivos o no vendibles.`
+                        );
+                    }
+                }
+
+                const baseUnitPrice = combo.items.reduce((sum: number, item: any) => {
+                    return sum + (Number(item.quantity) * Number(item.product.salePrice));
+                }, 0);
+
+                const pricing = this.computeComboPricing(
+                    String(combo.pricingType),
+                    Number(combo.fixedPrice || 0),
+                    Number(combo.discountPercent || 0),
+                    baseUnitPrice,
+                );
+
+                if (!(pricing.finalUnitPrice > 0)) {
+                    throw new BadRequestException(`El precio final del combo "${combo.name}" es invalido.`);
+                }
+
+                comboSnapshots.push({
+                    comboId: combo.id,
+                    comboName: combo.name,
+                    quantity: comboQty,
+                    baseUnitPrice: pricing.baseUnitPrice,
+                    finalUnitPrice: pricing.finalUnitPrice,
+                    discountPerUnit: pricing.discountPerUnit,
+                });
+
+                const comboTotalRevenue = pricing.finalUnitPrice * comboQty;
+                const componentBases = combo.items.map((item: any) => ({
+                    productId: item.productId,
+                    productQtyPerCombo: Number(item.quantity),
+                    baseRevenuePerCombo: Number(item.quantity) * Number(item.product.salePrice),
+                }));
+
+                let assignedRevenue = 0;
+                componentBases.forEach((component, index) => {
+                    const expandedQty = component.productQtyPerCombo * comboQty;
+                    if (expandedQty <= 0) return;
+
+                    let componentRevenue = 0;
+                    if (index === componentBases.length - 1) {
+                        componentRevenue = comboTotalRevenue - assignedRevenue;
+                    } else {
+                        const ratio = baseUnitPrice > 0 ? (component.baseRevenuePerCombo / baseUnitPrice) : 0;
+                        componentRevenue = comboTotalRevenue * ratio;
+                        assignedRevenue += componentRevenue;
+                    }
+
+                    expandedComboItems.push({
+                        productId: component.productId,
+                        quantity: expandedQty,
+                        unitPrice: componentRevenue / expandedQty,
+                        comboId: combo.id,
+                        comboName: combo.name,
+                    });
+                });
+            }
+        }
+
+        const expandedItems = [
+            ...normalizedDirectItems.map(item => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                comboId: null as string | null,
+                comboName: null as string | null,
+            })),
+            ...expandedComboItems.map(item => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                comboId: item.comboId,
+                comboName: item.comboName,
+            })),
+        ];
+
+        if (expandedItems.length === 0) {
+            throw new BadRequestException('La venta no tiene productos validos para procesar.');
+        }
+
+        const allProductIds = Array.from(new Set(expandedItems.map(item => item.productId)));
+        const productRecords = await this.prisma.product.findMany({
+            where: { tenantId, id: { in: allProductIds } },
+            select: { id: true, name: true, active: true, isSellable: true },
+        });
+        const productMap = new Map(productRecords.map(p => [p.id, p]));
+
+        for (const item of expandedItems) {
+            const product = productMap.get(item.productId);
+            if (!product || !product.active || !product.isSellable) {
+                throw new BadRequestException(
+                    `El producto con ID "${item.productId}" no existe, esta desactivado o no esta habilitado para venta.`
+                );
+            }
+        }
+
+        const discount = Number(dto.discount || 0);
+        if (discount < 0) throw new BadRequestException('El descuento no puede ser negativo.');
+
+        const calculatedSubtotal = expandedItems.reduce((sum, item) => sum + (item.quantity * Number(item.unitPrice)), 0);
+        const calculatedTotal = calculatedSubtotal - discount;
+
+        if (Math.abs(this.roundMoney(calculatedTotal) - this.roundMoney(Number(dto.total))) > 0.05) {
             throw new BadRequestException(
-                `El total enviado ($${dto.total}) no coincide con el cálculo de los ítems ($${calculatedTotal.toFixed(2)}). Verifica los datos.`
+                `El total enviado ($${dto.total}) no coincide con el calculo de la venta ($${this.roundMoney(calculatedTotal).toFixed(2)}). Verifica descuentos y combos.`
             );
         }
 
+        const stockNeededMap = new Map<string, number>();
+        for (const item of expandedItems) {
+            stockNeededMap.set(item.productId, (stockNeededMap.get(item.productId) || 0) + item.quantity);
+        }
+
+        const invoiceStatus = dto.status || 'PAID';
+
         const result = await this.prisma.$transaction(async (tx) => {
-            // 0. Calcular el siguiente número de factura POR TENANT (ATÓMICO)
             const nextInvoiceNumber = await this.sequenceService.nextVal(tenantId, 'invoice', tx);
 
-            // 1. Validate stock availability BEFORE creating invoice
-            if (dto.status === 'PAID') {
-                for (const item of dto.items) {
+            if (invoiceStatus === 'PAID') {
+                for (const [productId, requiredQty] of stockNeededMap.entries()) {
                     const stockRecord: any = await tx.stock.findUnique({
                         where: {
                             productId_warehouseId: {
-                                productId: item.productId,
-                                warehouseId: dto.warehouseId
+                                productId,
+                                warehouseId: dto.warehouseId,
                             }
                         },
                         include: {
@@ -71,50 +284,64 @@ export class InvoicesService {
 
                     if (!stockRecord || !stockRecord.product || !stockRecord.product.active || !stockRecord.product.isSellable) {
                         throw new BadRequestException(
-                            `El producto con ID "${item.productId}" no existe, está desactivado o no está habilitado para venta.`
+                            `El producto con ID "${productId}" no existe, esta desactivado o no esta habilitado para venta.`
                         );
                     }
 
-                    if (stockRecord.quantity < item.quantity) {
+                    if (stockRecord.quantity < requiredQty) {
                         throw new BadRequestException(
-                            `Stock insuficiente para "${stockRecord.product.name}". Disponible: ${stockRecord.quantity}, Solicitado: ${item.quantity}`
+                            `Stock insuficiente para "${stockRecord.product.name}". Disponible: ${stockRecord.quantity}, Solicitado: ${requiredQty}`
                         );
                     }
                 }
             }
 
-            // 2. Create Invoice — ✅ ahora guarda warehouseId
             const invoice = await tx.invoice.create({
                 data: {
                     invoiceNumber: nextInvoiceNumber,
-                    total: calculatedTotal,
-                    status: dto.status,
+                    total: this.roundMoney(calculatedTotal),
+                    status: invoiceStatus as any,
                     paymentMethod: dto.paymentMethod,
                     tenantId,
                     sellerId,
                     customerId: dto.customerId,
-                    warehouseId: dto.warehouseId, // ✅ Persistir para reversión al cancelar
+                    warehouseId: dto.warehouseId,
                     amountReceived: dto.amountReceived,
                     amountReturned: dto.amountReturned,
-                    discount: dto.discount || 0,
+                    discount,
                     items: {
-                        create: dto.items.map(item => ({
+                        create: expandedItems.map(item => ({
                             productId: item.productId,
                             quantity: item.quantity,
-                            unitPrice: item.unitPrice
+                            unitPrice: item.unitPrice,
+                            comboId: item.comboId,
+                            comboName: item.comboName,
                         }))
                     }
                 },
                 include: { items: true }
             } as any);
 
-            // 3. Decrement Stock (FIFO Logic) + Kardex
-            if (dto.status === 'PAID') {
+            if (comboSnapshots.length > 0) {
+                await (tx as any).invoiceCombo.createMany({
+                    data: comboSnapshots.map(comboLine => ({
+                        invoiceId: invoice.id,
+                        comboId: comboLine.comboId,
+                        comboName: comboLine.comboName,
+                        quantity: comboLine.quantity,
+                        baseUnitPrice: comboLine.baseUnitPrice,
+                        finalUnitPrice: comboLine.finalUnitPrice,
+                        discountPerUnit: comboLine.discountPerUnit,
+                        tenantId,
+                    }))
+                });
+            }
+
+            if (invoiceStatus === 'PAID') {
                 for (const invoiceItem of (invoice as any).items) {
                     let pendingToSubtract = invoiceItem.quantity;
                     let calculatedTotalCost = 0;
 
-                    // A. Buscar lotes disponibles ordenados por fecha (FIFO)
                     const batches = await tx.stockBatch.findMany({
                         where: {
                             productId: invoiceItem.productId,
@@ -124,7 +351,6 @@ export class InvoicesService {
                         orderBy: { entryDate: 'asc' }
                     });
 
-                    // B. Consumir lotes
                     for (const batch of batches) {
                         if (pendingToSubtract <= 0) break;
 
@@ -139,18 +365,15 @@ export class InvoicesService {
                         pendingToSubtract -= qtyToTake;
                     }
 
-                    // C. Si aún queda pendiente, hubo un error de sincronización
                     if (pendingToSubtract > 0) {
                         throw new BadRequestException(`Error interno de FIFO: Stock insuficiente en lotes para ${invoiceItem.productId}`);
                     }
 
-                    // D. Actualizar el costo real en el ítem de la factura
                     await tx.invoiceItem.update({
                         where: { id: invoiceItem.id },
                         data: { totalCost: calculatedTotalCost }
                     });
 
-                    // E. Actualizar el saldo global (Stock table)
                     const updatedStock = await tx.stock.update({
                         where: {
                             productId_warehouseId: {
@@ -161,7 +384,6 @@ export class InvoicesService {
                         data: { quantity: { decrement: invoiceItem.quantity } }
                     });
 
-                    // F. Registro en Kardex (SALE)
                     await tx.stockMovement.create({
                         data: {
                             productId: invoiceItem.productId,
@@ -170,7 +392,9 @@ export class InvoicesService {
                             quantity: -invoiceItem.quantity,
                             balanceAfter: updatedStock.quantity,
                             reference: `Invoice #${invoice.invoiceNumber}`,
-                            notes: `Venta #${invoice.invoiceNumber} (Consumido FIFO)`,
+                            notes: invoiceItem.comboName
+                                ? `Venta #${invoice.invoiceNumber} (Consumido FIFO) - Combo: ${invoiceItem.comboName}`
+                                : `Venta #${invoice.invoiceNumber} (Consumido FIFO)`,
                             userId: sellerId,
                         }
                     });
@@ -182,12 +406,16 @@ export class InvoicesService {
 
         await this.invalidateInvoicesCache(tenantId, result.id, sellerId);
 
-        // Audit log
         this.auditService.log({
             action: 'CREATE',
             entity: 'Invoice',
             entityId: result.id,
-            newValue: { invoiceNumber: result.invoiceNumber, total: dto.total, items: dto.items.length },
+            newValue: {
+                invoiceNumber: result.invoiceNumber,
+                total: dto.total,
+                directItems: normalizedDirectItems.length,
+                comboLines: comboSnapshots.length,
+            },
             userId: sellerId,
             tenantId,
         });
@@ -233,11 +461,13 @@ export class InvoicesService {
         }
 
         const [data, total] = await Promise.all([
-            this.prisma.invoice.findMany({
+            (this.prisma.invoice as any).findMany({
                 where,
                 include: {
                     customer: true,
                     seller: true,
+                    warehouse: true,
+                    comboLines: true,
                     items: {
                         include: {
                             product: true
@@ -270,13 +500,19 @@ export class InvoicesService {
 
         if (cached && (!sellerId || cached.sellerId === sellerId)) return cached;
 
-        const invoice = await this.prisma.invoice.findFirst({
+        const invoice = await (this.prisma.invoice as any).findFirst({
             where: {
                 id,
                 tenantId,
                 ...(sellerId && { sellerId })
             },
-            include: { items: { include: { product: true } }, customer: true, seller: true },
+            include: {
+                items: { include: { product: true } },
+                comboLines: true,
+                warehouse: true,
+                customer: true,
+                seller: true,
+            },
         });
 
         if (!invoice) throw new NotFoundException('Invoice not found');
@@ -286,9 +522,8 @@ export class InvoicesService {
         return invoice;
     }
 
-    // ✅ CANCEL ahora REVIERTE el stock y los lotes FIFO
     async cancel(tenantId: string, id: string, sellerId?: string) {
-        const invoice = await this.prisma.invoice.findFirst({
+        const invoice = await (this.prisma.invoice as any).findFirst({
             where: {
                 id,
                 tenantId,
@@ -310,12 +545,10 @@ export class InvoicesService {
         }
 
         const result = await this.prisma.$transaction(async (tx) => {
-            // Solo revertir stock si la factura fue PAGADA (se descontó stock)
             if (invoice.status === 'PAID' && (invoice as any).warehouseId) {
                 const warehouseId = (invoice as any).warehouseId;
 
                 for (const item of invoice.items) {
-                    // A. Incrementar el Stock global
                     const updatedStock = await tx.stock.upsert({
                         where: {
                             productId_warehouseId: {
@@ -331,7 +564,6 @@ export class InvoicesService {
                         }
                     });
 
-                    // B. Re-crear un lote FIFO con el costo de la venta original
                     const costPrice = item.totalCost
                         ? Number(item.totalCost) / item.quantity
                         : Number(item.product.costPrice);
@@ -348,7 +580,6 @@ export class InvoicesService {
                         }
                     });
 
-                    // C. Registrar movimiento RETURN en Kardex
                     await tx.stockMovement.create({
                         data: {
                             productId: item.productId,
@@ -356,25 +587,22 @@ export class InvoicesService {
                             type: StockMovementType.RETURN,
                             quantity: item.quantity,
                             balanceAfter: updatedStock.quantity,
-                            reference: `Cancelación Factura #${invoice.invoiceNumber}`,
-                            notes: `Devolución por cancelación de venta #${invoice.invoiceNumber}`,
+                            reference: `Cancelacion Factura #${invoice.invoiceNumber}`,
+                            notes: `Devolucion por cancelacion de venta #${invoice.invoiceNumber}`,
                             userId: sellerId || invoice.sellerId,
                         }
                     });
                 }
             }
 
-            // D. Marcar factura como cancelada
             return tx.invoice.update({
                 where: { id },
                 data: { status: 'CANCELLED' },
             });
         });
 
-        // Invalidate all related caches
         await this.invalidateInvoicesCache(tenantId, id, invoice.sellerId);
 
-        // Audit log
         this.auditService.log({
             action: 'CANCEL',
             entity: 'Invoice',

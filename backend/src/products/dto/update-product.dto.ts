@@ -1,4 +1,27 @@
 import { IsString, IsOptional, IsNumber, IsBoolean, IsUUID, Min, MaxLength, IsArray } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, ValidateNested } from 'class-validator';
+
+class ProductVisualVariantUpdateDto {
+    @IsOptional()
+    @IsString()
+    @MaxLength(120)
+    name?: string;
+
+    @IsOptional()
+    @IsString()
+    @MaxLength(1200)
+    image?: string;
+
+    @IsOptional()
+    @IsInt()
+    @Min(0)
+    sortOrder?: number;
+
+    @IsOptional()
+    @IsBoolean()
+    isPublic?: boolean;
+}
 
 export class UpdateProductDto {
     @IsOptional()
@@ -42,4 +65,10 @@ export class UpdateProductDto {
     @IsOptional()
     @IsUUID()
     categoryId?: string;
+
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => ProductVisualVariantUpdateDto)
+    visualVariants?: ProductVisualVariantUpdateDto[];
 }
