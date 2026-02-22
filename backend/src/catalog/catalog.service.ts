@@ -35,6 +35,7 @@ export class CatalogService {
                 description: true,
                 images: true,
                 salePrice: true,
+                createdAt: true,
                 category: {
                     select: {
                         id: true,
@@ -124,6 +125,7 @@ export class CatalogService {
                 categoryName: product.category?.name || 'Sin categoria',
                 available: totalStock > 0,
                 type: 'PRODUCT',
+                createdAt: product.createdAt,
             };
         });
 
@@ -162,10 +164,16 @@ export class CatalogService {
                     description: comboDescription,
                     images: comboImages,
                     price: Number(finalUnitPrice || 0),
+                    originalPrice: Number(baseUnitPrice || 0),
+                    discountAmount: Math.max(0, Number(baseUnitPrice || 0) - Number(finalUnitPrice || 0)),
+                    discountPercent: baseUnitPrice > 0
+                        ? Math.max(0, ((Number(baseUnitPrice || 0) - Number(finalUnitPrice || 0)) / Number(baseUnitPrice || 0)) * 100)
+                        : 0,
                     categoryId: 'combos',
                     categoryName: 'Combos',
                     available: Number.isFinite(maxUnitsGlobal) ? maxUnitsGlobal > 0 : false,
                     type: 'COMBO',
+                    createdAt: combo.createdAt,
                     comboItems: validItems.map((item: any) => ({
                         productId: item.productId,
                         productName: item.product.name,

@@ -23,6 +23,10 @@ interface CatalogProduct {
     categoryName: string
     available: boolean
     type?: 'PRODUCT' | 'COMBO'
+    originalPrice?: number
+    discountAmount?: number
+    discountPercent?: number
+    createdAt?: string
     comboItems?: Array<{
         productId: string
         productName: string
@@ -57,6 +61,15 @@ function formatPrice(price: number) {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
     }).format(price)
+}
+
+function isRecentlyCreated(createdAt?: string, days = 14) {
+    if (!createdAt) return false
+    const created = new Date(createdAt).getTime()
+    if (Number.isNaN(created)) return false
+    const now = Date.now()
+    const diffDays = (now - created) / (1000 * 60 * 60 * 24)
+    return diffDays >= 0 && diffDays <= days
 }
 
 export default function CatalogPage() {
@@ -120,7 +133,8 @@ export default function CatalogPage() {
         if (!catalog) return []
 
         return catalog.products.filter(product => {
-            const matchesCategory = !selectedCategory || product.categoryId === selectedCategory
+            const matchesCategory = !selectedCategory ||
+                (selectedCategory === 'combos' ? product.type === 'COMBO' : product.categoryId === selectedCategory)
             const matchesSearch = !searchQuery ||
                 product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 product.description?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -204,34 +218,53 @@ export default function CatalogPage() {
                         </div>
 
                         {/* Category Filter */}
-                        <div className="w-full flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                        <div className="w-full flex gap-2 overflow-x-auto pb-2 no-scrollbar px-0.5">
+                            {/* Todos */}
                             <button
                                 onClick={() => setSelectedCategory(null)}
                                 className={cn(
-                                    "px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0",
+                                    "px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 border-2",
                                     !selectedCategory
-                                        ? "text-white shadow-xl shadow-black/10 scale-105"
-                                        : "bg-white text-[hsl(var(--muted))] border-2 border-[hsl(var(--border))] hover:bg-[hsl(var(--muted-light))]"
+                                        ? "text-white shadow-lg scale-105 border-transparent"
+                                        : "bg-white text-stone-400 border-stone-200 hover:bg-stone-50"
                                 )}
                                 style={!selectedCategory ? { backgroundColor: business.accentColor } : {}}
                             >
                                 Todos
                             </button>
-                            {categories.map((cat) => (
-                                <button
-                                    key={cat.id}
-                                    onClick={() => setSelectedCategory(cat.id)}
-                                    className={cn(
-                                        "px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap",
-                                        selectedCategory === cat.id
-                                            ? "text-white shadow-xl shadow-black/10 scale-105"
-                                            : "bg-white text-[hsl(var(--muted))] border-2 border-[hsl(var(--border))] hover:bg-[hsl(var(--muted-light))]"
-                                    )}
-                                    style={selectedCategory === cat.id ? { backgroundColor: business.accentColor } : {}}
-                                >
-                                    {cat.name}
-                                </button>
-                            ))}
+
+                            {/* Combos Specialized Filter */}
+                            <button
+                                onClick={() => setSelectedCategory('combos')}
+                                className={cn(
+                                    "px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 border-2",
+                                    selectedCategory === 'combos'
+                                        ? "text-white shadow-lg scale-105 border-transparent"
+                                        : "bg-white text-stone-400 border-stone-200 hover:bg-stone-50"
+                                )}
+                                style={selectedCategory === 'combos' ? { backgroundColor: business.accentColor } : {}}
+                            >
+                                Combos
+                            </button>
+
+                            {/* Dynamic Categories */}
+                            {categories
+                                .filter(cat => cat.name.toLowerCase() !== 'combos' && cat.name.toLowerCase() !== 'combo')
+                                .map((cat) => (
+                                    <button
+                                        key={cat.id}
+                                        onClick={() => setSelectedCategory(cat.id)}
+                                        className={cn(
+                                            "px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap border-2",
+                                            selectedCategory === cat.id
+                                                ? "text-white shadow-lg scale-105 border-transparent"
+                                                : "bg-white text-stone-400 border-stone-200 hover:bg-stone-50"
+                                        )}
+                                        style={selectedCategory === cat.id ? { backgroundColor: business.accentColor } : {}}
+                                    >
+                                        {cat.name}
+                                    </button>
+                                ))}
                         </div>
                     </div>
 
@@ -280,18 +313,33 @@ export default function CatalogPage() {
                                     key={product.id}
                                     onClick={() => setSelectedProduct(product)}
                                     className={cn(
-                                        "group bg-white rounded-2xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer",
+                                        "group bg-white rounded-2xl shadow-sm relative transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer",
                                         !product.available && "opacity-70"
                                     )}
                                 >
+                                    {isRecentlyCreated(product.createdAt) && (
+                                        <div className="absolute -top-4 -left-4 z-40 drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] drop-shadow-[0_0_1px_rgba(255,255,255,1)] animate-pulse-subtle">
+                                            <div
+                                                className="w-14 h-14 bg-red-600 flex items-center justify-center relative hover:scale-110 transition-transform duration-300 cursor-default"
+                                                style={{
+                                                    clipPath: 'polygon(50% 0%, 58% 12%, 71% 7%, 75% 20%, 88% 18%, 88% 31%, 100% 33%, 94% 45%, 100% 57%, 88% 59%, 88% 72%, 75% 70%, 71% 83%, 58% 78%, 50% 90%, 42% 78%, 29% 83%, 25% 70%, 12% 72%, 12% 59%, 0% 57%, 6% 45%, 0% 33%, 12% 31%, 12% 18%, 25% 20%, 29% 7%, 42% 12%)',
+                                                }}
+                                            >
+                                                <span className="text-[11px] font-black text-white tracking-tighter">NEW</span>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Product Image (Slider) */}
-                                    <div className="relative aspect-square bg-stone-100 overflow-hidden">
+                                    <div className="relative aspect-square bg-stone-100 overflow-hidden rounded-t-2xl">
                                         <ImageSlider
                                             images={product.images}
                                             name={product.name}
                                             sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                                             quality={90}
                                         />
+
+
 
                                         {/* Availability Badge */}
                                         <div
@@ -327,12 +375,22 @@ export default function CatalogPage() {
                                                 {product.description}
                                             </p>
                                         )}
+                                        {product.type === 'COMBO' && (product.discountAmount || 0) > 0 && (
+                                            <div className="mt-1 text-[10px] font-black uppercase tracking-wider text-emerald-700">
+                                                Ahorras {formatPrice(Number(product.discountAmount || 0))}
+                                            </div>
+                                        )}
                                         <p
                                             className="mt-2 text-lg md:text-xl font-bold"
                                             style={{ color: business.accentColor }}
                                         >
                                             {formatPrice(product.price)}
                                         </p>
+                                        {product.type === 'COMBO' && (product.originalPrice || 0) > product.price && (
+                                            <p className="text-xs text-stone-500 line-through">
+                                                Antes {formatPrice(Number(product.originalPrice || 0))}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -407,6 +465,17 @@ export default function CatalogPage() {
                                         <p className="text-5xl font-black tracking-tighter" style={{ color: business.accentColor }}>
                                             {formatPrice(selectedProduct.price)}
                                         </p>
+                                        {selectedProduct.type === 'COMBO' && (selectedProduct.originalPrice || 0) > selectedProduct.price && (
+                                            <div className="mt-2 space-y-1">
+                                                <p className="text-sm font-semibold text-[hsl(var(--muted))] line-through">
+                                                    Antes {formatPrice(Number(selectedProduct.originalPrice || 0))}
+                                                </p>
+                                                <p className="text-xs font-black uppercase tracking-widest text-emerald-700">
+                                                    Ahorras {formatPrice(Number(selectedProduct.discountAmount || 0))}
+                                                    {` (${Math.round(Number(selectedProduct.discountPercent || 0))}% )`}
+                                                </p>
+                                            </div>
+                                        )}
                                         <p className="text-xs font-bold text-[hsl(var(--muted))] mt-2 uppercase tracking-widest">Precios sujetos a cambio</p>
                                     </div>
 

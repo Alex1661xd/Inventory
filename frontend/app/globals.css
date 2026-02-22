@@ -230,6 +230,17 @@ body {
   }
 }
 
+@keyframes pulse-subtle {
+  0%, 100% {
+    transform: scale(1) rotate(-12deg);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05) rotate(-10deg);
+    opacity: 0.9;
+  }
+}
+
 /* Utility Classes */
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out;
@@ -261,6 +272,10 @@ body {
 
 .animate-pulse-soft {
   animation: pulse-soft 2s ease-in-out infinite;
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 3s ease-in-out infinite;
 }
 
 .animate-gradient {

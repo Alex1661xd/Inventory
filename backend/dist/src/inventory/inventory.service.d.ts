@@ -27,9 +27,9 @@ export declare class InventoryService {
             name: string;
         };
         id: string;
-        warehouseId: string;
         quantity: number;
         productId: string;
+        warehouseId: string;
     }[] | {
         data: {
             product: {
@@ -46,9 +46,9 @@ export declare class InventoryService {
                 name: string;
             };
             id: string;
-            warehouseId: string;
             quantity: number;
             productId: string;
+            warehouseId: string;
         }[];
         total: number;
         page: number;
@@ -67,10 +67,10 @@ export declare class InventoryService {
     } & {
         id: string;
         createdAt: Date;
-        warehouseId: string;
-        userId: string | null;
         quantity: number;
         productId: string;
+        warehouseId: string;
+        userId: string | null;
         balanceAfter: number;
         type: import("@prisma/client").$Enums.StockMovementType;
         reference: string | null;

@@ -131,6 +131,7 @@ export function ProductsManager({
     const [comboImageFile, setComboImageFile] = useState<File | null>(null)
     const [comboImagePreview, setComboImagePreview] = useState('')
     const [comboImageToDelete, setComboImageToDelete] = useState<string | null>(null)
+    const [comboStatusLoadingId, setComboStatusLoadingId] = useState<string | null>(null)
     const [comboViewModal, setComboViewModal] = useState<{ combo: Combo | null; visible: boolean }>({ combo: null, visible: false })
     const [comboCostProducts, setComboCostProducts] = useState<Record<string, Product>>({})
     const [loadingComboCosts, setLoadingComboCosts] = useState(false)
@@ -845,22 +846,28 @@ export function ProductsManager({
 
     const deactivateCombo = async (comboId: string) => {
         if (!window.confirm('¿Seguro que deseas desactivar este combo?')) return
+        setComboStatusLoadingId(comboId)
         try {
             await api.combos.remove(comboId)
             toast.success('Combo desactivado')
             await loadCombos()
         } catch (e: any) {
             toast.error(e.message || 'No se pudo desactivar el combo')
+        } finally {
+            setComboStatusLoadingId(null)
         }
     }
 
     const reactivateCombo = async (comboId: string) => {
+        setComboStatusLoadingId(comboId)
         try {
             await api.combos.update(comboId, { isActive: true })
             toast.success('Combo reactivado')
             await loadCombos()
         } catch (e: any) {
             toast.error(e.message || 'No se pudo reactivar el combo')
+        } finally {
+            setComboStatusLoadingId(null)
         }
     }
 
@@ -1211,14 +1218,14 @@ export function ProductsManager({
                                     <h3 className="text-sm font-bold text-[rgb(25,35,25)] leading-tight group-hover:text-[rgb(180,100,50)] transition-colors line-clamp-2">
                                         {p.name}
                                     </h3>
-                                    <div className="flex items-center justify-between mt-1">
-                                        <div className="text-lg font-black text-[rgb(25,35,25)]">
+                                    <div className="mt-2 flex items-baseline justify-between gap-1 flex-wrap">
+                                        <div className="text-lg font-black text-[rgb(25,35,25)] leading-none">
                                             {formatCurrency(p.salePrice)}
                                         </div>
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-[8px] font-bold text-[rgb(120,115,110)] uppercase tracking-tighter">Stock</span>
+                                        <div className="flex items-center gap-1.5 bg-stone-50/50 px-1.5 py-0.5 rounded border border-stone-200/50">
+                                            <span className="text-[8px] font-bold text-stone-400 uppercase tracking-tighter">Stock</span>
                                             <span className={cn(
-                                                "text-xs font-bold",
+                                                "text-[11px] font-bold",
                                                 (p.totalStock ?? 0) > 0 ? "text-emerald-600" : "text-red-500"
                                             )}>
                                                 {p.totalStock ?? 0}
@@ -1384,7 +1391,10 @@ export function ProductsManager({
                             return (
                                 <div
                                     key={combo.id}
-                                    className="group relative rounded-xl border border-[rgb(230,225,220)] bg-white p-3 shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col h-full animate-fade-in"
+                                    className={cn(
+                                        "group relative rounded-xl border border-[rgb(230,225,220)] bg-white p-3 shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col h-full animate-fade-in",
+                                        !combo.isActive && "opacity-60 grayscale"
+                                    )}
                                 >
                                     <div className="aspect-square w-full rounded-lg bg-gradient-to-br from-[rgb(250,248,245)] to-[rgb(240,235,230)] overflow-hidden mb-3 relative group/slider">
                                         <ImageSlider
@@ -1419,21 +1429,25 @@ export function ProductsManager({
                                         <div className="text-[11px] text-[rgb(120,115,110)] line-clamp-2">
                                             {combo.description || 'Combo sin descripcion'}
                                         </div>
-                                        <div className="flex items-center justify-between mt-1">
-                                            <div className="text-lg font-black text-[rgb(25,35,25)]">
-                                                {formatCurrency(combo.finalUnitPrice)}
+                                        <div className="mt-2 space-y-1">
+                                            <div className="flex flex-col">
+                                                <div className="text-xl font-black text-[rgb(25,35,25)] leading-tight tracking-tight">
+                                                    {formatCurrency(combo.finalUnitPrice)}
+                                                </div>
+                                                <div className="flex items-center gap-1.5 min-h-[1.25rem]">
+                                                    <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest">Ahorras</span>
+                                                    <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50/50 px-1.5 py-0.5 rounded-full border border-emerald-100/50">
+                                                        {formatCurrency(Math.max(0, combo.baseUnitPrice - combo.finalUnitPrice))}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div className="flex flex-col items-end">
-                                                <span className="text-[8px] font-bold text-[rgb(120,115,110)] uppercase tracking-tighter">Rebaja</span>
-                                                <span className="text-xs font-bold text-amber-700">
-                                                    -{formatCurrency(Math.max(0, combo.baseUnitPrice - combo.finalUnitPrice))}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div className="pt-1 border-t border-[rgb(230,225,220)] mt-1">
-                                            <div className="text-[8px] uppercase font-bold text-[rgb(160,155,150)] flex justify-between">
-                                                <span>{combo.items.length} productos</span>
-                                                <span>Base {formatCurrency(combo.baseUnitPrice)}</span>
+
+                                            <div className="pt-1.5 border-t border-[rgb(230,225,220)] flex justify-between items-center">
+                                                <span className="text-[9px] uppercase font-bold text-[rgb(160,155,150)]">{combo.items.length} productos</span>
+                                                <div className="flex items-center gap-1 text-[9px] font-bold uppercase">
+                                                    <span className="text-[rgb(160,155,150)] text-[8px]">Base</span>
+                                                    <span className="text-[rgb(120,115,110)] line-through decoration-amber-500/30">{formatCurrency(combo.baseUnitPrice)}</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -1456,18 +1470,30 @@ export function ProductsManager({
                                                     variant="destructive"
                                                     size="sm"
                                                     className="h-7 text-[10px] font-bold col-span-2"
+                                                    disabled={comboStatusLoadingId === combo.id}
                                                     onClick={() => deactivateCombo(combo.id)}
                                                 >
-                                                    Desactivar
+                                                    {comboStatusLoadingId === combo.id ? (
+                                                        <span className="inline-flex items-center gap-1">
+                                                            <span className="animate-spin text-[9px]">⚙️</span>
+                                                            Desactivando...
+                                                        </span>
+                                                    ) : 'Desactivar'}
                                                 </Button>
                                             ) : (
                                                 <Button
                                                     variant="default"
                                                     size="sm"
                                                     className="h-7 text-[10px] font-bold col-span-2"
+                                                    disabled={comboStatusLoadingId === combo.id}
                                                     onClick={() => reactivateCombo(combo.id)}
                                                 >
-                                                    Reactivar
+                                                    {comboStatusLoadingId === combo.id ? (
+                                                        <span className="inline-flex items-center gap-1">
+                                                            <span className="animate-spin text-[9px]">⚙️</span>
+                                                            Reactivando...
+                                                        </span>
+                                                    ) : 'Reactivar'}
                                                 </Button>
                                             )}
                                         </div>
@@ -1842,111 +1868,111 @@ export function ProductsManager({
                                     </button>
                                     {variantsExpanded && (
                                         <>
-                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                                            <Button type="button" variant="outline" onClick={addVisualVariantRow} className="w-full sm:w-auto">
-                                                + Variante
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="destructive"
-                                                className="w-full sm:w-auto"
-                                                disabled={selectedVariantIndex < 0 || selectedVariantIndex >= form.visualVariants.length}
-                                                onClick={() => {
-                                                    if (selectedVariantIndex >= 0) removeVisualVariantRow(selectedVariantIndex)
-                                                }}
-                                            >
-                                                Quitar seleccionada
-                                            </Button>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        {form.visualVariants.length === 0 && (
-                                            <div className="text-xs text-[rgb(120,115,110)] p-3 rounded-lg bg-[rgb(250,248,245)] border border-[rgb(230,225,220)]">
-                                                Puedes agregar variantes para mostrar más diseños sin duplicar inventario.
-                                            </div>
-                                        )}
-                                        {form.visualVariants.length > 0 && (
-                                            <div className="grid gap-3 md:grid-cols-[260px_1fr]">
-                                                <div className="rounded-lg border border-[rgb(230,225,220)] bg-white p-2 max-h-64 overflow-y-auto">
-                                                    <div className="space-y-1">
-                                                        {form.visualVariants.map((variant, index) => (
-                                                            <button
-                                                                key={`variant-row-${index}`}
-                                                                type="button"
-                                                                onClick={() => setSelectedVariantIndex(index)}
-                                                                className={cn(
-                                                                    "w-full flex items-center gap-2 p-2 rounded-md text-left border transition-colors",
-                                                                    selectedVariantIndex === index
-                                                                        ? "border-[rgb(25,35,25)] bg-[rgb(245,240,235)]"
-                                                                        : "border-transparent hover:bg-[rgb(250,248,245)]"
-                                                                )}
-                                                            >
-                                                                <div className="w-10 h-10 rounded border border-[rgb(230,225,220)] overflow-hidden bg-[rgb(250,248,245)] shrink-0">
-                                                                    {variant.image ? (
-                                                                        <img src={variant.image} alt={variant.name || `Variante ${index + 1}`} className="w-full h-full object-cover" />
-                                                                    ) : (
-                                                                        <div className="w-full h-full flex items-center justify-center text-[10px] text-[rgb(120,115,110)]">Sin img</div>
-                                                                    )}
-                                                                </div>
-                                                                <div className="min-w-0">
-                                                                    <div className="text-xs font-semibold truncate">
-                                                                        {variant.name || `Variante ${index + 1}`}
-                                                                    </div>
-                                                                    <div className="text-[10px] text-[rgb(120,115,110)]">
-                                                                        {variant.image ? 'Imagen cargada' : 'Pendiente imagen'}
-                                                                    </div>
-                                                                </div>
-                                                            </button>
-                                                        ))}
-                                                    </div>
+                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                                    <Button type="button" variant="outline" onClick={addVisualVariantRow} className="w-full sm:w-auto">
+                                                        + Variante
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="destructive"
+                                                        className="w-full sm:w-auto"
+                                                        disabled={selectedVariantIndex < 0 || selectedVariantIndex >= form.visualVariants.length}
+                                                        onClick={() => {
+                                                            if (selectedVariantIndex >= 0) removeVisualVariantRow(selectedVariantIndex)
+                                                        }}
+                                                    >
+                                                        Quitar seleccionada
+                                                    </Button>
                                                 </div>
-
-                                                <div className="rounded-lg border border-[rgb(230,225,220)] bg-[rgb(250,248,245)] p-3">
-                                                    {selectedVariantIndex >= 0 && form.visualVariants[selectedVariantIndex] ? (
-                                                        <div className="space-y-3">
-                                                            <Label className="text-xs uppercase tracking-widest text-[rgb(120,115,110)]">Editar variante seleccionada</Label>
-                                                            <Input
-                                                                placeholder="Nombre variante (ej: Capitoneado Beige)"
-                                                                value={form.visualVariants[selectedVariantIndex].name}
-                                                                onChange={(e) => updateVisualVariantRow(selectedVariantIndex, { name: e.target.value })}
-                                                            />
-                                                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                                                                <div className="h-10 rounded-lg border border-[rgb(230,225,220)] bg-white px-2 flex-1 flex items-center justify-center text-xs text-[rgb(120,115,110)]">
-                                                                    {form.visualVariants[selectedVariantIndex].image ? 'Imagen cargada' : 'Sin imagen'}
-                                                                </div>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    className="w-full sm:w-auto"
-                                                                    onClick={() => triggerVariantImageUpload(selectedVariantIndex)}
-                                                                    disabled={uploading}
-                                                                >
-                                                                    Subir
-                                                                </Button>
+                                            </div>
+                                            <div className="space-y-2">
+                                                {form.visualVariants.length === 0 && (
+                                                    <div className="text-xs text-[rgb(120,115,110)] p-3 rounded-lg bg-[rgb(250,248,245)] border border-[rgb(230,225,220)]">
+                                                        Puedes agregar variantes para mostrar más diseños sin duplicar inventario.
+                                                    </div>
+                                                )}
+                                                {form.visualVariants.length > 0 && (
+                                                    <div className="grid gap-3 md:grid-cols-[260px_1fr]">
+                                                        <div className="rounded-lg border border-[rgb(230,225,220)] bg-white p-2 max-h-64 overflow-y-auto">
+                                                            <div className="space-y-1">
+                                                                {form.visualVariants.map((variant, index) => (
+                                                                    <button
+                                                                        key={`variant-row-${index}`}
+                                                                        type="button"
+                                                                        onClick={() => setSelectedVariantIndex(index)}
+                                                                        className={cn(
+                                                                            "w-full flex items-center gap-2 p-2 rounded-md text-left border transition-colors",
+                                                                            selectedVariantIndex === index
+                                                                                ? "border-[rgb(25,35,25)] bg-[rgb(245,240,235)]"
+                                                                                : "border-transparent hover:bg-[rgb(250,248,245)]"
+                                                                        )}
+                                                                    >
+                                                                        <div className="w-10 h-10 rounded border border-[rgb(230,225,220)] overflow-hidden bg-[rgb(250,248,245)] shrink-0">
+                                                                            {variant.image ? (
+                                                                                <img src={variant.image} alt={variant.name || `Variante ${index + 1}`} className="w-full h-full object-cover" />
+                                                                            ) : (
+                                                                                <div className="w-full h-full flex items-center justify-center text-[10px] text-[rgb(120,115,110)]">Sin img</div>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="min-w-0">
+                                                                            <div className="text-xs font-semibold truncate">
+                                                                                {variant.name || `Variante ${index + 1}`}
+                                                                            </div>
+                                                                            <div className="text-[10px] text-[rgb(120,115,110)]">
+                                                                                {variant.image ? 'Imagen cargada' : 'Pendiente imagen'}
+                                                                            </div>
+                                                                        </div>
+                                                                    </button>
+                                                                ))}
                                                             </div>
                                                         </div>
-                                                    ) : (
-                                                        <div className="text-xs text-[rgb(120,115,110)]">Selecciona una variante para editarla.</div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                    {productVisualPreviewImages.length > 0 && (
-                                        <div className="space-y-2 pt-1">
-                                            <Label className="text-xs text-[rgb(120,115,110)] uppercase tracking-widest">Preview variantes cargadas</Label>
-                                            <div className="rounded-xl border border-[rgb(230,225,220)] bg-[rgb(250,248,245)] p-3">
-                                                <div className="flex gap-2 overflow-x-auto pb-1">
-                                                    {productVisualPreviewImages.map((img, idx) => (
-                                                        <div key={`variant-preview-${idx}`} className="shrink-0 w-28 h-28 rounded-lg overflow-hidden border border-[rgb(230,225,220)] bg-white">
-                                                            <img src={img} alt={`Variante ${idx + 1}`} className="w-full h-full object-cover" />
+
+                                                        <div className="rounded-lg border border-[rgb(230,225,220)] bg-[rgb(250,248,245)] p-3">
+                                                            {selectedVariantIndex >= 0 && form.visualVariants[selectedVariantIndex] ? (
+                                                                <div className="space-y-3">
+                                                                    <Label className="text-xs uppercase tracking-widest text-[rgb(120,115,110)]">Editar variante seleccionada</Label>
+                                                                    <Input
+                                                                        placeholder="Nombre variante (ej: Capitoneado Beige)"
+                                                                        value={form.visualVariants[selectedVariantIndex].name}
+                                                                        onChange={(e) => updateVisualVariantRow(selectedVariantIndex, { name: e.target.value })}
+                                                                    />
+                                                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                                                        <div className="h-10 rounded-lg border border-[rgb(230,225,220)] bg-white px-2 flex-1 flex items-center justify-center text-xs text-[rgb(120,115,110)]">
+                                                                            {form.visualVariants[selectedVariantIndex].image ? 'Imagen cargada' : 'Sin imagen'}
+                                                                        </div>
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="outline"
+                                                                            className="w-full sm:w-auto"
+                                                                            onClick={() => triggerVariantImageUpload(selectedVariantIndex)}
+                                                                            disabled={uploading}
+                                                                        >
+                                                                            Subir
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="text-xs text-[rgb(120,115,110)]">Selecciona una variante para editarla.</div>
+                                                            )}
                                                         </div>
-                                                    ))}
-                                                </div>
+                                                    </div>
+                                                )}
                                             </div>
-                                        </div>
-                                    )}
+                                            {productVisualPreviewImages.length > 0 && (
+                                                <div className="space-y-2 pt-1">
+                                                    <Label className="text-xs text-[rgb(120,115,110)] uppercase tracking-widest">Preview variantes cargadas</Label>
+                                                    <div className="rounded-xl border border-[rgb(230,225,220)] bg-[rgb(250,248,245)] p-3">
+                                                        <div className="flex gap-2 overflow-x-auto pb-1">
+                                                            {productVisualPreviewImages.map((img, idx) => (
+                                                                <div key={`variant-preview-${idx}`} className="shrink-0 w-28 h-28 rounded-lg overflow-hidden border border-[rgb(230,225,220)] bg-white">
+                                                                    <img src={img} alt={`Variante ${idx + 1}`} className="w-full h-full object-cover" />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </>
                                     )}
                                 </div>
