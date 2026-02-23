@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { api } from '@/lib/backend'
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Loader2, Pencil, Phone, Plus, RefreshCw, Search, Trash2, UserRound, X } from 'lucide-react'
 import {
     Select,
     SelectContent,
@@ -18,18 +19,18 @@ import {
 } from "@/components/ui/select"
 
 const COUNTRIES = [
-    { code: '57', name: 'Colombia', flag: '🇨🇴' },
-    { code: '58', name: 'Venezuela', flag: '🇻🇪' },
-    { code: '34', name: 'España', flag: '🇪🇸' },
-    { code: '1', name: 'USA/Canadá', flag: '🇺🇸' },
-    { code: '52', name: 'México', flag: '🇲🇽' },
-    { code: '507', name: 'Panamá', flag: '🇵🇦' },
-    { code: '593', name: 'Ecuador', flag: '🇪🇨' },
-    { code: '51', name: 'Perú', flag: '🇵🇪' },
-    { code: '54', name: 'Argentina', flag: '🇦🇷' },
-    { code: '56', name: 'Chile', flag: '🇨🇱' },
-    { code: '506', name: 'Costa Rica', flag: '🇨🇷' },
-    { code: '502', name: 'Guatemala', flag: '🇬🇹' },
+    { code: '57', name: 'Colombia' },
+    { code: '58', name: 'Venezuela' },
+    { code: '34', name: 'Espana' },
+    { code: '1', name: 'USA/Canada' },
+    { code: '52', name: 'Mexico' },
+    { code: '507', name: 'Panama' },
+    { code: '593', name: 'Ecuador' },
+    { code: '51', name: 'Peru' },
+    { code: '54', name: 'Argentina' },
+    { code: '56', name: 'Chile' },
+    { code: '506', name: 'Costa Rica' },
+    { code: '502', name: 'Guatemala' },
 ]
 
 interface Customer {
@@ -185,13 +186,11 @@ export default function CustomersPage() {
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                     <Button variant="outline" onClick={() => loadCustomers()} disabled={loading} className="group">
-                        <span className={loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}>
-                            {loading ? '⚙️' : '🔄'}
-                        </span>
+                        <RefreshCw className={loading ? 'mr-2 h-4 w-4 animate-spin' : 'mr-2 h-4 w-4 group-hover:rotate-180 transition-transform duration-500'} />
                         <span>{loading ? 'Actualizando...' : 'Refrescar'}</span>
                     </Button>
                     <Button onClick={startCreate} className="shadow-lg hover:shadow-xl transition-all">
-                        <span className="mr-2">👤</span>
+                        <Plus className="mr-2 h-4 w-4" />
                         Registrar Cliente
                     </Button>
                 </div>
@@ -200,7 +199,7 @@ export default function CustomersPage() {
             {/* Filter Section */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center bg-white/50 backdrop-blur-sm p-4 rounded-2xl border border-[rgb(230,225,220)]">
                 <div className="w-full md:max-w-md relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg">🔍</span>
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[rgb(120,115,110)]" />
                     <Input
                         placeholder="Buscar por nombre, documento o teléfono..."
                         value={search}
@@ -222,7 +221,7 @@ export default function CustomersPage() {
                         style={{ animationDelay: `${index * 0.05}s` }}
                     >
                         <div className="aspect-square w-16 h-16 md:w-20 md:h-20 rounded-full bg-[hsl(var(--background))] overflow-hidden mb-3 flex items-center justify-center relative mx-auto">
-                            <span className="text-2xl md:text-4xl group-hover:scale-110 transition-transform duration-500">🧑‍💼</span>
+                            <UserRound className="h-8 w-8 md:h-10 md:w-10 text-[hsl(var(--muted))] group-hover:scale-110 transition-transform duration-500" />
                         </div>
 
                         <div className="space-y-1.5 flex-grow text-center">
@@ -238,7 +237,7 @@ export default function CustomersPage() {
                                 )}
                                 {c.phone && (
                                     <span className="flex items-center gap-1 text-[10px] md:text-xs truncate max-w-full">
-                                        📞 {c.phone}
+                                        <Phone className="h-3 w-3" /> {c.phone}
                                     </span>
                                 )}
                             </div>
@@ -251,7 +250,7 @@ export default function CustomersPage() {
                                 className="h-7 md:h-8 text-[10px] md:text-xs font-bold px-1"
                                 onClick={() => startEdit(c)}
                             >
-                                <span className="md:hidden">✏️</span>
+                                <Pencil className="h-3.5 w-3.5 md:mr-1" />
                                 <span className="hidden md:inline">Editar</span>
                             </Button>
                             <Button
@@ -260,7 +259,7 @@ export default function CustomersPage() {
                                 className="h-7 md:h-8 text-[10px] md:text-xs font-bold px-1"
                                 onClick={() => remove(c.id)}
                             >
-                                <span className="md:hidden">🗑️</span>
+                                <Trash2 className="h-3.5 w-3.5 md:mr-1" />
                                 <span className="hidden md:inline">Eliminar</span>
                             </Button>
                         </div>
@@ -322,7 +321,9 @@ export default function CustomersPage() {
                                         Registra la información de contacto del cliente.
                                     </CardDescription>
                                 </div>
-                                <Button variant="ghost" onClick={resetForm} size="icon" className="rounded-full">✕</Button>
+                                <Button variant="ghost" onClick={resetForm} size="icon" className="rounded-full">
+                                    <X className="h-4 w-4" />
+                                </Button>
                             </div>
                         </CardHeader>
                         <CardContent className="p-6 space-y-6">
@@ -353,7 +354,7 @@ export default function CustomersPage() {
                                             <SelectContent className="z-[60]">
                                                 {COUNTRIES.map(c => (
                                                     <SelectItem key={c.code} value={c.code}>
-                                                        {c.flag} +{c.code}
+                                                        {c.name} (+{c.code})
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -387,7 +388,7 @@ export default function CustomersPage() {
                         </CardContent>
                         <div className="p-6 border-t border-[rgb(230,225,220)] flex gap-3">
                             <Button onClick={handleSubmit} className="flex-1 h-12 text-lg shadow-xl" disabled={saving}>
-                                {saving ? '⚙️ Guardando...' : editingId ? 'Guardar Cambios' : 'Crear Cliente'}
+                                {saving ? <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Guardando...</span> : editingId ? 'Guardar Cambios' : 'Crear Cliente'}
                             </Button>
                             <Button variant="outline" onClick={resetForm} className="h-12" disabled={saving}>
                                 Cancelar

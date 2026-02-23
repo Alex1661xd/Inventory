@@ -79,7 +79,7 @@ export function KardexModal({ isOpen, onClose, product, warehouseId }: KardexMod
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex-1">
                             <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-                                <span className="text-3xl">📊</span> Kardex de Inventario
+                                <span className="text-3xl"></span> Kardex de Inventario
                             </DialogTitle>
                             <div className="mt-2 flex flex-col gap-1">
                                 <DialogDescription className="text-base text-gray-600">
@@ -88,7 +88,7 @@ export function KardexModal({ isOpen, onClose, product, warehouseId }: KardexMod
                                 <div className="flex items-center gap-2 mt-1">
                                     {activeWarehouseId ? (
                                         <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
-                                            <span className="text-amber-600 text-lg">📍</span>
+                                            <span className="text-amber-600 text-lg"></span>
                                             <p className="text-xs text-amber-800 leading-tight">
                                                 Estas viendo el historial <strong>exclusivo de este almacén</strong>.
                                                 Los saldos reflejan solo el stock aquí.
@@ -104,7 +104,7 @@ export function KardexModal({ isOpen, onClose, product, warehouseId }: KardexMod
                                         </div>
                                     ) : (
                                         <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-lg text-indigo-800">
-                                            <span className="text-lg">🌍</span>
+                                            <span className="text-lg"></span>
                                             <p className="text-xs leading-tight">
                                                 Estas viendo el <strong>Kardex Global</strong> (Todos los almacenes).
                                                 {warehouseId && (
@@ -179,7 +179,7 @@ export function KardexModal({ isOpen, onClose, product, warehouseId }: KardexMod
                                                     {format(new Date(mov.createdAt), 'dd MMMM, yyyy', { locale: es })}
                                                 </div>
                                                 <div className="flex items-center gap-1 mt-1 text-indigo-500">
-                                                    <span>🕒</span> {format(new Date(mov.createdAt), 'HH:mm:ss', { locale: es })}
+                                                    <span></span> {format(new Date(mov.createdAt), 'HH:mm:ss', { locale: es })}
                                                 </div>
                                             </TableCell>
                                             <TableCell>
@@ -189,7 +189,7 @@ export function KardexModal({ isOpen, onClose, product, warehouseId }: KardexMod
                                             </TableCell>
                                             <TableCell className="text-sm font-semibold text-gray-700">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-gray-400">🏠</span>
+                                                    <span className="text-gray-400"></span>
                                                     {mov.warehouse.name}
                                                 </div>
                                                 {mov.type === 'TRANSFER_OUT' && (
@@ -216,7 +216,7 @@ export function KardexModal({ isOpen, onClose, product, warehouseId }: KardexMod
                                             <TableCell className="text-sm p-4">
                                                 {mov.reference && (
                                                     <div className="font-bold text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded w-fit mb-2 border border-indigo-100 flex items-center gap-1">
-                                                        <span>🔖</span> {mov.reference}
+                                                        <span></span> {mov.reference}
                                                     </div>
                                                 )}
                                                 <div className="text-gray-600 leading-tight italic bg-white p-2 rounded border border-dashed text-xs">

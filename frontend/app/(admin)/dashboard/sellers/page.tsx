@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Loader2, Plus, RefreshCw, Search, Store, UserRound, X } from 'lucide-react'
 
 type User = {
     id: string
@@ -213,13 +214,11 @@ export default function SellersPage() {
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                     <Button variant="outline" onClick={load} disabled={loading} className="group">
-                        <span className={loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}>
-                            {loading ? '⚙️' : '🔄'}
-                        </span>
+                        <RefreshCw className={loading ? 'mr-2 h-4 w-4 animate-spin' : 'mr-2 h-4 w-4 group-hover:rotate-180 transition-transform duration-500'} />
                         <span>{loading ? 'Actualizando...' : 'Refrescar'}</span>
                     </Button>
                     <Button onClick={startCreate} className="shadow-lg hover:shadow-xl transition-all">
-                        <span className="mr-2">👤</span>
+                        <Plus className="mr-2 h-4 w-4" />
                         Registrar Vendedor
                     </Button>
                 </div>
@@ -228,7 +227,7 @@ export default function SellersPage() {
             {/* Filter Section */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center bg-white/50 backdrop-blur-sm p-4 rounded-2xl border border-[rgb(230,225,220)]">
                 <div className="w-full md:max-w-md relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg">🔍</span>
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[rgb(120,115,110)]" />
                     <Input
                         placeholder="Buscar por nombre o email..."
                         value={search}
@@ -250,7 +249,7 @@ export default function SellersPage() {
                         style={{ animationDelay: `${index * 0.05}s` }}
                     >
                         <div className="aspect-square w-full rounded-full bg-[hsl(var(--background))] overflow-hidden mb-4 flex items-center justify-center relative mx-auto max-w-[150px]">
-                            <span className="text-6xl group-hover:scale-110 transition-transform duration-500">👤</span>
+                            <UserRound className="h-14 w-14 text-[hsl(var(--muted))] group-hover:scale-110 transition-transform duration-500" />
                         </div>
 
                         <div className="space-y-2 flex-grow text-center">
@@ -261,7 +260,9 @@ export default function SellersPage() {
                                 {s.email}
                             </p>
                             <div className="mt-2 text-xs font-semibold px-2 py-1 bg-[hsl(var(--background))] rounded-lg inline-block text-[rgb(120,115,110)]">
-                                📍 {s.warehouse?.name || 'Sin sede asignada'}
+                                <span className="inline-flex items-center gap-1">
+                                    <Store className="h-3.5 w-3.5" /> {s.warehouse?.name || 'Sin sede asignada'}
+                                </span>
                             </div>
                         </div>
 
@@ -312,7 +313,9 @@ export default function SellersPage() {
                                         Registra los datos de acceso para tu vendedor.
                                     </CardDescription>
                                 </div>
-                                <Button variant="ghost" onClick={resetForm} size="icon" className="rounded-full">✕</Button>
+                                <Button variant="ghost" onClick={resetForm} size="icon" className="rounded-full">
+                                    <X className="h-4 w-4" />
+                                </Button>
                             </div>
                         </CardHeader>
                         <CardContent className="p-6 space-y-6">
@@ -355,7 +358,7 @@ export default function SellersPage() {
                         </CardContent>
                         <div className="p-6 border-t border-[rgb(230,225,220)] flex gap-3">
                             <Button onClick={create} className="flex-1 h-12 text-lg shadow-xl" disabled={saving}>
-                                {saving ? '⚙️ Guardando...' : editingId ? 'Guardar Cambios' : 'Crear Vendedor'}
+                                {saving ? <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Guardando...</span> : editingId ? 'Guardar Cambios' : 'Crear Vendedor'}
                             </Button>
                             <Button variant="outline" onClick={resetForm} className="h-12" disabled={saving}>
                                 Cancelar

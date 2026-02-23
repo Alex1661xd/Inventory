@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ImageSlider } from '@/components/ui/image-slider'
 import { cn } from '@/lib/utils'
+import { X } from 'lucide-react'
 
 type StockByWarehouseRow = {
     warehouseId: string
@@ -116,7 +117,7 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
         setStockRows([])
 
         if (!isSecureContext) {
-            setCameraError('⚠️ Se requiere HTTPS para acceder a la cámara. Por favor, accede desde https:// o localhost.')
+            setCameraError('️ Se requiere HTTPS para acceder a la cámara. Por favor, accede desde https:// o localhost.')
             return
         }
 
@@ -194,17 +195,17 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
             let errorMessage = 'No se pudo iniciar la cámara.'
 
             if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
-                errorMessage = '❌ Permiso de cámara denegado. Por favor, permite el acceso a la cámara en la configuración de tu navegador.'
+                errorMessage = ' Permiso de cámara denegado. Por favor, permite el acceso a la cámara en la configuración de tu navegador.'
             } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
-                errorMessage = '❌ No se encontró ninguna cámara en tu dispositivo.'
+                errorMessage = ' No se encontró ninguna cámara en tu dispositivo.'
             } else if (e.name === 'NotReadableError' || e.name === 'TrackStartError') {
-                errorMessage = '❌ La cámara está siendo usada por otra aplicación.'
+                errorMessage = ' La cámara está siendo usada por otra aplicación.'
             } else if (e.name === 'OverconstrainedError') {
-                errorMessage = '❌ No se pudo acceder a la cámara trasera. Intentando con otra cámara...'
+                errorMessage = ' No se pudo acceder a la cámara trasera. Intentando con otra cámara...'
             } else if (e.name === 'NotSupportedError') {
-                errorMessage = '❌ Tu navegador no soporta acceso a la cámara.'
+                errorMessage = ' Tu navegador no soporta acceso a la cámara.'
             } else if (e.message) {
-                errorMessage = `❌ ${e.message}`
+                errorMessage = ` ${e.message}`
             }
 
             setCameraError(errorMessage)
@@ -334,7 +335,7 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
                                 disabled={loading || scanning}
                                 title={!hasBarcodeDetector ? 'BarcodeDetector no disponible en este navegador' : undefined}
                             >
-                                📷 Cámara
+                                 Cámara
                             </Button>
                         </div>
                     </div>
@@ -356,7 +357,7 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
                                 onClick={stopScan}
                                 className="rounded-full h-10 w-10 shadow-lg"
                             >
-                                ✕
+                                <X className="h-4 w-4" />
                             </Button>
                         </div>
                         <video
@@ -382,7 +383,9 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
                                 <CardTitle className="text-xl" style={{ fontFamily: 'var(--font-display)' }}>Detalles del Producto</CardTitle>
                                 <CardDescription>Información detallada y existencias</CardDescription>
                             </div>
-                            <Button variant="ghost" size="icon" onClick={() => setShowProductModal(false)} className="rounded-full">✕</Button>
+                            <Button variant="ghost" size="icon" onClick={() => setShowProductModal(false)} className="rounded-full">
+                                <X className="h-4 w-4" />
+                            </Button>
                         </CardHeader>
 
                         <CardContent className="p-6 overflow-y-auto custom-scrollbar flex-grow space-y-6">
@@ -399,7 +402,7 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
                                         interval={0}
                                     />
                                     <div className="absolute top-2 right-2 z-20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <span className="bg-black/60 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-sm">🔍 Toca para ampliar</span>
+                                        <span className="bg-black/60 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-sm"> Toca para ampliar</span>
                                     </div>
                                 </div>
 

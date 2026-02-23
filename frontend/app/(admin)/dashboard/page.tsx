@@ -15,28 +15,28 @@ export default function DashboardPage() {
             title: "Ventas Totales",
             value: "$0.00",
             change: "+0%",
-            icon: "💰",
+            icon: "",
             gradient: "from-emerald-500 to-teal-600"
         },
         {
             title: "Productos",
             value: "0",
             change: "Total en catálogo",
-            icon: "📦",
+            icon: "",
             gradient: "from-blue-500 to-cyan-600"
         },
         {
             title: "Inventario",
             value: "0",
             change: "Unidades totales",
-            icon: "📦",
+            icon: "",
             gradient: "from-purple-500 to-pink-600"
         },
         {
             title: "Almacenes",
             value: "0",
             change: "Ubicaciones activas",
-            icon: "🏢",
+            icon: "",
             gradient: "from-orange-500 to-red-600"
         },
     ])
@@ -73,28 +73,28 @@ export default function DashboardPage() {
                     title: "Ventas Totales",
                     value: formatCurrency(totalSales),
                     change: `${invoices.filter(inv => inv.status === 'PAID').length} Ventas realizadas`,
-                    icon: "💰",
+                    icon: "",
                     gradient: "from-emerald-500 to-teal-600"
                 },
                 {
                     title: "Productos",
                     value: products.length.toString(),
                     change: "Total en catálogo",
-                    icon: "📦",
+                    icon: "",
                     gradient: "from-blue-500 to-cyan-600"
                 },
                 {
                     title: "Inventario",
                     value: totalInventoryUnits.toString(),
                     change: "Unidades totales",
-                    icon: "📦",
+                    icon: "",
                     gradient: "from-purple-500 to-pink-600"
                 },
                 {
                     title: "Almacenes",
                     value: warehouses.length.toString(),
                     change: "Ubicaciones activas",
-                    icon: "🏢",
+                    icon: "",
                     gradient: "from-orange-500 to-red-600"
                 },
             ])
@@ -122,7 +122,7 @@ export default function DashboardPage() {
                     </p>
                 </div>
                 <Button variant="outline" onClick={loadStats} disabled={loading} className="group h-11">
-                    <span className={loading ? 'animate-spin mr-2' : 'group-hover:rotate-180 transition-transform duration-500 mr-2'}>⚙️</span>
+                    <span className={loading ? 'animate-spin mr-2' : 'group-hover:rotate-180 transition-transform duration-500 mr-2'}>️</span>
                     {loading ? 'Actualizando...' : 'Actualizar Estadísticas'}
                 </Button>
             </div>
@@ -166,7 +166,7 @@ export default function DashboardPage() {
                 >
                     <CardHeader>
                         <CardTitle className="flex items-center gap-3">
-                            <span className="text-2xl">➕</span>
+                            <span className="text-2xl"></span>
                             <span>Agregar Producto</span>
                         </CardTitle>
                     </CardHeader>
@@ -183,7 +183,7 @@ export default function DashboardPage() {
                 >
                     <CardHeader>
                         <CardTitle className="flex items-center gap-3">
-                            <span className="text-2xl">🔄</span>
+                            <span className="text-2xl"></span>
                             <span>Actualizar Stock</span>
                         </CardTitle>
                     </CardHeader>
@@ -200,7 +200,7 @@ export default function DashboardPage() {
                 >
                     <CardHeader>
                         <CardTitle className="flex items-center gap-3">
-                            <span className="text-2xl">📷</span>
+                            <span className="text-2xl"></span>
                             <span>Escáner de Productos</span>
                         </CardTitle>
                     </CardHeader>
@@ -216,7 +216,7 @@ export default function DashboardPage() {
             <Card className="bg-gradient-to-br from-[hsl(var(--foreground))] to-[hsl(var(--primary-dark))] text-white border-none animate-fade-in" style={{ animationDelay: '0.6s' }}>
                 <CardContent className="pt-6">
                     <div className="flex items-start gap-4">
-                        <div className="text-4xl">💡</div>
+                        <div className="text-4xl"></div>
                         <div>
                             <h3 className="text-xl font-bold mb-2" style={{ fontFamily: 'var(--font-display)' }}>
                                 Comienza a Gestionar tu Negocio

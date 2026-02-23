@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -14,6 +14,7 @@ import { createClient } from '@/utils/supabase/client'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ImageSlider } from '@/components/ui/image-slider'
 import Link from 'next/link'
+import { Download, X } from 'lucide-react'
 
 type FormState = {
     name: string
@@ -1081,7 +1082,7 @@ export function ProductsManager({
                                 variant="outline"
                                 className="group w-full"
                             >
-                                <span className="mr-2">🖨️</span>
+                                <span className="mr-2">️</span>
                                 Imprimir Códigos
                             </Button>
                         </Link>
@@ -1093,7 +1094,7 @@ export function ProductsManager({
                         className="group w-full sm:w-auto"
                     >
                         <span className={(activeSection === 'PRODUCTS' ? loading : loadingCombos) ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}>
-                            {(activeSection === 'PRODUCTS' ? loading : loadingCombos) ? '⚙️' : '🔄'}
+                            {(activeSection === 'PRODUCTS' ? loading : loadingCombos) ? '️' : ''}
                         </span>
                         <span>{(activeSection === 'PRODUCTS' ? loading : loadingCombos) ? 'Actualizando...' : 'Refrescar'}</span>
                     </Button>
@@ -1102,7 +1103,7 @@ export function ProductsManager({
                             onClick={activeSection === 'PRODUCTS' ? startCreate : startCreateCombo}
                             className="shadow-lg hover:shadow-xl transition-all w-full sm:w-auto"
                         >
-                            <span className="mr-2">➕</span>
+                            <span className="mr-2"></span>
                             {activeSection === 'PRODUCTS' ? 'Crear Nuevo Producto' : 'Crear Nuevo Combo'}
                         </Button>
                     )}
@@ -1119,7 +1120,7 @@ export function ProductsManager({
                                 <div className="flex gap-2">
                                     <div className="relative flex-1">
                                         <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                                            <span className="text-lg">🔍</span>
+                                            <span className="text-lg"></span>
                                         </div>
                                         <Input
                                             placeholder="Nombre, SKU o código..."
@@ -1134,7 +1135,7 @@ export function ProductsManager({
                                         onClick={() => setShowFilters(!showFilters)}
                                         className={cn("lg:hidden h-10 w-10 transition-colors", showFilters && "bg-primary text-primary-foreground")}
                                     >
-                                        <span className="text-lg">⚙️</span>
+                                        <span className="text-lg">️</span>
                                     </Button>
                                 </div>
                             </div>
@@ -1269,7 +1270,7 @@ export function ProductsManager({
                                                 onClick={() => toggleSellable(p)}
                                                 disabled={loading || !!togglingId}
                                             >
-                                                {togglingId === p.id && <span className="animate-spin text-[8px]">⚙️</span>}
+                                                {togglingId === p.id && <span className="animate-spin text-[8px]">️</span>}
                                                 {togglingId === p.id
                                                     ? (p.isSellable ? 'Pausando' : 'Vender...')
                                                     : (p.isSellable ? 'Pausar' : 'Vender')}
@@ -1322,7 +1323,7 @@ export function ProductsManager({
                                 <div className="flex gap-2">
                                     <div className="relative flex-1">
                                         <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                                            <span className="text-lg">🔍</span>
+                                            <span className="text-lg"></span>
                                         </div>
                                         <Input
                                             placeholder="Nombre o descripcion..."
@@ -1337,7 +1338,7 @@ export function ProductsManager({
                                         onClick={() => setComboShowFilters(!comboShowFilters)}
                                         className={cn("lg:hidden h-10 w-10 transition-colors", comboShowFilters && "bg-primary text-primary-foreground")}
                                     >
-                                        <span className="text-lg">⚙️</span>
+                                        <span className="text-lg">️</span>
                                     </Button>
                                 </div>
                             </div>
@@ -1475,7 +1476,7 @@ export function ProductsManager({
                                                 >
                                                     {comboStatusLoadingId === combo.id ? (
                                                         <span className="inline-flex items-center gap-1">
-                                                            <span className="animate-spin text-[9px]">⚙️</span>
+                                                            <span className="animate-spin text-[9px]">️</span>
                                                             Desactivando...
                                                         </span>
                                                     ) : 'Desactivar'}
@@ -1490,7 +1491,7 @@ export function ProductsManager({
                                                 >
                                                     {comboStatusLoadingId === combo.id ? (
                                                         <span className="inline-flex items-center gap-1">
-                                                            <span className="animate-spin text-[9px]">⚙️</span>
+                                                            <span className="animate-spin text-[9px]">️</span>
                                                             Reactivando...
                                                         </span>
                                                     ) : 'Reactivar'}
@@ -1520,7 +1521,9 @@ export function ProductsManager({
                         <CardHeader className="border-b border-[rgb(230,225,220)]">
                             <div className="flex items-center justify-between">
                                 <CardTitle style={{ fontFamily: 'var(--font-display)' }}>Detalle de Combo</CardTitle>
-                                <Button variant="ghost" onClick={closeComboView} size="icon">✕</Button>
+                                <Button variant="ghost" onClick={closeComboView} size="icon">
+                                    <X className="h-4 w-4" />
+                                </Button>
                             </div>
                         </CardHeader>
                         <CardContent className="p-6 overflow-y-auto custom-scrollbar space-y-6">
@@ -1580,7 +1583,7 @@ export function ProductsManager({
                                                                 <div className="text-xl font-black text-stone-700">
                                                                     {formatCurrency(comboViewModal.combo.items.reduce((acc, item) => acc + (getComboItemUnitCost(item) * Number(item.quantity || 0)), 0))}
                                                                 </div>
-                                                                <span className="text-lg animate-bounce leading-none">👇</span>
+                                                                <span className="text-lg animate-bounce leading-none"></span>
                                                             </div>
                                                         </div>
 
@@ -1627,7 +1630,7 @@ export function ProductsManager({
                                                         <span className="text-sm font-medium opacity-80 uppercase tracking-tighter">Unidades Totales</span>
                                                         <span className="text-3xl font-black">{comboViewModal.combo.maxUnitsGlobal ?? 0}</span>
                                                     </div>
-                                                    <div className="text-2xl animate-bounce">🎁</div>
+                                                    <div className="text-2xl animate-bounce"></div>
                                                 </div>
 
                                                 <div className="absolute inset-0 backface-hidden rotate-y-180 p-3 bg-stone-900 rounded-xl text-white flex flex-col justify-center border border-stone-700 shadow-xl overflow-hidden">
@@ -1704,7 +1707,9 @@ export function ProductsManager({
                                         Completa la información detallada del producto.
                                     </CardDescription>
                                 </div>
-                                <Button variant="ghost" onClick={resetForm} size="icon" className="rounded-full">✕</Button>
+                                <Button variant="ghost" onClick={resetForm} size="icon" className="rounded-full">
+                                    <X className="h-4 w-4" />
+                                </Button>
                             </div>
                         </CardHeader>
 
@@ -1810,7 +1815,7 @@ export function ProductsManager({
                                                                 handleRemoveImage(idx)
                                                             }}
                                                         >
-                                                            ✕
+                                                            
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -1821,7 +1826,7 @@ export function ProductsManager({
                                                     className="aspect-square rounded-lg border-2 border-dashed border-[rgb(200,195,190)] flex flex-col items-center justify-center cursor-pointer hover:bg-[rgb(240,235,230)] transition-colors"
                                                     onClick={() => document.getElementById('image-upload')?.click()}
                                                 >
-                                                    <span className="text-2xl mb-1">➕</span>
+                                                    <span className="text-2xl mb-1"></span>
                                                     <span className="text-xs text-[rgb(120,115,110)]">Añadir</span>
                                                 </div>
                                             )}
@@ -2001,7 +2006,7 @@ export function ProductsManager({
 
                         <div className="p-6 border-t border-[rgb(230,225,220)] flex flex-col sm:flex-row gap-3">
                             <Button onClick={submit} className="flex-1 h-12 text-lg shadow-xl w-full" disabled={saving}>
-                                {saving ? '⚙️ Guardando...' : isEditing ? 'Guardar Cambios' : 'Confirmar y Crear'}
+                                {saving ? '️ Guardando...' : isEditing ? 'Guardar Cambios' : 'Confirmar y Crear'}
                             </Button>
                             <Button variant="outline" onClick={resetForm} className="h-12 w-full sm:w-auto" disabled={saving}>
                                 Cancelar
@@ -2025,7 +2030,9 @@ export function ProductsManager({
                                         Selecciona productos, nombra el combo y define cuánto bajar al precio final.
                                     </CardDescription>
                                 </div>
-                                <Button variant="ghost" onClick={resetComboForm} size="icon" className="rounded-full">✕</Button>
+                                <Button variant="ghost" onClick={resetComboForm} size="icon" className="rounded-full">
+                                    <X className="h-4 w-4" />
+                                </Button>
                             </div>
                         </CardHeader>
 
@@ -2180,7 +2187,7 @@ export function ProductsManager({
 
                         <div className="p-6 border-t border-[rgb(230,225,220)] flex gap-3">
                             <Button onClick={submitCombo} className="flex-1 h-12 text-lg shadow-xl" disabled={savingCombo}>
-                                {savingCombo ? '⚙️ Guardando...' : isEditingCombo ? 'Guardar Combo' : 'Crear Combo'}
+                                {savingCombo ? '️ Guardando...' : isEditingCombo ? 'Guardar Combo' : 'Crear Combo'}
                             </Button>
                             <Button variant="outline" onClick={resetComboForm} className="h-12" disabled={savingCombo}>
                                 Cancelar
@@ -2198,7 +2205,9 @@ export function ProductsManager({
                         <CardHeader className="border-b border-[rgb(230,225,220)]">
                             <div className="flex items-center justify-between">
                                 <CardTitle style={{ fontFamily: 'var(--font-display)' }}>Detalles de Producto</CardTitle>
-                                <Button variant="ghost" onClick={closeViewModal} size="icon">✕</Button>
+                                <Button variant="ghost" onClick={closeViewModal} size="icon">
+                                    <X className="h-4 w-4" />
+                                </Button>
                             </div>
                         </CardHeader>
                         <CardContent className="p-6 overflow-y-auto custom-scrollbar space-y-6">
@@ -2221,7 +2230,7 @@ export function ProductsManager({
                                         onClick={() => downloadProductImages(viewModal.product!)}
                                         title="Descargar imágenes"
                                     >
-                                        <span className="text-xl">⬇️</span>
+                                        <Download className="h-5 w-5" />
                                     </Button>
                                 </div>
                                 <div className="space-y-4">
@@ -2258,7 +2267,7 @@ export function ProductsManager({
                                                             <div className="flex items-end gap-2">
                                                                 <div className="text-xl font-black text-stone-700">{formatCurrency(viewModal.product.costPrice)}</div>
                                                                 {(viewModal.product.activeCosts?.length ?? 0) > 1 && (
-                                                                    <span className="text-lg animate-bounce leading-none">👇</span>
+                                                                    <span className="text-lg animate-bounce leading-none"></span>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -2310,7 +2319,7 @@ export function ProductsManager({
                                                         <span className="text-sm font-medium opacity-80 uppercase tracking-tighter">Unidades Totales</span>
                                                         <span className="text-3xl font-black">{viewModal.product.totalStock ?? 0}</span>
                                                     </div>
-                                                    <div className="text-2xl animate-bounce">📦</div>
+                                                    <div className="text-2xl animate-bounce"></div>
                                                 </div>
 
                                                 {/* Back: Stock by Warehouse */}
@@ -2328,7 +2337,7 @@ export function ProductsManager({
                                                         ) : stockDetails.length > 0 ? (
                                                             stockDetails.map((item, i) => (
                                                                 <div key={i} className="flex justify-between items-center bg-white/5 px-2 py-1 rounded border border-white/5 text-[11px]">
-                                                                    <span className="font-medium truncate max-w-[70%]">📍 {item.warehouse?.name || 'Sede Central'}</span>
+                                                                    <span className="font-medium truncate max-w-[70%]"> {item.warehouse?.name || 'Sede Central'}</span>
                                                                     <span className={cn(
                                                                         "font-bold",
                                                                         item.quantity > 5 ? "text-emerald-400" :
@@ -2382,7 +2391,7 @@ export function ProductsManager({
                                 size="icon"
                                 className="absolute right-2 top-2"
                             >
-                                ✕
+                                <X className="h-4 w-4" />
                             </Button>
                             <CardTitle style={{ fontFamily: 'var(--font-display)' }}>Código de Barras</CardTitle>
                             <CardDescription>{barcodeModal.product.name}</CardDescription>
@@ -2392,11 +2401,14 @@ export function ProductsManager({
                                 <svg ref={barcodeSvgRef} />
                             </div>
                             <div className="grid grid-cols-2 gap-3 w-full">
-                                <Button className="w-full shadow-lg" onClick={() => downloadBarcode(barcodeModal.product!)}>⬇️ Descargar</Button>
+                                <Button className="w-full shadow-lg" onClick={() => downloadBarcode(barcodeModal.product!)}>
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Descargar
+                                </Button>
                                 <Button variant="outline" onClick={() => {
                                     navigator.clipboard.writeText(barcodeModal.product!.barcode!);
                                     toast.success('Código copiado al portapapeles');
-                                }}>📋 Copiar</Button>
+                                }}> Copiar</Button>
                             </div>
                         </CardContent>
                     </Card>

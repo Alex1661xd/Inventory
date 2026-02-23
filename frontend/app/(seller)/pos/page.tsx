@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -139,7 +139,7 @@ function ScannerModal(props: {
         setCameraError(null)
 
         if (!isSecureContext) {
-            setCameraError('⚠️ Se requiere HTTPS para acceder a la cámara. Por favor, accede desde https:// o localhost.')
+            setCameraError('️ Se requiere HTTPS para acceder a la cámara. Por favor, accede desde https:// o localhost.')
             return
         }
 
@@ -203,17 +203,17 @@ function ScannerModal(props: {
             let errorMessage = 'No se pudo iniciar la cámara.'
 
             if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
-                errorMessage = '❌ Permiso de cámara denegado. Por favor, permite el acceso a la cámara en la configuración de tu navegador.'
+                errorMessage = ' Permiso de cámara denegado. Por favor, permite el acceso a la cámara en la configuración de tu navegador.'
             } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
-                errorMessage = '❌ No se encontró ninguna cámara en tu dispositivo.'
+                errorMessage = ' No se encontró ninguna cámara en tu dispositivo.'
             } else if (e.name === 'NotReadableError' || e.name === 'TrackStartError') {
-                errorMessage = '❌ La cámara está siendo usada por otra aplicación.'
+                errorMessage = ' La cámara está siendo usada por otra aplicación.'
             } else if (e.name === 'OverconstrainedError') {
-                errorMessage = '❌ No se pudo acceder a la cámara trasera.'
+                errorMessage = ' No se pudo acceder a la cámara trasera.'
             } else if (e.name === 'NotSupportedError') {
-                errorMessage = '❌ Tu navegador no soporta acceso a la cámara.'
+                errorMessage = ' Tu navegador no soporta acceso a la cámara.'
             } else if (e.message) {
-                errorMessage = `❌ ${e.message}`
+                errorMessage = ` ${e.message}`
             }
 
             setCameraError(errorMessage)
@@ -279,7 +279,7 @@ function ScannerModal(props: {
                             )}
 
                             <div className="text-center space-y-4">
-                                <div className="text-6xl">📷</div>
+                                <div className="text-6xl"></div>
                                 <p className="text-gray-500 text-sm">
                                     Usa la cámara para escanear el código de barras del producto
                                 </p>
@@ -428,9 +428,9 @@ function POSMobileView(props: {
     } = props;
 
     const stepLabels = [
-        { step: 1, label: 'Cliente', icon: '👤' },
-        { step: 2, label: 'Productos', icon: '📦' },
-        { step: 3, label: 'Pago', icon: '💳' },
+        { step: 1, label: 'Cliente', icon: '' },
+        { step: 2, label: 'Productos', icon: '' },
+        { step: 3, label: 'Pago', icon: '' },
     ]
 
     return (
@@ -450,7 +450,7 @@ function POSMobileView(props: {
                                             ? "bg-primary text-white ring-4 ring-primary/20"
                                             : "bg-gray-100 text-gray-400 border border-gray-200"
                                 )}>
-                                    {mobileStep > item.step ? '✓' : item.icon}
+                                    {mobileStep > item.step ? '' : item.icon}
                                 </div>
                                 <span className={cn(
                                     "text-xs mt-1.5 font-medium transition-colors",
@@ -528,7 +528,7 @@ function POSMobileView(props: {
                                 <CardContent className="p-4">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3 text-emerald-700">
-                                            <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xl">✓</div>
+                                            <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xl"></div>
                                             <div>
                                                 <div className="font-bold">{selectedCustomer.name}</div>
                                                 {selectedCustomer.docNumber && (
@@ -614,7 +614,7 @@ function POSMobileView(props: {
                                                             {combo.image ? (
                                                                 <img src={combo.image} alt="" className="w-full h-full object-cover" />
                                                             ) : (
-                                                                <span className="text-2xl">🎁</span>
+                                                                <span className="text-2xl"></span>
                                                             )}
                                                         </div>
                                                         <div className="flex-1 min-w-0">
@@ -686,7 +686,7 @@ function POSMobileView(props: {
                                                     {product.images?.[0] ? (
                                                         <img src={product.images[0]} alt="" className="w-full h-full object-cover" />
                                                     ) : (
-                                                        <span className="text-2xl">📦</span>
+                                                        <span className="text-2xl"></span>
                                                     )}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
@@ -1176,7 +1176,7 @@ function POSDesktopView(props: {
                                                     {product.images?.[0] ? (
                                                         <img src={product.images[0]} alt="" className="w-full h-full object-cover" />
                                                     ) : (
-                                                        <span className="text-lg">📦</span>
+                                                        <span className="text-lg"></span>
                                                     )}
                                                 </div>
                                                 <div className="min-w-0">
@@ -1228,7 +1228,7 @@ function POSDesktopView(props: {
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
                     {(cart.length === 0 && comboCart.length === 0) ? (
                         <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                            <div className="text-5xl mb-2">🛒</div>
+                            <div className="text-5xl mb-2"></div>
                             <p className="text-sm">Carrito vacío</p>
                         </div>
                     ) : (
@@ -1240,7 +1240,7 @@ function POSDesktopView(props: {
                                     <div key={`cart-combo-${comboLine.comboId}`} className="p-3 bg-amber-50 rounded-lg border border-amber-200">
                                         <div className="flex items-start justify-between mb-2">
                                             <div className="flex-1 min-w-0 pr-2">
-                                                <div className="font-semibold text-sm text-amber-800">🎁 {comboLine.comboName}</div>
+                                                <div className="font-semibold text-sm text-amber-800"> {comboLine.comboName}</div>
                                                 <div className="text-xs text-amber-700">
                                                     ${formatThousands(Number(comboLine.unitPrice))} c/u
                                                 </div>
@@ -1670,7 +1670,7 @@ export default function POSPage() {
                 setStockMap(currentStockMap)
 
                 if (hasAdjustments) {
-                    toast.error('⚠️ ATENCIÓN: Esta venta fue iniciada en otra sede o el stock cambió. Se han ajustado las cantidades según la disponibilidad actual.', {
+                    toast.error('️ ATENCIÓN: Esta venta fue iniciada en otra sede o el stock cambió. Se han ajustado las cantidades según la disponibilidad actual.', {
                         duration: 8000,
                         position: 'top-center'
                     })
@@ -1893,7 +1893,7 @@ export default function POSPage() {
                 await api.invoices.cancel(resumedSaleId)
             }
 
-            toast.success('Venta pausada y guardada en la nube ☁️')
+            toast.success('Venta pausada y guardada en la nube ️')
 
             // Reset
             setCart([])
@@ -2225,10 +2225,10 @@ export default function POSPage() {
                                 <Label className="text-sm font-medium mb-3 block">Método de Pago</Label>
                                 <div className="grid grid-cols-2 gap-2">
                                     {[
-                                        { value: 'CASH', label: 'Efectivo', icon: '💵' },
-                                        { value: 'CARD', label: 'Tarjeta', icon: '💳' },
-                                        { value: 'TRANSFER', label: 'Transferencia', icon: '📱' },
-                                        { value: 'OTHER', label: 'Otro', icon: '📝' }
+                                        { value: 'CASH', label: 'Efectivo', icon: '' },
+                                        { value: 'CARD', label: 'Tarjeta', icon: '' },
+                                        { value: 'TRANSFER', label: 'Transferencia', icon: '' },
+                                        { value: 'OTHER', label: 'Otro', icon: '' }
                                     ].map(method => (
                                         <Button
                                             key={method.value}
@@ -2266,7 +2266,7 @@ export default function POSPage() {
                                                     ${formatThousands(parseThousands(String(amountReceived)) - grandTotal)}
                                                 </span>
                                             </div>
-                                            <div className="text-3xl">🤝</div>
+                                            <div className="text-3xl"></div>
                                         </div>
                                     )}
                                     {amountReceived && parseThousands(String(amountReceived)) < grandTotal && (
@@ -2292,7 +2292,7 @@ export default function POSPage() {
                                     onClick={handleCheckout}
                                     disabled={processing}
                                 >
-                                    {processing ? 'Procesando...' : '✓ Confirmar Venta'}
+                                    {processing ? 'Procesando...' : ' Confirmar Venta'}
                                 </Button>
                             </div>
                         </CardContent>

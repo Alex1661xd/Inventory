@@ -225,12 +225,12 @@ export function TransfersManager() {
                     >
                         {processing ? (
                             <span className="flex items-center gap-2">
-                                <span className="animate-spin">⚙️</span>
+                                <span className="animate-spin">️</span>
                                 Procesando traslado...
                             </span>
                         ) : (
                             <span className="flex items-center gap-2">
-                                📦 Realizar Traslado
+                                 Realizar Traslado
                             </span>
                         )}
                     </Button>
@@ -241,7 +241,7 @@ export function TransfersManager() {
             <div className="max-w-2xl mx-auto mt-8 space-y-6">
                 <div className="bg-white/50 backdrop-blur-sm p-6 rounded-2xl border border-[rgb(230,225,220)] shadow-sm">
                     <div className="flex gap-4">
-                        <div className="text-4xl">💡</div>
+                        <div className="text-4xl"></div>
                         <div>
                             <h3 className="font-bold text-lg mb-2 text-[rgb(25,35,25)]">¿Cómo funciona?</h3>
                             <p className="text-[rgb(120,115,110)] leading-relaxed">
@@ -254,11 +254,11 @@ export function TransfersManager() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-blue-50/80 backdrop-blur-sm p-4 rounded-xl border border-blue-100">
-                        <div className="font-bold text-blue-700 mb-1">📤 Origen</div>
+                        <div className="font-bold text-blue-700 mb-1"> Origen</div>
                         <div className="text-sm text-blue-600">Las unidades se restan de este inventario.</div>
                     </div>
                     <div className="bg-emerald-50/80 backdrop-blur-sm p-4 rounded-xl border border-emerald-100">
-                        <div className="font-bold text-emerald-700 mb-1">📥 Destino</div>
+                        <div className="font-bold text-emerald-700 mb-1"> Destino</div>
                         <div className="text-sm text-emerald-600">Las unidades se suman a este inventario.</div>
                     </div>
                 </div>

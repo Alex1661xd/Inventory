@@ -56,7 +56,7 @@ export default function SellerWarehousePage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
-                <div className="animate-spin text-4xl">⚙️</div>
+                <div className="animate-spin text-4xl">️</div>
             </div>
         )
     }
@@ -77,7 +77,7 @@ export default function SellerWarehousePage() {
             <Card className="border border-[rgb(230,225,220)] shadow-sm overflow-hidden">
                 <CardHeader className="bg-[hsl(var(--background))] border-b border-[rgb(230,225,220)] py-4">
                     <CardTitle className="flex items-center gap-2 text-lg">
-                        <span className="text-xl">📍</span>
+                        <span className="text-xl"></span>
                         <span>Sede Actual</span>
                     </CardTitle>
                     <CardDescription className="text-xs">
@@ -87,7 +87,7 @@ export default function SellerWarehousePage() {
                 <CardContent className="p-6 space-y-6">
                     <div className="flex items-center gap-4 p-4 rounded-xl bg-[rgb(25,35,25)] text-white shadow-lg relative overflow-hidden group">
                         <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50"></div>
-                        <div className="text-2xl bg-white/20 backdrop-blur-md w-12 h-12 rounded-full flex items-center justify-center shadow-inner relative z-10 shrink-0">🏢</div>
+                        <div className="text-2xl bg-white/20 backdrop-blur-md w-12 h-12 rounded-full flex items-center justify-center shadow-inner relative z-10 shrink-0"></div>
                         <div className="relative z-10 min-w-0">
                             <div className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-0.5">Operando en:</div>
                             <div className="text-lg font-bold leading-tight truncate">
@@ -121,7 +121,7 @@ export default function SellerWarehousePage() {
                             >
                                 {saving ? (
                                     <span className="flex items-center gap-2">
-                                        <span className="animate-spin text-xs">⚙️</span> Actualizando...
+                                        <span className="animate-spin text-xs">️</span> Actualizando...
                                     </span>
                                 ) : (
                                     'Actualizar mi Ubicación'
@@ -133,7 +133,7 @@ export default function SellerWarehousePage() {
             </Card>
 
             <div className="bg-amber-50 rounded-xl p-4 border border-amber-100 flex gap-3">
-                <div className="text-xl shrink-0">⚠️</div>
+                <div className="text-xl shrink-0">️</div>
                 <div className="text-xs text-amber-900/80 leading-relaxed">
                     <strong>Nota:</strong> Cambiar tu sede afectará directamente al stock de los productos que selecciones en el Punto de Venta (POS)
                 </div>

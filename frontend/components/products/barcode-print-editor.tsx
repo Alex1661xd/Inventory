@@ -315,7 +315,7 @@ export function BarcodePrintPage() {
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h2 className="text-3xl md:text-4xl font-bold text-gray-900" style={{ fontFamily: 'var(--font-display)' }}>
-                        🖨️ Imprimir Códigos de Barras
+                        ️ Imprimir Códigos de Barras
                     </h2>
                     <p className="text-gray-500 text-sm md:text-lg">
                         Selecciona productos, configura copias y tamaño por cada uno, y genera un PDF para imprimir.
@@ -337,7 +337,7 @@ export function BarcodePrintPage() {
                         <Label className="text-xs font-medium text-gray-500 mb-2 block">Buscar Productos</Label>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                                <span className="text-lg">🔍</span>
+                                <span className="text-lg"></span>
                             </div>
                             <Input
                                 placeholder="Nombre, SKU o código..."
@@ -376,7 +376,7 @@ export function BarcodePrintPage() {
                                                 {product.images && product.images.length > 0 ? (
                                                     <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <span className="text-2xl">📦</span>
+                                                    <span className="text-2xl"></span>
                                                 )}
                                             </div>
                                             <div className="flex-1 min-w-0">
@@ -419,7 +419,7 @@ export function BarcodePrintPage() {
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
                         {selectedItems.length === 0 ? (
                             <div className="text-center py-10 text-gray-400">
-                                <div className="text-5xl mb-3">📋</div>
+                                <div className="text-5xl mb-3"></div>
                                 <p className="text-sm font-medium">No hay productos seleccionados</p>
                                 <p className="text-xs mt-1">Haz clic en los productos de la izquierda para agregarlos</p>
                             </div>
@@ -435,7 +435,7 @@ export function BarcodePrintPage() {
                                             {item.product.images && item.product.images.length > 0 ? (
                                                 <img src={item.product.images[0]} alt={item.product.name} className="w-full h-full object-cover" />
                                             ) : (
-                                                <span className="text-xl">📦</span>
+                                                <span className="text-xl"></span>
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -571,7 +571,7 @@ export function BarcodePrintPage() {
             {/* Info Section */}
             <div className="bg-white/50 backdrop-blur-sm p-6 rounded-2xl border border-[rgb(230,225,220)]">
                 <div className="flex gap-4">
-                    <div className="text-4xl">💡</div>
+                    <div className="text-4xl"></div>
                     <div>
                         <h3 className="font-bold text-lg mb-2 text-gray-900">¿Cómo funciona?</h3>
                         <ul className="text-gray-600 space-y-1 text-sm">

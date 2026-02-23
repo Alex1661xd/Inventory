@@ -565,7 +565,7 @@ export default function ReportsPage() {
                                     {data.deadStock.length === 0 && (
                                         <tr>
                                             <td colSpan={4} className="px-6 py-12 text-center text-[hsl(var(--muted))] font-bold italic opacity-50">
-                                                ✨ No tienes productos con stock estancado. ¡Excelente rotación!
+                                                 No tienes productos con stock estancado. ¡Excelente rotación!
                                             </td>
                                         </tr>
                                     )}

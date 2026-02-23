@@ -30,18 +30,18 @@ const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
 }
 
 const CATEGORY_ICONS: Record<ExpenseCategory, string> = {
-    RENT: '🏠',
-    UTILITIES: '💡',
-    PAYROLL: '👷',
-    SUPPLIES: '📦',
-    MAINTENANCE: '🔧',
-    TRANSPORT: '🚚',
-    MARKETING: '📢',
-    TAXES: '🏛️',
-    INSURANCE: '🛡️',
-    INVENTORY: '📊',
-    CASH_REGISTER: '🏧',
-    OTHER: '📋',
+    RENT: '',
+    UTILITIES: '',
+    PAYROLL: '',
+    SUPPLIES: '',
+    MAINTENANCE: '',
+    TRANSPORT: '',
+    MARKETING: '',
+    TAXES: '️',
+    INSURANCE: '️',
+    INVENTORY: '',
+    CASH_REGISTER: '',
+    OTHER: '',
 }
 
 type ProfitLossData = {
@@ -252,7 +252,7 @@ export default function ExpensesPage() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900" style={{ fontFamily: 'var(--font-display)' }}>
-                            💰 Gastos y Utilidad
+                             Gastos y Utilidad
                         </h1>
                         <p className="text-gray-500 mt-1">Control de gastos operativos y estado de resultados</p>
                     </div>
@@ -444,7 +444,7 @@ export default function ExpensesPage() {
                     <Card className="overflow-hidden">
                         <CardHeader className="bg-gradient-to-r from-slate-800 to-slate-700 text-white">
                             <CardTitle className="flex items-center gap-2 !text-white">
-                                📊 Estado de Resultados
+                                 Estado de Resultados
                                 <span className="text-sm font-normal text-white/70 ml-2">
                                     {new Date(startDate).toLocaleDateString('es-CO')} - {new Date(endDate).toLocaleDateString('es-CO')}
                                 </span>
@@ -483,7 +483,7 @@ export default function ExpensesPage() {
                                     >
                                         <div className="flex items-center gap-3">
                                             <span className="text-gray-600 flex items-center gap-2">
-                                                {CATEGORY_ICONS[cat.category as ExpenseCategory] || '📋'}
+                                                {CATEGORY_ICONS[cat.category as ExpenseCategory] || ''}
                                                 {CATEGORY_LABELS[cat.category as ExpenseCategory] || cat.category}
                                             </span>
                                             <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[10px] font-bold text-blue-600 uppercase tracking-widest">
@@ -518,7 +518,7 @@ export default function ExpensesPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center justify-between">
-                            <span>📋 Registro de Gastos</span>
+                            <span> Registro de Gastos</span>
                             <span className="text-sm font-normal text-gray-500">
                                 Total: <span className="font-bold text-gray-900">${formatThousands(profitLoss?.operatingExpenses.totalExpenses || 0)}</span>
                             </span>
@@ -529,7 +529,7 @@ export default function ExpensesPage() {
                             <div className="text-center py-8 text-gray-500">Cargando gastos...</div>
                         ) : expenses.length === 0 ? (
                             <div className="text-center py-12">
-                                <div className="text-5xl mb-4">💸</div>
+                                <div className="text-5xl mb-4"></div>
                                 <p className="text-gray-500">No hay gastos registrados en este período</p>
                                 <Button onClick={() => setShowCreate(true)} variant="outline" className="mt-4">
                                     Registrar primer gasto

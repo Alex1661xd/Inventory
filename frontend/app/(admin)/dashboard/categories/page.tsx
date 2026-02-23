@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { FolderOpen, Loader2, Plus, RefreshCw, Shapes, X } from 'lucide-react'
 
 export default function CategoriesPage() {
     const [categories, setCategories] = useState<Category[]>([])
@@ -73,10 +74,10 @@ export default function CategoriesPage() {
 
             if (editingId) {
                 await api.categories.update(editingId, payload)
-                toast.success('Categoría actualizada')
+                toast.success('Categoria actualizada')
             } else {
                 await api.categories.create(payload)
-                toast.success('Categoría creada')
+                toast.success('Categoria creada')
             }
 
             resetForm()
@@ -98,7 +99,7 @@ export default function CategoriesPage() {
 
         try {
             await api.categories.remove(id)
-            toast.success('Categoría eliminada')
+            toast.success('Categoria eliminada')
             if (editingId === id) resetForm()
             await load()
         } catch (e: any) {
@@ -114,22 +115,20 @@ export default function CategoriesPage() {
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h2 className="text-4xl font-bold text-[hsl(var(--foreground))]" style={{ fontFamily: 'var(--font-display)' }}>
-                        Categorías
+                        Categorias
                     </h2>
                     <p className="text-[hsl(var(--muted))] text-lg">
-                        Organiza tus productos en categorías para mejor gestión.
+                        Organiza tus productos en categorias para mejor gestion.
                     </p>
                 </div>
                 <div className="flex gap-3">
                     <Button variant="outline" onClick={load} disabled={loading} className="group">
-                        <span className={loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}>
-                            {loading ? '⚙️' : '🔄'}
-                        </span>
+                        <RefreshCw className={loading ? 'mr-2 h-4 w-4 animate-spin' : 'mr-2 h-4 w-4 group-hover:rotate-180 transition-transform duration-500'} />
                         <span>{loading ? 'Actualizando...' : 'Refrescar'}</span>
                     </Button>
                     <Button onClick={startCreate} className="shadow-lg hover:shadow-xl transition-all">
-                        <span className="mr-2">➕</span>
-                        Nueva Categoría
+                        <Plus className="mr-2 h-4 w-4" />
+                        Nueva Categoria
                     </Button>
                 </div>
             </div>
@@ -144,13 +143,13 @@ export default function CategoriesPage() {
                     >
                         <CardHeader className="text-center">
                             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] flex items-center justify-center text-white text-2xl group-hover:scale-110 transition-transform">
-                                📁
+                                <Shapes className="h-8 w-8" />
                             </div>
                             <CardTitle className="text-xl" style={{ fontFamily: 'var(--font-display)' }}>
                                 {category.name}
                             </CardTitle>
                             <CardDescription className="line-clamp-2">
-                                {category.description || 'Sin descripción'}
+                                {category.description || 'Sin descripcion'}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="pt-0">
@@ -178,16 +177,16 @@ export default function CategoriesPage() {
 
                 {categories.length === 0 && !loading && (
                     <div className="col-span-full text-center py-12">
-                        <div className="text-6xl mb-4">📁</div>
+                        <div className="mb-4 flex justify-center"><FolderOpen className="h-12 w-12 text-[hsl(var(--muted))]" /></div>
                         <h3 className="text-xl font-semibold text-[hsl(var(--foreground))] mb-2">
-                            No hay categorías
+                            No hay categorias
                         </h3>
                         <p className="text-[hsl(var(--muted))] mb-4">
-                            Crea tu primera categoría para organizar tus productos
+                            Crea tu primera categoria para organizar tus productos
                         </p>
                         <Button onClick={startCreate}>
-                            <span className="mr-2">➕</span>
-                            Crear Categoría
+                            <Plus className="mr-2 h-4 w-4" />
+                            Crear Categoria
                         </Button>
                     </div>
                 )}
@@ -201,34 +200,34 @@ export default function CategoriesPage() {
                         <CardHeader>
                             <div className="flex items-center justify-between">
                                 <CardTitle style={{ fontFamily: 'var(--font-display)' }}>
-                                    {isEditing ? 'Editar Categoría' : 'Nueva Categoría'}
+                                    {isEditing ? 'Editar Categoria' : 'Nueva Categoria'}
                                 </CardTitle>
-                                <Button variant="ghost" onClick={resetForm} size="icon">✕</Button>
+                                <Button variant="ghost" onClick={resetForm} size="icon"><X className="h-4 w-4" /></Button>
                             </div>
                             <CardDescription>
-                                {isEditing ? 'Modifica los datos de la categoría' : 'Crea una nueva categoría para organizar tus productos'}
+                                {isEditing ? 'Modifica los datos de la categoria' : 'Crea una nueva categoria para organizar tus productos'}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
-                                <Label>Nombre de la Categoría</Label>
+                                <Label>Nombre de la Categoria</Label>
                                 <Input
                                     value={form.name}
                                     onChange={(e) => setForm(s => ({ ...s, name: e.target.value }))}
-                                    placeholder="Ej. Muebles, Electrónicos, Ropa..."
+                                    placeholder="Ej. Muebles, Electronicos, Ropa..."
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label>Descripción (Opcional)</Label>
+                                <Label>Descripcion (Opcional)</Label>
                                 <Input
                                     value={form.description}
                                     onChange={(e) => setForm(s => ({ ...s, description: e.target.value }))}
-                                    placeholder="Describe qué tipo de productos pertenecen a esta categoría..."
+                                    placeholder="Describe que tipo de productos pertenecen a esta categoria..."
                                 />
                             </div>
                             <div className="flex gap-2 pt-4">
                                 <Button onClick={submit} className="flex-1" disabled={saving}>
-                                    {saving ? '⚙️ Guardando...' : isEditing ? 'Guardar Cambios' : 'Crear Categoría'}
+                                    {saving ? <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Guardando...</span> : isEditing ? 'Guardar Cambios' : 'Crear Categoria'}
                                 </Button>
                                 <Button variant="outline" onClick={resetForm} disabled={saving}>
                                     Cancelar
@@ -243,11 +242,13 @@ export default function CategoriesPage() {
                 open={!!itemToDelete}
                 onOpenChange={(open) => !open && setItemToDelete(null)}
                 onConfirm={confirmDelete}
-                title="¿Eliminar categoría?"
-                description="Se eliminará la categoría. Los productos asociados no se eliminarán, pero perderán esta categorización."
-                confirmText="Sí, eliminar"
+                title="Eliminar categoria?"
+                description="Se eliminara la categoria. Los productos asociados no se eliminaran, pero perderan esta categorizacion."
+                confirmText="Si, eliminar"
                 variant="destructive"
             />
         </div>
     )
 }
+
+

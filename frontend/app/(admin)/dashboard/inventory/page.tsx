@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -12,6 +12,7 @@ import { KardexModal } from '@/components/inventory/KardexModal'
 import { ProductStatsModal } from '@/components/inventory/ProductStatsModal'
 import { formatThousands } from '@/lib/utils'
 import type { InventoryValuation } from '@/lib/backend'
+import { AlertTriangle, BarChart3, Filter, Loader2, Plus, RefreshCw, Search, X } from 'lucide-react'
 
 interface AggregatedStock {
     productId: string
@@ -179,12 +180,12 @@ export default function InventoryPage() {
         const { productId, warehouseId, quantityDelta, action } = updateStockForm
 
         if (!productId || !warehouseId) {
-            toast.error('Selecciona producto y almacén')
+            toast.error('Selecciona producto y almacen')
             return
         }
 
         if (action === 'decrease' && currentStock !== null && quantityDelta > currentStock) {
-            toast.error('No puedes disminuir más unidades de las que existen')
+            toast.error('No puedes disminuir mas unidades de las que existen')
             return
         }
 
@@ -247,7 +248,7 @@ export default function InventoryPage() {
             const stats = await api.analytics.getProductStats(product.id);
             setProductStats(stats);
         } catch (e) {
-            toast.error('Error cargando estadísticas');
+            toast.error('Error cargando estadisticas');
         } finally {
             setLoadingStats(false);
         }
@@ -272,11 +273,11 @@ export default function InventoryPage() {
                         onClick={() => setShowUpdateStockModal(true)}
                         className="group h-11"
                     >
-                        <span className="mr-2">📦</span>
+                        <Plus className="mr-2 h-4 w-4" />
                         Actualizar Stock
                     </Button>
                     <Button variant="outline" onClick={() => { loadBaseData(); loadStock(); }} disabled={loading} className="group h-11">
-                        <span className={loading ? 'animate-spin mr-2' : 'group-hover:rotate-180 transition-transform duration-500 mr-2'}>⚙️</span>
+                        <RefreshCw className={loading ? 'animate-spin mr-2 h-4 w-4' : 'group-hover:rotate-180 transition-transform duration-500 mr-2 h-4 w-4'} />
                         {loading ? 'Sincronizando...' : 'Actualizar Datos'}
                     </Button>
                 </div>
@@ -286,14 +287,14 @@ export default function InventoryPage() {
             <div className="bg-white/50 backdrop-blur-sm p-4 rounded-2xl border border-[rgb(230,225,220)]">
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                     <div className="space-y-2 lg:col-span-1 md:col-span-2">
-                        <Label className="text-xs font-medium text-[hsl(var(--muted))]">Búsqueda</Label>
+                        <Label className="text-xs font-medium text-[hsl(var(--muted))]">Busqueda</Label>
                         <div className="flex gap-2">
                             <div className="relative flex-1">
                                 <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                                    <span className="text-lg">🔍</span>
+                                    <Search className="h-4 w-4 text-[hsl(var(--muted))]" />
                                 </div>
                                 <Input
-                                    placeholder="Producto o almacén..."
+                                    placeholder="Producto o almacen..."
                                     className="pl-10 h-10"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -305,7 +306,7 @@ export default function InventoryPage() {
                                 onClick={() => setShowFilters(!showFilters)}
                                 className={cn("lg:hidden h-10 w-10 transition-colors", showFilters && "bg-[rgb(25,35,25)] text-white hover:bg-[rgb(45,55,45)]")}
                             >
-                                <span className="text-lg">⚙️</span>
+                                <Filter className="h-4 w-4" />
                             </Button>
                         </div>
                     </div>
@@ -314,7 +315,7 @@ export default function InventoryPage() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:col-span-2 lg:col-span-4 mb-4">
                         <Card className="bg-[hsl(var(--surface-elevated))] border-none shadow-sm overflow-hidden">
                             <CardContent className="p-6 flex flex-col items-center justify-center min-h-[140px]">
-                                <div className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-tighter opacity-70 mb-2 text-center">Inversión (Costo)</div>
+                                <div className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-tighter opacity-70 mb-2 text-center">Inversion (Costo)</div>
                                 <div className="text-xl md:text-2xl font-black text-[hsl(var(--foreground))] text-center mb-3">
                                     ${formatThousands(filteredValuation?.totalCost || 0)}
                                 </div>
@@ -360,7 +361,7 @@ export default function InventoryPage() {
                                 <div className="text-[10px] font-bold opacity-70 mb-1 text-center">
                                     {selectedWarehouse ? 'En esta bodega' : `En ${filteredValuation?.warehouseBreakdown?.length || 0} Bodegas`}
                                 </div>
-                                <div className="text-[9px] font-medium opacity-50 text-center">Conteo físico de mercancía</div>
+                                <div className="text-[9px] font-medium opacity-50 text-center">Conteo fisico de mercancia</div>
                             </CardContent>
                         </Card>
                     </div>
@@ -385,7 +386,7 @@ export default function InventoryPage() {
                             </select>
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-xs font-medium text-[rgb(120,115,110)]">Filtrar por Almacén</Label>
+                            <Label className="text-xs font-medium text-[rgb(120,115,110)]">Filtrar por Almacen</Label>
                             <select
                                 className="flex h-10 w-full rounded-lg border border-[rgb(230,225,220)] bg-white/90 px-3 py-2 text-sm focus:outline-none focus:border-[rgb(25,35,25)]"
                                 value={selectedWarehouse}
@@ -454,10 +455,10 @@ export default function InventoryPage() {
                                 <tr className="bg-[hsl(var(--background))] border-b border-[hsl(var(--border))]">
                                     <th className="px-6 py-4 text-left text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Producto</th>
                                     <th className="px-6 py-4 text-left text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">SKU</th>
-                                    <th className="px-6 py-4 text-left text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Almacén</th>
+                                    <th className="px-6 py-4 text-left text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Almacen</th>
                                     <th className="px-6 py-4 text-center text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Cantidad</th>
                                     <th className="px-6 py-4 text-left text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Estado</th>
-                                    <th className="px-6 py-4 text-center text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Estadísticas</th>
+                                    <th className="px-6 py-4 text-center text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Estadisticas</th>
                                     <th className="px-6 py-4 text-right text-xs font-black text-[hsl(var(--muted))] uppercase tracking-widest">Kardex</th>
                                 </tr>
                             </thead>
@@ -465,18 +466,18 @@ export default function InventoryPage() {
                                 {aggregatedStock.length === 0 && (
                                     <tr>
                                         <td colSpan={6} className="px-6 py-12 text-center text-[hsl(var(--muted))]">
-                                            <div className="text-4xl mb-4">🔍</div>
+                                            <div className="text-4xl mb-4"></div>
                                             <p className="font-medium">No se encontraron productos con los filtros seleccionados.</p>
                                         </td>
                                     </tr>
                                 )}
                                 {aggregatedStock.flatMap((item: AggregatedStock) => {
-                                    // Si hay filtros específicos, mostrar solo las filas que coinciden
+                                    // Si hay filtros especificos, mostrar solo las filas que coinciden
                                     const relevantWarehouses = selectedWarehouse
                                         ? warehouses.filter(w => w.id === selectedWarehouse && (item.warehouseQuantities[w.id] || 0) > 0)
                                         : warehouses.filter(w => (item.warehouseQuantities[w.id] || 0) > 0);
 
-                                    // Si un producto no tiene stock en ningún almacén y no hay filtros, mostrar una fila con "Sin Stock"
+                                    // Si un producto no tiene stock en ningun almacen y no hay filtros, mostrar una fila con "Sin Stock"
                                     if (relevantWarehouses.length === 0 && !selectedWarehouse && !selectedProduct) {
                                         return [
                                             <tr key={`${item.productId}-no-stock`} className="group hover:bg-[hsl(var(--surface-elevated))] transition-colors">
@@ -506,7 +507,7 @@ export default function InventoryPage() {
                                                         className="h-8 text-[10px] font-black uppercase tracking-tighter border-blue-200 bg-blue-50/30 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all duration-300 shadow-sm flex items-center gap-1.5 rounded-full px-3 mx-auto"
                                                         onClick={() => handleViewStats(item.product, item.totalQuantity)}
                                                     >
-                                                        <span>📊</span> Analizar
+                                                        <BarChart3 className="h-4 w-4 mr-1" /> Analizar
                                                     </Button>
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
@@ -520,7 +521,7 @@ export default function InventoryPage() {
                                                             warehouseId: selectedWarehouse || undefined
                                                         })}
                                                     >
-                                                        <span>📋</span> Ver Kardex
+                                                        <Search className="h-4 w-4 mr-1" /> Ver Kardex
                                                     </Button>
                                                 </td>
                                             </tr>
@@ -567,7 +568,7 @@ export default function InventoryPage() {
                                                         className="h-8 text-[10px] font-black uppercase tracking-tighter border-blue-200 bg-blue-50/30 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all duration-300 shadow-sm flex items-center gap-1.5 rounded-full px-3 mx-auto"
                                                         onClick={() => handleViewStats(item.product, item.totalQuantity)}
                                                     >
-                                                        <span>📊</span> Analizar
+                                                        <BarChart3 className="h-4 w-4 mr-1" /> Analizar
                                                     </Button>
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
@@ -581,7 +582,7 @@ export default function InventoryPage() {
                                                             warehouseId: warehouse.id
                                                         })}
                                                     >
-                                                        <span>📋</span> Ver Kardex
+                                                        <Search className="h-4 w-4 mr-1" /> Ver Kardex
                                                     </Button>
                                                 </td>
                                             </tr>
@@ -598,7 +599,7 @@ export default function InventoryPage() {
             {totalPages > 1 && (
                 <div className="flex items-center justify-between">
                     <div className="text-sm text-[hsl(var(--muted))]">
-                        Página {currentPage} de {totalPages} ({totalItems} productos totales)
+                        Pagina {currentPage} de {totalPages} ({totalItems} productos totales)
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
@@ -607,7 +608,7 @@ export default function InventoryPage() {
                             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                             disabled={currentPage === 1}
                         >
-                            ← Anterior
+                            ? Anterior
                         </Button>
                         <div className="flex items-center gap-1">
                             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -657,14 +658,7 @@ export default function InventoryPage() {
                     <div className="relative bg-[hsl(var(--background))] border border-[hsl(var(--border))] rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-semibold">Actualizar Stock</h3>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setShowUpdateStockModal(false)}
-                                className="h-8 w-8 p-0"
-                            >
-                                ✕
-                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setShowUpdateStockModal(false)} className="h-8 w-8 p-0"><X className="h-4 w-4" /></Button>
                         </div>
 
                         <div className="space-y-4">
@@ -684,14 +678,14 @@ export default function InventoryPage() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label className="text-sm font-medium">Almacén</Label>
+                                <Label className="text-sm font-medium">Almacen</Label>
                                 <select
                                     className="flex h-10 w-full rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                     value={updateStockForm.warehouseId}
                                     onChange={(e) => setUpdateStockForm(prev => ({ ...prev, warehouseId: e.target.value }))}
                                     style={{ color: updateStockForm.warehouseId ? 'inherit' : 'rgb(120,115,110)' }}
                                 >
-                                    <option value="">Selecciona un almacén...</option>
+                                    <option value="">Selecciona un almacen...</option>
                                     {warehouses.map(w => (
                                         <option key={w.id} value={w.id}>{w.name}</option>
                                     ))}
@@ -708,7 +702,7 @@ export default function InventoryPage() {
                             )}
 
                             <div className="space-y-2">
-                                <Label className="text-sm font-medium">Acción</Label>
+                                <Label className="text-sm font-medium">Accion</Label>
                                 <div className="grid grid-cols-2 gap-2">
                                     <Button
                                         type="button"
@@ -716,7 +710,7 @@ export default function InventoryPage() {
                                         onClick={() => setUpdateStockForm(prev => ({ ...prev, action: 'increase', reason: 'ADJUSTMENT' }))}
                                         className="h-10"
                                     >
-                                        ➕ Aumentar
+                                         Aumentar
                                     </Button>
                                     <Button
                                         type="button"
@@ -724,7 +718,7 @@ export default function InventoryPage() {
                                         onClick={() => setUpdateStockForm(prev => ({ ...prev, action: 'decrease', reason: 'ADJUSTMENT' }))}
                                         className="h-10"
                                     >
-                                        ➖ Disminuir
+                                         Disminuir
                                     </Button>
                                 </div>
                             </div>
@@ -740,18 +734,18 @@ export default function InventoryPage() {
                                     {updateStockForm.action === 'increase' ? (
                                         <>
                                             <option value="PURCHASE">Ingreso por Compra</option>
-                                            <option value="RETURN">Devolución de Cliente</option>
+                                            <option value="RETURN">Devolucion de Cliente</option>
                                             <option value="INITIAL">Inventario Inicial</option>
                                         </>
                                     ) : (
                                         <>
-                                            <option value="DAMAGE">Daño / Merma (Rotura)</option>
-                                            <option value="RETURN">Devolución a Proveedor</option>
+                                            <option value="DAMAGE">Dano / Merma (Rotura)</option>
+                                            <option value="RETURN">Devolucion a Proveedor</option>
                                         </>
                                     )}
                                 </select>
                                 <p className="text-[10px] text-[hsl(var(--muted))] italic">
-                                    Esto determinará cómo aparece etiquetado en el Kardex.
+                                    Esto determinar? como aparece etiquetado en el Kardex.
                                 </p>
                             </div>
 
@@ -828,28 +822,21 @@ export default function InventoryPage() {
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowConfirmation(false)} />
                     <div className="relative bg-[hsl(var(--background))] border border-[hsl(var(--border))] rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold">Confirmar Actualización</h3>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setShowConfirmation(false)}
-                                className="h-8 w-8 p-0"
-                            >
-                                ✕
-                            </Button>
+                            <h3 className="text-lg font-semibold">Confirmar Actualizacion</h3>
+                            <Button variant="ghost" size="sm" onClick={() => setShowConfirmation(false)} className="h-8 w-8 p-0"><X className="h-4 w-4" /></Button>
                         </div>
 
                         <div className="space-y-4">
                             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                                 <div className="flex items-start gap-3">
-                                    <span className="text-2xl">⚠️</span>
+                                    <AlertTriangle className="h-6 w-6 text-yellow-600" />
                                     <div>
                                         <h4 className="font-semibold text-yellow-800 mb-2">Advertencia</h4>
                                         <p className="text-sm text-yellow-700">
-                                            Estás a punto de {updateStockForm.action === 'increase' ? 'aumentar' : 'disminuir'} el stock.
+                                            Estas a punto de {updateStockForm.action === 'increase' ? 'aumentar' : 'disminuir'} el stock.
                                             {updateStockForm.action === 'decrease' && currentStock !== null && updateStockForm.quantityDelta >= currentStock && (
                                                 <span className="block mt-1 font-medium">
-                                                    ¡Esto dejará el producto sin unidades en este almacén!
+                                                    Esto dejar? el producto sin unidades en este almacen!
                                                 </span>
                                             )}
                                         </p>
@@ -866,7 +853,7 @@ export default function InventoryPage() {
                                         </span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span className="text-sm text-[hsl(var(--muted))]">Almacén:</span>
+                                        <span className="text-sm text-[hsl(var(--muted))]">Almacen:</span>
                                         <span className="text-sm font-medium">
                                             {warehouses.find(w => w.id === updateStockForm.warehouseId)?.name || 'N/A'}
                                         </span>
@@ -876,7 +863,7 @@ export default function InventoryPage() {
                                         <span className="text-sm font-medium">{currentStock || 0} unidades</span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span className="text-sm text-[hsl(var(--muted))]">Acción:</span>
+                                        <span className="text-sm text-[hsl(var(--muted))]">Accion:</span>
                                         <span className="text-sm font-medium">
                                             {updateStockForm.action === 'increase' ? '+' : '-'}{updateStockForm.quantityDelta} unidades
                                         </span>
@@ -916,11 +903,11 @@ export default function InventoryPage() {
                             >
                                 {updating ? (
                                     <span className="flex items-center gap-2">
-                                        <span className="animate-spin">⚙️</span>
+                                        <Loader2 className="h-4 w-4 animate-spin" />
                                         Actualizando...
                                     </span>
                                 ) : (
-                                    'Confirmar Actualización'
+                                    'Confirmar Actualizacion'
                                 )}
                             </Button>
                         </div>
@@ -944,3 +931,5 @@ export default function InventoryPage() {
         </div>
     )
 }
+
+

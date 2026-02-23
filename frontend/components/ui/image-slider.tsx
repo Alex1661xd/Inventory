@@ -44,7 +44,7 @@ export function ImageSlider({
     if (images.length === 0) {
         return (
             <div className={cn("w-full h-full flex items-center justify-center text-stone-300 text-5xl", className)}>
-                📦
+                
             </div>
         )
     }

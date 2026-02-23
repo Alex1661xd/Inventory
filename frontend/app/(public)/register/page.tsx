@@ -217,7 +217,7 @@ export default function RegisterPage() {
                                 <Button type="submit" className="w-full h-14 md:h-16 text-lg font-black rounded-2xl bg-[hsl(var(--primary))] text-white shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all pt-1" disabled={loading}>
                                     {loading ? (
                                         <span className="flex items-center gap-2">
-                                            <span className="animate-spin text-xl">⚙️</span>
+                                            <span className="animate-spin text-xl">️</span>
                                             Creando Cuenta...
                                         </span>
                                     ) : (

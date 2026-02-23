@@ -74,7 +74,7 @@ export default function BackupPage() {
     }
 
     const handleRestore = async (file: File) => {
-        if (!confirm('🚨 ¡ATENCIÓN! Esta acción BORRARÁ todos tus datos actuales para reemplazarlos con los del Excel. ¿Estás absolutamente seguro?')) {
+        if (!confirm(' ¡ATENCIÓN! Esta acción BORRARÁ todos tus datos actuales para reemplazarlos con los del Excel. ¿Estás absolutamente seguro?')) {
             return
         }
 

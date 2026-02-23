@@ -53,7 +53,7 @@ export default function PurchaseDetailPage() {
 
     if (!purchase) return (
         <div className="p-8 text-center py-40 bg-white/30 rounded-3xl border-2 border-dashed border-[hsl(var(--border))]">
-            <div className="text-6xl mb-4">🚫</div>
+            <div className="text-6xl mb-4"></div>
             <h3 className="text-xl font-bold">Compra no encontrada</h3>
             <Button onClick={() => router.back()} className="mt-4">Regresar</Button>
         </div>
@@ -232,7 +232,7 @@ export default function PurchaseDetailPage() {
                     <CardContent className="p-0 max-h-[400px] overflow-y-auto">
                         {!purchase.payments || purchase.payments.length === 0 ? (
                             <div className="p-10 text-center space-y-3">
-                                <div className="text-4xl">🧾</div>
+                                <div className="text-4xl"></div>
                                 <p className="text-sm font-bold text-[hsl(var(--muted))] italic">No hay pagos registrados aún para esta compra.</p>
                             </div>
                         ) : (

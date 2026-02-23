@@ -51,7 +51,7 @@ export default function NewPurchasePage() {
     useEffect(() => {
         const loadInitialData = async () => {
             setLoadingData(true)
-            console.log('📦 [NewPurchase] Iniciando carga de datos base...')
+            console.log(' [NewPurchase] Iniciando carga de datos base...')
             try {
                 const [sRes, w, pRes] = await Promise.all([
                     api.suppliers.list({ limit: 500 }),
@@ -60,12 +60,12 @@ export default function NewPurchasePage() {
                 ])
                 const s = Array.isArray(sRes) ? sRes : (sRes?.data || [])
                 const p = Array.isArray(pRes) ? pRes : (pRes?.data || [])
-                console.log(`✅ [NewPurchase] Datos cargados: ${s.length} proveedores, ${w.length} almacenes, ${p.length} productos`)
+                console.log(` [NewPurchase] Datos cargados: ${s.length} proveedores, ${w.length} almacenes, ${p.length} productos`)
                 setSuppliers(s)
                 setWarehouses(w)
                 setProducts(p)
             } catch (error: any) {
-                console.error('❌ [NewPurchase] Error cargando datos base:', error)
+                console.error(' [NewPurchase] Error cargando datos base:', error)
                 toast.error('Error al cargar datos base: ' + error.message)
             } finally {
                 setLoadingData(false)
@@ -84,7 +84,7 @@ export default function NewPurchasePage() {
 
     useEffect(() => {
         if (showResults) {
-            console.log(`🔍 [NewPurchase] Resultados visibles: ${filteredProducts.length} items (búsqueda: "${productSearch}")`)
+            console.log(` [NewPurchase] Resultados visibles: ${filteredProducts.length} items (búsqueda: "${productSearch}")`)
         }
     }, [productSearch, filteredProducts.length, showResults])
 
@@ -328,7 +328,7 @@ export default function NewPurchasePage() {
                                     <div className="absolute z-50 w-full mt-2 bg-white border border-[hsl(var(--border))] rounded-2xl shadow-2xl overflow-hidden animate-scale-in">
                                         {products.length === 0 && !loadingData ? (
                                             <div className="p-8 text-center space-y-3">
-                                                <div className="text-4xl">📭</div>
+                                                <div className="text-4xl"></div>
                                                 <p className="font-bold text-[hsl(var(--foreground))]">Tu catálogo está vacío</p>
                                                 <p className="text-sm text-[hsl(var(--muted))]">Debes crear productos en el módulo de Inventario antes de poder registrar compras.</p>
                                                 <Button
@@ -438,7 +438,7 @@ export default function NewPurchasePage() {
                                         {items.length === 0 ? (
                                             <tr>
                                                 <td colSpan={5} className="py-20 text-center">
-                                                    <div className="text-4xl mb-4">🛒</div>
+                                                    <div className="text-4xl mb-4"></div>
                                                     <p className="text-[hsl(var(--muted))] font-bold italic">La lista está vacía. Añade productos para comenzar.</p>
                                                 </td>
                                             </tr>

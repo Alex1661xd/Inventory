@@ -181,7 +181,7 @@ export default function PurchasesPage() {
             <div className="bg-white/50 backdrop-blur-sm p-4 rounded-2xl border border-[hsl(var(--border))]">
                 <div className="flex flex-col md:flex-row gap-4">
                     <div className="flex-1 relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg">🔍</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg"></span>
                         <Input
                             placeholder="Buscar por proveedor o # compra..."
                             className="h-11 pl-10 border-[hsl(var(--border))]"
@@ -215,7 +215,7 @@ export default function PurchasesPage() {
                     </div>
                 ) : purchases.length === 0 ? (
                     <div className="text-center py-20 bg-white/30 rounded-3xl border-2 border-dashed border-[hsl(var(--border))]">
-                        <div className="text-6xl mb-4">📦</div>
+                        <div className="text-6xl mb-4"></div>
                         <h3 className="text-xl font-bold text-[hsl(var(--foreground))]">Sin registros</h3>
                         <p className="text-[hsl(var(--muted))]">No hemos encontrado ninguna compra que coincida.</p>
                     </div>
@@ -240,10 +240,10 @@ export default function PurchasesPage() {
                                             <div className="space-y-4 mb-6">
                                                 <div className="space-y-1">
                                                     <div className="flex items-center text-xs text-[hsl(var(--muted))] font-medium">
-                                                        <span className="mr-2">👤</span> {purchase.buyer.name}
+                                                        <span className="mr-2"></span> {purchase.buyer.name}
                                                     </div>
                                                     <div className="flex items-center text-xs text-[hsl(var(--muted))] font-medium">
-                                                        <span className="mr-2">📦</span> {purchase._count?.items} productos
+                                                        <span className="mr-2"></span> {purchase._count?.items} productos
                                                     </div>
                                                 </div>
 

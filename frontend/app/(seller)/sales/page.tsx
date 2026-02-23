@@ -215,7 +215,7 @@ function SaleDetailsDialog({ saleId, isOpen, onClose, formatCurrency }: { saleId
                                         const discountText = discount > 0 ? `\n\n*Subtotal:* ${formatCurrency(subtotal)}\n*Descuento:* -${formatCurrency(discount)}` : ''
                                         const comboText = combosList ? `\n\n*Combos:*\n${combosList}` : ''
 
-                                        const text = `Hola ${sale.customer.name}! 👋\n\nTe envío el detalle de tu compra:\n\n*Factura:* #${sale.id.slice(-6).toUpperCase()}\n*Fecha:* ${format(new Date(sale.createdAt), "d 'de' MMMM, yyyy", { locale: es })}${comboText}\n\n*Productos:*\n${itemsList}${discountText}\n\n*Total a pagar:* ${formatCurrency(total)}\n\n¡Gracias por tu compra! 😊`
+                                        const text = `Hola ${sale.customer.name}! \n\nTe envío el detalle de tu compra:\n\n*Factura:* #${sale.id.slice(-6).toUpperCase()}\n*Fecha:* ${format(new Date(sale.createdAt), "d 'de' MMMM, yyyy", { locale: es })}${comboText}\n\n*Productos:*\n${itemsList}${discountText}\n\n*Total a pagar:* ${formatCurrency(total)}\n\n¡Gracias por tu compra! `
                                         window.open(`https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(text)}`, '_blank')
                                     }}
                                     className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
@@ -460,7 +460,7 @@ export default function SalesHistoryPage() {
 
                     {/* Search Input */}
                     <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></span>
                         <input
                             type="text"
                             placeholder="Buscar por cliente o factura..."
@@ -721,7 +721,7 @@ function SaleCard({ sale, formatCurrency, calculatePendingTotal, onResume, onDel
                                         const discountText = discount > 0 ? `\n\n*Subtotal:* ${formatCurrency(subtotal)}\n*Descuento:* -${formatCurrency(discount)}` : ''
                                         const comboText = combosList ? `\n\n*Combos:*\n${combosList}` : ''
 
-                                        const text = `Hola ${sale.customer.name}! 👋\n\nTe envío el detalle de tu compra:\n\n*Factura:* #${sale.id.slice(-6).toUpperCase()}\n*Fecha:* ${format(new Date(sale.createdAt), "d 'de' MMMM, yyyy", { locale: es })}${comboText}\n\n*Productos:*\n${itemsList}${discountText}\n\n*Total:* ${formatCurrency(total)}\n\n¡Gracias por preferirnos! 😊`
+                                        const text = `Hola ${sale.customer.name}! \n\nTe envío el detalle de tu compra:\n\n*Factura:* #${sale.id.slice(-6).toUpperCase()}\n*Fecha:* ${format(new Date(sale.createdAt), "d 'de' MMMM, yyyy", { locale: es })}${comboText}\n\n*Productos:*\n${itemsList}${discountText}\n\n*Total:* ${formatCurrency(total)}\n\n¡Gracias por preferirnos! `
                                         window.open(`https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(text)}`, '_blank')
                                     }}
                                 >

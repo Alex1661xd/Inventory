@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Building2, Loader2, MapPin, Plus, RefreshCw, Search, X } from 'lucide-react'
 
 export default function WarehousesPage() {
     const [warehouses, setWarehouses] = useState<Warehouse[]>([])
@@ -78,10 +79,10 @@ export default function WarehousesPage() {
         try {
             if (editingId) {
                 await api.warehouses.update(editingId, { name: name.trim(), address: address.trim() || undefined })
-                toast.success('Almacén actualizado')
+                toast.success('Almacen actualizado')
             } else {
                 await api.warehouses.create({ name: name.trim(), address: address.trim() || undefined })
-                toast.success('Almacén creado')
+                toast.success('Almacen creado')
             }
             resetForm()
             await load()
@@ -102,7 +103,7 @@ export default function WarehousesPage() {
 
         try {
             await api.warehouses.remove(id)
-            toast.success('Almacén eliminado')
+            toast.success('Almacen eliminado')
             if (editingId === id) resetForm()
             if (viewModal.warehouse?.id === id) setViewModal({ warehouse: null, visible: false })
             await load()
@@ -122,19 +123,17 @@ export default function WarehousesPage() {
                         Almacenes
                     </h2>
                     <p className="text-[hsl(var(--muted))] text-lg">
-                        Gestiona tus bodegas, inventarios y puntos de venta físicos.
+                        Gestiona tus bodegas, inventarios y puntos de venta fisicos.
                     </p>
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                     <Button variant="outline" onClick={load} disabled={loading} className="group">
-                        <span className={loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}>
-                            {loading ? '⚙️' : '🔄'}
-                        </span>
+                        <RefreshCw className={cn('mr-2 h-4 w-4', loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500')} />
                         <span>{loading ? 'Actualizando...' : 'Refrescar'}</span>
                     </Button>
                     <Button onClick={startCreate} className="shadow-lg hover:shadow-xl transition-all">
-                        <span className="mr-2">🏢</span>
-                        Crear Nuevo Almacén
+                        <Plus className="mr-2 h-4 w-4" />
+                        Crear Nuevo Almacen
                     </Button>
                 </div>
             </div>
@@ -142,9 +141,9 @@ export default function WarehousesPage() {
             {/* Filter Section */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center bg-white/50 backdrop-blur-sm p-4 rounded-2xl border border-[rgb(230,225,220)]">
                 <div className="w-full md:max-w-md relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg">🔍</span>
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[rgb(120,115,110)]" />
                     <Input
-                        placeholder="Buscar por nombre o dirección..."
+                        placeholder="Buscar por nombre o direccion..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         className="pl-10 h-12"
@@ -164,7 +163,7 @@ export default function WarehousesPage() {
                         style={{ animationDelay: `${index * 0.05}s` }}
                     >
                         <div className="aspect-video w-full rounded-xl bg-[hsl(var(--background))] overflow-hidden mb-4 flex items-center justify-center relative">
-                            <span className="text-6xl group-hover:scale-125 transition-transform duration-500">🏢</span>
+                            <Building2 className="h-14 w-14 text-[hsl(var(--muted))] group-hover:scale-125 transition-transform duration-500" />
                             <div className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--foreground))]/5 to-transparent"></div>
                         </div>
 
@@ -173,8 +172,8 @@ export default function WarehousesPage() {
                                 {w.name}
                             </h3>
                             <p className="text-sm text-[rgb(120,115,110)] flex items-center gap-2">
-                                <span className="opacity-70">📍</span>
-                                <span className="truncate">{w.address ?? 'Sin dirección registrada'}</span>
+                                <MapPin className="h-3.5 w-3.5 opacity-70" />
+                                <span className="truncate">{w.address ?? 'Sin direccion registrada'}</span>
                             </p>
                         </div>
 
@@ -219,13 +218,15 @@ export default function WarehousesPage() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <CardTitle className="text-2xl" style={{ fontFamily: 'var(--font-display)' }}>
-                                        {editingId ? 'Editar Almacén' : 'Nuevo Almacén'}
+                                        {editingId ? 'Editar Almacen' : 'Nuevo Almacen'}
                                     </CardTitle>
                                     <CardDescription>
                                         Registra una nueva sede o bodega para tu inventario.
                                     </CardDescription>
                                 </div>
-                                <Button variant="ghost" onClick={resetForm} size="icon" className="rounded-full">✕</Button>
+                                <Button variant="ghost" onClick={resetForm} size="icon" className="rounded-full">
+                                    <X className="h-4 w-4" />
+                                </Button>
                             </div>
                         </CardHeader>
                         <CardContent className="p-6 space-y-6">
@@ -234,13 +235,13 @@ export default function WarehousesPage() {
                                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Bodega Central, Sucursal Norte" />
                             </div>
                             <div className="space-y-2">
-                                <Label>Dirección Física</Label>
+                                <Label>Direccion Fisica</Label>
                                 <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Ej. Calle 123 #45-67, Ciudad" />
                             </div>
                         </CardContent>
                         <div className="p-6 border-t border-[rgb(230,225,220)] flex gap-3">
                             <Button onClick={create} className="flex-1 h-12 text-lg shadow-xl" disabled={saving}>
-                                {saving ? '⚙️ Guardando...' : editingId ? 'Guardar Cambios' : 'Confirmar y Crear'}
+                                {saving ? <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Guardando...</span> : editingId ? 'Guardar Cambios' : 'Confirmar y Crear'}
                             </Button>
                             <Button variant="outline" onClick={resetForm} className="h-12" disabled={saving}>
                                 Cancelar
@@ -257,13 +258,15 @@ export default function WarehousesPage() {
                     <Card className="w-full max-w-xl relative z-10 animate-scale-in">
                         <CardHeader className="border-b border-[rgb(230,225,220)]">
                             <div className="flex items-center justify-between">
-                                <CardTitle style={{ fontFamily: 'var(--font-display)' }}>Detalles del Almacén</CardTitle>
-                                <Button variant="ghost" onClick={() => setViewModal({ warehouse: null, visible: false })} size="icon">✕</Button>
+                                <CardTitle style={{ fontFamily: 'var(--font-display)' }}>Detalles del Almacen</CardTitle>
+                                <Button variant="ghost" onClick={() => setViewModal({ warehouse: null, visible: false })} size="icon">
+                                    <X className="h-4 w-4" />
+                                </Button>
                             </div>
                         </CardHeader>
                         <CardContent className="p-6 space-y-6">
                             <div className="aspect-video w-full rounded-2xl bg-[hsl(var(--background))] flex flex-col items-center justify-center border border-[hsl(var(--border))] shadow-inner">
-                                <span className="text-8xl mb-2">🏢</span>
+                                <Building2 className="h-20 w-20 mb-2 text-[hsl(var(--muted))]" />
                                 <div className="text-[hsl(var(--foreground))] font-black text-2xl uppercase tracking-widest opacity-20">ALMACÉN</div>
                             </div>
 
@@ -273,8 +276,8 @@ export default function WarehousesPage() {
                                     <div className="text-2xl font-bold text-[rgb(25,35,25)]">{viewModal.warehouse.name}</div>
                                 </div>
                                 <div>
-                                    <div className="text-xs font-bold text-[rgb(120,115,110)] uppercase tracking-widest mb-1">Ubicación</div>
-                                    <div className="text-lg text-[rgb(25,25,25)]">{viewModal.warehouse.address ?? 'Sin dirección registrada'}</div>
+                                    <div className="text-xs font-bold text-[rgb(120,115,110)] uppercase tracking-widest mb-1">Ubicacion</div>
+                                    <div className="text-lg text-[rgb(25,25,25)]">{viewModal.warehouse.address ?? 'Sin direccion registrada'}</div>
                                 </div>
                             </div>
 
@@ -288,7 +291,7 @@ export default function WarehousesPage() {
                                     }}
                                     className="h-11 font-bold"
                                 >
-                                    Editar Almacén
+                                    Editar Almacen
                                 </Button>
                                 {!viewModal.warehouse.isDefault && (
                                     <Button
@@ -309,11 +312,13 @@ export default function WarehousesPage() {
                 open={!!itemToDelete}
                 onOpenChange={(open) => !open && setItemToDelete(null)}
                 onConfirm={confirmDelete}
-                title="¿Eliminar almacén?"
-                description="Esto eliminará el almacén. Ten cuidado si tienes productos asignados a este almacén."
-                confirmText="Sí, eliminar"
+                title="Eliminar almacen?"
+                description="Esto eliminar? el almacen. Ten cuidado si tienes productos asignados a este almacen."
+                confirmText="Si, eliminar"
                 variant="destructive"
             />
         </div>
     )
 }
+
+

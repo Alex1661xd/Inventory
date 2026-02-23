@@ -30,28 +30,28 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 
 // Action labels & colors - Quiet Luxury Palette
 const ACTION_CONFIG: Record<string, { label: string; color: string; icon: string; bgClass: string; dotColor: string }> = {
-    CREATE: { label: 'Creación', color: 'text-[hsl(var(--success))]', icon: '✨', bgClass: 'bg-[hsl(var(--success)/0.05)] border-[hsl(var(--success)/0.2)]', dotColor: 'bg-[hsl(var(--success))]' },
-    UPDATE: { label: 'Actualización', color: 'text-[hsl(var(--primary))]', icon: '✏️', bgClass: 'bg-[hsl(var(--primary)/0.05)] border-[hsl(var(--primary)/0.2)]', dotColor: 'bg-[hsl(var(--primary))]' },
-    DELETE: { label: 'Eliminación', color: 'text-[hsl(var(--error))]', icon: '🗑️', bgClass: 'bg-[hsl(var(--error)/0.05)] border-[hsl(var(--error)/0.2)]', dotColor: 'bg-[hsl(var(--error))]' },
-    CANCEL: { label: 'Cancelación', color: 'text-[hsl(var(--warning))]', icon: '❌', bgClass: 'bg-[hsl(var(--warning)/0.05)] border-[hsl(var(--warning)/0.2)]', dotColor: 'bg-[hsl(var(--warning))]' },
-    TRANSFER: { label: 'Transferencia', color: 'text-[hsl(var(--accent))]', icon: '🔄', bgClass: 'bg-[hsl(var(--accent)/0.05)] border-[hsl(var(--accent)/0.2)]', dotColor: 'bg-[hsl(var(--accent))]' },
-    LOGIN: { label: 'Inicio de sesión', color: 'text-[hsl(var(--info))]', icon: '🔑', bgClass: 'bg-[hsl(var(--info)/0.05)] border-[hsl(var(--info)/0.2)]', dotColor: 'bg-[hsl(var(--info))]' },
-    STOCK_UPDATE: { label: 'Ajuste de stock', color: 'text-[hsl(var(--primary-light))]', icon: '📦', bgClass: 'bg-[hsl(var(--primary-light)/0.05)] border-[hsl(var(--primary-light)/0.2)]', dotColor: 'bg-[hsl(var(--primary-light))]' },
-    PAYMENT: { label: 'Pago', color: 'text-[hsl(var(--accent))]', icon: '💳', bgClass: 'bg-[hsl(var(--accent)/0.05)] border-[hsl(var(--accent)/0.2)]', dotColor: 'bg-[hsl(var(--accent))]' },
+    CREATE: { label: 'Creación', color: 'text-[hsl(var(--success))]', icon: '', bgClass: 'bg-[hsl(var(--success)/0.05)] border-[hsl(var(--success)/0.2)]', dotColor: 'bg-[hsl(var(--success))]' },
+    UPDATE: { label: 'Actualización', color: 'text-[hsl(var(--primary))]', icon: '️', bgClass: 'bg-[hsl(var(--primary)/0.05)] border-[hsl(var(--primary)/0.2)]', dotColor: 'bg-[hsl(var(--primary))]' },
+    DELETE: { label: 'Eliminación', color: 'text-[hsl(var(--error))]', icon: '️', bgClass: 'bg-[hsl(var(--error)/0.05)] border-[hsl(var(--error)/0.2)]', dotColor: 'bg-[hsl(var(--error))]' },
+    CANCEL: { label: 'Cancelación', color: 'text-[hsl(var(--warning))]', icon: '', bgClass: 'bg-[hsl(var(--warning)/0.05)] border-[hsl(var(--warning)/0.2)]', dotColor: 'bg-[hsl(var(--warning))]' },
+    TRANSFER: { label: 'Transferencia', color: 'text-[hsl(var(--accent))]', icon: '', bgClass: 'bg-[hsl(var(--accent)/0.05)] border-[hsl(var(--accent)/0.2)]', dotColor: 'bg-[hsl(var(--accent))]' },
+    LOGIN: { label: 'Inicio de sesión', color: 'text-[hsl(var(--info))]', icon: '', bgClass: 'bg-[hsl(var(--info)/0.05)] border-[hsl(var(--info)/0.2)]', dotColor: 'bg-[hsl(var(--info))]' },
+    STOCK_UPDATE: { label: 'Ajuste de stock', color: 'text-[hsl(var(--primary-light))]', icon: '', bgClass: 'bg-[hsl(var(--primary-light)/0.05)] border-[hsl(var(--primary-light)/0.2)]', dotColor: 'bg-[hsl(var(--primary-light))]' },
+    PAYMENT: { label: 'Pago', color: 'text-[hsl(var(--accent))]', icon: '', bgClass: 'bg-[hsl(var(--accent)/0.05)] border-[hsl(var(--accent)/0.2)]', dotColor: 'bg-[hsl(var(--accent))]' },
 }
 
 const ENTITY_CONFIG: Record<string, { label: string; icon: string }> = {
-    Product: { label: 'Producto', icon: '📦' },
-    Invoice: { label: 'Venta', icon: '🧾' },
-    Purchase: { label: 'Compra', icon: '🛒' },
-    Warehouse: { label: 'Almacén', icon: '🏢' },
-    Inventory: { label: 'Inventario', icon: '📋' },
-    User: { label: 'Usuario', icon: '👤' },
-    Expense: { label: 'Gasto', icon: '💰' },
-    Customer: { label: 'Cliente', icon: '👥' },
-    Supplier: { label: 'Proveedor', icon: '🏭' },
-    Category: { label: 'Categoría', icon: '📁' },
-    CashShift: { label: 'Turno de Caja', icon: '💵' },
+    Product: { label: 'Producto', icon: '' },
+    Invoice: { label: 'Venta', icon: '' },
+    Purchase: { label: 'Compra', icon: '' },
+    Warehouse: { label: 'Almacén', icon: '' },
+    Inventory: { label: 'Inventario', icon: '' },
+    User: { label: 'Usuario', icon: '' },
+    Expense: { label: 'Gasto', icon: '' },
+    Customer: { label: 'Cliente', icon: '' },
+    Supplier: { label: 'Proveedor', icon: '' },
+    Category: { label: 'Categoría', icon: '' },
+    CashShift: { label: 'Turno de Caja', icon: '' },
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -114,11 +114,11 @@ function formatDetailValue(key: string, value: any) {
 }
 
 function getActionConfig(action: string) {
-    return ACTION_CONFIG[action] || { label: action, color: 'text-[hsl(var(--muted))]', icon: '📝', bgClass: 'bg-[hsl(var(--muted-light)/0.3)] border-[hsl(var(--border))]', dotColor: 'bg-[hsl(var(--muted))]' }
+    return ACTION_CONFIG[action] || { label: action, color: 'text-[hsl(var(--muted))]', icon: '', bgClass: 'bg-[hsl(var(--muted-light)/0.3)] border-[hsl(var(--border))]', dotColor: 'bg-[hsl(var(--muted))]' }
 }
 
 function getEntityConfig(entity: string) {
-    return ENTITY_CONFIG[entity] || { label: entity, icon: '📄' }
+    return ENTITY_CONFIG[entity] || { label: entity, icon: '' }
 }
 
 function formatDate(dateStr: string) {
