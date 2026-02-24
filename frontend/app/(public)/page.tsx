@@ -2,16 +2,13 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import DashboardMockup from '@/components/landing/dashboard-mockup'
 import {
   Package,
-  ChevronRight,
   BarChart3,
   QrCode,
-  History,
   Warehouse,
   Smartphone,
-  ScanLine,
-  Wallet,
   MessageSquare,
   Share2,
   CheckCircle2
@@ -87,11 +84,8 @@ export default function LandingPage() {
 
               <div className="pt-20 lg:pt-32 animate-scale-in" style={{ animationDelay: '0.4s' }}>
                 <div className="relative mx-auto max-w-5xl rounded-3xl border border-[hsl(var(--border)/0.5)] bg-[hsl(var(--surface))] shadow-[0_48px_96px_-24px_rgba(0,0,0,0.12)] p-2">
-                  <div className="aspect-[16/9] bg-gradient-to-br from-[hsl(var(--background))] to-[hsl(var(--muted-light))] rounded-2xl flex items-center justify-center overflow-hidden">
-                    <div className="flex flex-col items-center gap-6 opacity-40">
-                      <Package className="w-24 h-24 stroke-[1] animate-float" />
-                      <p className="font-black text-sm uppercase tracking-[0.5em] animate-pulse-soft">Dashboard Preview</p>
-                    </div>
+                  <div className="aspect-[16/9] rounded-2xl overflow-hidden">
+                    <DashboardMockup />
                   </div>
                 </div>
               </div>
