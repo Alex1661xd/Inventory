@@ -1181,8 +1181,17 @@ export function ProductsManager({
                         {products.map((p, index) => (
                             <div
                                 key={p.id}
-                                className="group relative rounded-xl border border-[rgb(230,225,220)] bg-white p-3 shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col h-full animate-fade-in"
+                                className="group relative rounded-xl border border-[rgb(230,225,220)] bg-white p-3 shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col h-full animate-fade-in cursor-pointer"
                                 style={{ animationDelay: `${index * 0.05}s` }}
+                                onClick={() => handleViewProduct(p)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault()
+                                        void handleViewProduct(p)
+                                    }
+                                }}
+                                role="button"
+                                tabIndex={0}
                             >
                                 {/* Product Image */}
                                 <div className="aspect-square w-full rounded-lg bg-gradient-to-br from-[rgb(250,248,245)] to-[rgb(240,235,230)] overflow-hidden mb-3 relative group/slider">
@@ -1247,7 +1256,10 @@ export function ProductsManager({
                                         variant="outline"
                                         size="sm"
                                         className="h-7 text-[10px] font-bold"
-                                        onClick={() => handleViewProduct(p)}
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            void handleViewProduct(p)
+                                        }}
                                         disabled={loading}
                                     >
                                         Ver
@@ -1256,7 +1268,10 @@ export function ProductsManager({
                                         variant="outline"
                                         size="sm"
                                         className="h-7 text-[10px] font-bold"
-                                        onClick={() => setBarcodeModal({ product: p, visible: true })}
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            setBarcodeModal({ product: p, visible: true })
+                                        }}
                                         disabled={loading}
                                     >
                                         Code
@@ -1267,7 +1282,10 @@ export function ProductsManager({
                                                 variant={p.isSellable ? "outline" : "secondary"}
                                                 size="sm"
                                                 className="h-7 text-[10px] font-bold flex items-center justify-center gap-1"
-                                                onClick={() => toggleSellable(p)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    void toggleSellable(p)
+                                                }}
                                                 disabled={loading || !!togglingId}
                                             >
                                                 {togglingId === p.id && <span className="animate-spin text-[8px]">️</span>}
@@ -1279,7 +1297,10 @@ export function ProductsManager({
                                                 variant="secondary"
                                                 size="sm"
                                                 className="h-7 text-[10px] font-bold"
-                                                onClick={() => startEdit(p)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    startEdit(p)
+                                                }}
                                                 disabled={loading}
                                             >
                                                 Edit
@@ -1288,7 +1309,10 @@ export function ProductsManager({
                                                 variant="destructive"
                                                 size="sm"
                                                 className="h-7 text-[10px] font-bold col-span-2"
-                                                onClick={() => remove(p.id)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    void remove(p.id)
+                                                }}
                                                 disabled={loading}
                                             >
                                                 Eliminar
@@ -2230,7 +2254,7 @@ export function ProductsManager({
                                         onClick={() => downloadProductImages(viewModal.product!)}
                                         title="Descargar imágenes"
                                     >
-                                        <Download className="h-5 w-5" />
+                                        <Download className="h-5 w-5 text-[rgb(25,35,25)]" />
                                     </Button>
                                 </div>
                                 <div className="space-y-4">

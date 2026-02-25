@@ -13,7 +13,7 @@ export class GenerateCatalogImageDto {
 
     @IsInt()
     @Min(1)
-    @Max(3)
+    @Max(4)
     @IsOptional()
     count?: number = 3;
 

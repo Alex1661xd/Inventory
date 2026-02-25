@@ -49,6 +49,7 @@ type BatchResult = {
 
 export default function CatalogImagesPage() {
     const [mode, setMode] = useState<'individual' | 'variants'>('individual')
+    const [outputCount, setOutputCount] = useState(3)
 
     const [images, setImages] = useState<File[]>([])
     const [variantRefs, setVariantRefs] = useState<File[]>([])
@@ -183,7 +184,7 @@ export default function CatalogImagesPage() {
                 formData.append('image', file)
                 if (description.trim()) formData.append('description', description)
                 if (whatsapp.trim()) formData.append('whatsapp', whatsapp)
-                formData.append('count', '3')
+                formData.append('count', String(outputCount))
 
                 const data = await api.superAdmin.catalogImages.generate(formData)
                 batchResults.push({ fileName: file.name, status: 'success', result: data })
@@ -221,7 +222,7 @@ export default function CatalogImagesPage() {
             variantRefs.forEach((file) => formData.append('images', file))
             if (description.trim()) formData.append('description', description)
             if (whatsapp.trim()) formData.append('whatsapp', whatsapp)
-            formData.append('count', '3')
+            formData.append('count', String(outputCount))
             if (variant1.trim()) formData.append('variant1', variant1)
             if (variant2.trim()) formData.append('variant2', variant2)
             if (variant3.trim()) formData.append('variant3', variant3)
@@ -262,7 +263,7 @@ export default function CatalogImagesPage() {
                         setResults([])
                     }}
                 >
-                    Individual (3 por imagen)
+                    Individual ({outputCount} por imagen)
                 </Button>
                 <Button
                     variant={mode === 'variants' ? 'default' : 'outline'}
@@ -285,11 +286,25 @@ export default function CatalogImagesPage() {
                         </CardTitle>
                         <CardDescription className="text-slate-400">
                             {mode === 'individual'
-                                ? 'Hasta 5 productos diferentes, 3 resultados por cada uno.'
-                                : 'Hasta 3 referencias del MISMO producto para generar 3 variantes controladas.'}
+                                ? `Hasta 5 productos diferentes, ${outputCount} resultado(s) por cada uno.`
+                                : `Hasta 3 referencias del MISMO producto para generar ${outputCount} variante(s) controladas.`}
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label className="text-slate-200">Cantidad de imagenes a generar por producto</Label>
+                            <select
+                                value={outputCount}
+                                onChange={(e) => setOutputCount(Number(e.target.value))}
+                                className="w-full h-10 rounded-lg border border-slate-800 bg-slate-950 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                            >
+                                <option value={1}>1</option>
+                                <option value={2}>2</option>
+                                <option value={3}>3</option>
+                                <option value={4}>4</option>
+                            </select>
+                        </div>
+
                         <div className="space-y-2">
                             <Label className="text-slate-200">
                                 {mode === 'individual' ? 'Imagenes de producto' : 'Referencias del mismo producto'}
@@ -319,7 +334,7 @@ export default function CatalogImagesPage() {
 
                         {mode === 'variants' && (
                             <div className="space-y-2 rounded-xl border border-slate-800 p-3 bg-slate-950/50">
-                                <Label className="text-slate-200">Estados/escenas deseadas (3 salidas)</Label>
+                                <Label className="text-slate-200">Estados/escenas deseadas (opcional, hasta 3 salidas)</Label>
                                 <Input
                                     value={variant1}
                                     onChange={(e) => setVariant1(e.target.value)}
@@ -367,7 +382,7 @@ export default function CatalogImagesPage() {
                             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                         >
                             {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                            {loading ? 'Generando...' : mode === 'individual' ? 'Generar 3 Imagenes por Producto' : 'Generar 3 Variantes del Mismo Producto'}
+                            {loading ? 'Generando...' : mode === 'individual' ? `Generar ${outputCount} Imagen(es) por Producto` : `Generar ${outputCount} Variante(s) del Mismo Producto`}
                         </Button>
 
                         {previewUrls.length > 0 && (
@@ -402,7 +417,7 @@ export default function CatalogImagesPage() {
                     <CardHeader>
                         <CardTitle className="text-white">Resultado</CardTitle>
                         <CardDescription className="text-slate-400">
-                            Bloques de 3 imagenes por producto con navegacion lateral.
+                            Bloques de imagenes por producto con navegacion lateral.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">

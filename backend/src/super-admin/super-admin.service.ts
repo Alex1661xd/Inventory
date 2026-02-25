@@ -586,7 +586,7 @@ export class SuperAdminService {
 
         const userDescription = (description || '').trim();
         const normalizedWhatsapp = (whatsapp || '').trim();
-        const safeCount = Math.min(3, Math.max(1, Number(count) || 3));
+        const safeCount = Math.min(4, Math.max(1, Number(count) || 3));
 
         const analysisParts: any[] = [
             {
@@ -623,7 +623,7 @@ export class SuperAdminService {
         const normalizedVariantStates = (variantStates || [])
             .map((value) => (value || '').trim())
             .filter((value) => value.length > 0)
-            .slice(0, 3);
+            .slice(0, 4);
 
         const metaPrompt = this.buildCatalogMetaPrompt(
             analyzedProductDescription,
