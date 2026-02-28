@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../cache/cache.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
+import { SetCustomerBanDto } from './dto/set-customer-ban.dto';
 import { AuditService } from '../audit/audit.service';
 
 @Injectable()
@@ -57,12 +58,14 @@ export class CustomersService {
         return result;
     }
 
-    async findAll(tenantId: string, page: number = 1, limit: number = 20, search?: string) {
+    async findAll(tenantId: string, page: number = 1, limit: number = 20, search?: string, refresh: boolean = false) {
         const skip = (page - 1) * limit;
         const cacheKey = this.cacheService.generateKey(tenantId, 'customers', 'list', `p${page}-l${limit}-s${search || 'all'}`);
 
-        const cached = await this.cacheService.get<any>(cacheKey);
-        if (cached) return cached;
+        if (!refresh) {
+            const cached = await this.cacheService.get<any>(cacheKey);
+            if (cached) return cached;
+        }
 
         const where: any = { tenantId };
 
@@ -138,6 +141,48 @@ export class CustomersService {
             entity: 'Customer',
             entityId: id,
             newValue: updateCustomerDto,
+            tenantId,
+        });
+
+        return result;
+    }
+
+    async setBanStatus(id: string, tenantId: string, dto: SetCustomerBanDto) {
+        const customer: any = await (this.prisma as any).customer.findFirst({
+            where: { id, tenantId },
+            select: { id: true, isBanned: true, banReason: true }
+        });
+
+        if (!customer) {
+            throw new NotFoundException('Cliente no encontrado');
+        }
+
+        const banReason = dto.isBanned ? dto.banReason?.trim() || null : null;
+
+        const result: any = await (this.prisma as any).customer.update({
+            where: { id },
+            data: {
+                isBanned: dto.isBanned,
+                bannedAt: dto.isBanned ? new Date() : null,
+                banReason,
+            }
+        });
+
+        await this.invalidateCustomersCache(tenantId, id);
+
+        this.auditService.log({
+            action: dto.isBanned ? 'BAN' : 'UNBAN',
+            entity: 'Customer',
+            entityId: id,
+            oldValue: {
+                isBanned: customer.isBanned,
+                banReason: customer.banReason,
+            },
+            newValue: {
+                isBanned: result.isBanned,
+                banReason: result.banReason,
+                bannedAt: result.bannedAt,
+            },
             tenantId,
         });
 

@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useState, useEffect } from 'react'
-import { api } from '@/lib/backend'
+import { api, type Customer } from '@/lib/backend'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { Loader2, Pencil, Phone, Plus, RefreshCw, Search, Trash2, UserRound, X } from 'lucide-react'
+import { Loader2, Pencil, Phone, Plus, RefreshCw, Search, ShieldAlert, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
 import {
     Select,
     SelectContent,
@@ -33,16 +33,7 @@ const COUNTRIES = [
     { code: '502', name: 'Guatemala' },
 ]
 
-interface Customer {
-    id: string
-    name: string
-    email?: string
-    phone?: string
-    docNumber?: string
-    address?: string
-}
-
-export default function CustomersPage() {
+export default function CustomersPage({ forceAdminView = false }: { forceAdminView?: boolean }) {
     const [customers, setCustomers] = useState<Customer[]>([])
     const [loading, setLoading] = useState(false)
     const [saving, setSaving] = useState(false)
@@ -54,6 +45,9 @@ export default function CustomersPage() {
     const [showForm, setShowForm] = useState(false)
     const [editingId, setEditingId] = useState<string | null>(null)
     const [itemToDelete, setItemToDelete] = useState<string | null>(null)
+    const [itemToToggleBan, setItemToToggleBan] = useState<Customer | null>(null)
+    const [banReasonInput, setBanReasonInput] = useState('')
+    const [isAdminUser, setIsAdminUser] = useState(forceAdminView)
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -64,10 +58,10 @@ export default function CustomersPage() {
     const [countryCode, setCountryCode] = useState('57')
     const [localPhone, setLocalPhone] = useState('')
 
-    const loadCustomers = async (page = 1, query = search) => {
+    const loadCustomers = async (page = 1, query = search, refresh = false) => {
         setLoading(true)
         try {
-            const response = await api.customers.list({ page, limit: itemsPerPage, search: query })
+            const response = await api.customers.list({ page, limit: itemsPerPage, search: query, refresh })
             const customersData = Array.isArray(response) ? response : (response?.data || [])
             setCustomers(customersData)
             setTotalPages(Array.isArray(response) ? 1 : (response.totalPages || 1))
@@ -83,6 +77,18 @@ export default function CustomersPage() {
     useEffect(() => {
         loadCustomers(1, search)
     }, [search])
+
+    useEffect(() => {
+        const loadRole = async () => {
+            try {
+                const me = await api.auth.me()
+                setIsAdminUser(forceAdminView || me.role === 'ADMIN' || me.role === 'SUPER_ADMIN')
+            } catch {
+                setIsAdminUser(forceAdminView)
+            }
+        }
+        loadRole()
+    }, [forceAdminView])
 
     useEffect(() => {
         loadCustomers(currentPage, search)
@@ -134,12 +140,14 @@ export default function CustomersPage() {
             if (editingId) {
                 await api.customers.update(editingId, submissionData)
                 toast.success('Cliente actualizado')
+                await loadCustomers(currentPage, search, true)
             } else {
-                await api.customers.create(submissionData)
+                const created = await api.customers.create(submissionData)
                 toast.success('Cliente creado')
+                setSearch(created.name)
+                await loadCustomers(1, created.name, true)
             }
             resetForm()
-            await loadCustomers()
         } catch (e: any) {
             toast.error(e.message)
         } finally {
@@ -151,12 +159,40 @@ export default function CustomersPage() {
         setItemToDelete(id)
     }
 
+    const startToggleBan = (customer: Customer) => {
+        setItemToToggleBan(customer)
+        setBanReasonInput(customer.banReason || '')
+    }
+
+    const confirmToggleBan = async () => {
+        if (!itemToToggleBan) return
+
+        const nextIsBanned = !itemToToggleBan.isBanned
+        if (nextIsBanned && !banReasonInput.trim()) {
+            toast.error('Debes indicar un motivo para vetar al cliente')
+            return
+        }
+
+        try {
+            await api.customers.setBan(itemToToggleBan.id, {
+                isBanned: nextIsBanned,
+                banReason: nextIsBanned ? banReasonInput.trim() : undefined,
+            })
+            toast.success(nextIsBanned ? 'Cliente vetado' : 'Veto retirado')
+            await loadCustomers(currentPage, search, true)
+            setItemToToggleBan(null)
+            setBanReasonInput('')
+        } catch (e: any) {
+            toast.error(e.message)
+        }
+    }
+
     const confirmDelete = async () => {
         if (!itemToDelete) return
         try {
             await api.customers.remove(itemToDelete)
             toast.success('Cliente eliminado')
-            await loadCustomers()
+            await loadCustomers(currentPage, search, true)
         } catch (e: any) {
             toast.error(e.message)
         } finally {
@@ -185,7 +221,7 @@ export default function CustomersPage() {
                     </p>
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <Button variant="outline" onClick={() => loadCustomers()} disabled={loading} className="group">
+                    <Button variant="outline" onClick={() => loadCustomers(currentPage, search, true)} disabled={loading} className="group">
                         <RefreshCw className={loading ? 'mr-2 h-4 w-4 animate-spin' : 'mr-2 h-4 w-4 group-hover:rotate-180 transition-transform duration-500'} />
                         <span>{loading ? 'Actualizando...' : 'Refrescar'}</span>
                     </Button>
@@ -228,6 +264,12 @@ export default function CustomersPage() {
                             <h3 className="text-sm md:text-lg font-bold text-[hsl(var(--foreground))] leading-tight line-clamp-2 min-h-[2.5em]" title={c.name}>
                                 {c.name}
                             </h3>
+                            {c.isBanned && (
+                                <div className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-1 text-[10px] font-semibold text-red-700">
+                                    <ShieldAlert className="h-3 w-3" />
+                                    Cliente vetado
+                                </div>
+                            )}
 
                             <div className="flex flex-col gap-0.5 items-center justify-center text-xs text-[rgb(120,115,110)]">
                                 {c.docNumber && (
@@ -241,9 +283,17 @@ export default function CustomersPage() {
                                     </span>
                                 )}
                             </div>
+                            {c.isBanned && c.banReason && (
+                                <p className="text-[10px] md:text-xs text-red-700 line-clamp-2 px-1" title={c.banReason}>
+                                    {c.banReason}
+                                </p>
+                            )}
                         </div>
 
-                        <div className="mt-3 pt-3 border-t border-[rgb(230,225,220)] grid grid-cols-2 gap-1.5">
+                        <div className={cn(
+                            "mt-3 pt-3 border-t border-[rgb(230,225,220)] gap-1.5",
+                            isAdminUser ? "grid grid-cols-3" : "grid grid-cols-2",
+                        )}>
                             <Button
                                 variant="secondary"
                                 size="sm"
@@ -262,6 +312,21 @@ export default function CustomersPage() {
                                 <Trash2 className="h-3.5 w-3.5 md:mr-1" />
                                 <span className="hidden md:inline">Eliminar</span>
                             </Button>
+                            {isAdminUser && (
+                                <Button
+                                    variant={c.isBanned ? "outline" : "destructive"}
+                                    size="sm"
+                                    className="h-7 md:h-8 text-[10px] md:text-xs font-bold px-1"
+                                    onClick={() => startToggleBan(c)}
+                                >
+                                    {c.isBanned ? (
+                                        <ShieldCheck className="h-3.5 w-3.5 md:mr-1" />
+                                    ) : (
+                                        <ShieldAlert className="h-3.5 w-3.5 md:mr-1" />
+                                    )}
+                                    <span className="hidden md:inline">{c.isBanned ? 'Quitar veto' : 'Vetar'}</span>
+                                </Button>
+                            )}
                         </div>
                     </div>
                 ))}
@@ -408,6 +473,57 @@ export default function CustomersPage() {
                 confirmText="Sí, eliminar"
                 variant="destructive"
             />
+
+            {itemToToggleBan && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
+                    <div className="absolute inset-0 bg-[rgb(25,35,25)]/40 backdrop-blur-sm" onClick={() => setItemToToggleBan(null)} />
+                    <Card className="w-full max-w-lg relative z-10 animate-scale-in">
+                        <CardHeader>
+                            <CardTitle>{itemToToggleBan.isBanned ? 'Quitar veto de cliente' : 'Vetar cliente'}</CardTitle>
+                            <CardDescription>
+                                {itemToToggleBan.isBanned
+                                    ? 'El cliente volverá a estar habilitado para ventas en todas las sedes.'
+                                    : 'Este cliente no podrá ser seleccionado para ventas en ninguna sede.'}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="rounded-lg bg-gray-50 border p-3 text-sm">
+                                <div className="font-semibold">{itemToToggleBan.name}</div>
+                                {itemToToggleBan.docNumber && <div className="text-gray-600">Documento: {itemToToggleBan.docNumber}</div>}
+                            </div>
+                            {!itemToToggleBan.isBanned && (
+                                <div className="space-y-2">
+                                    <Label>Motivo del veto <span className="text-red-500">*</span></Label>
+                                    <Input
+                                        value={banReasonInput}
+                                        onChange={(e) => setBanReasonInput(e.target.value)}
+                                        placeholder="Ej. Incumplimiento reiterado de pagos"
+                                        maxLength={500}
+                                    />
+                                </div>
+                            )}
+                            {itemToToggleBan.isBanned && itemToToggleBan.banReason && (
+                                <div className="space-y-1">
+                                    <Label>Motivo actual</Label>
+                                    <p className="text-sm text-gray-700 rounded-md bg-gray-50 border p-3">{itemToToggleBan.banReason}</p>
+                                </div>
+                            )}
+                            <div className="flex gap-3 pt-2">
+                                <Button variant="outline" className="flex-1" onClick={() => setItemToToggleBan(null)}>
+                                    Cancelar
+                                </Button>
+                                <Button
+                                    variant={itemToToggleBan.isBanned ? "default" : "destructive"}
+                                    className="flex-1"
+                                    onClick={confirmToggleBan}
+                                >
+                                    {itemToToggleBan.isBanned ? 'Quitar veto' : 'Confirmar veto'}
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
         </div>
     )
 }

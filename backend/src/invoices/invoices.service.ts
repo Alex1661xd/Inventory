@@ -70,6 +70,34 @@ export class InvoicesService {
             throw new BadRequestException('No puedes vender fuera de tu sede asignada.');
         }
 
+        let selectedCustomer: { id: string; name: string; isBanned: boolean; banReason: string | null } | null = null;
+        if (dto.customerId) {
+            selectedCustomer = await (this.prisma as any).customer.findFirst({
+                where: {
+                    id: dto.customerId,
+                    tenantId,
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    isBanned: true,
+                    banReason: true,
+                }
+            });
+
+            if (!selectedCustomer) {
+                throw new BadRequestException('El cliente seleccionado no existe en este negocio.');
+            }
+
+            if (selectedCustomer.isBanned) {
+                const reason = selectedCustomer.banReason?.trim();
+                const reasonSuffix = reason ? ` Motivo: ${reason}` : '';
+                throw new BadRequestException(
+                    `No se puede vender al cliente "${selectedCustomer.name}" porque está vetado.${reasonSuffix}`
+                );
+            }
+        }
+
         const normalizedDirectItems = (dto.items || [])
             .map((item) => ({
                 productId: item.productId,
@@ -304,7 +332,7 @@ export class InvoicesService {
                     paymentMethod: dto.paymentMethod,
                     tenantId,
                     sellerId,
-                    customerId: dto.customerId,
+                    customerId: selectedCustomer?.id,
                     warehouseId: dto.warehouseId,
                     amountReceived: dto.amountReceived,
                     amountReturned: dto.amountReturned,

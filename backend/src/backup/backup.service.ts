@@ -418,6 +418,9 @@ export class BackupService {
             { header: 'Teléfono', key: 'phone' },
             { header: 'Documento', key: 'docNumber' },
             { header: 'Dirección', key: 'address' },
+            { header: 'Vetado', key: 'isBanned' },
+            { header: 'FechaVeto', key: 'bannedAt' },
+            { header: 'MotivoVeto', key: 'banReason' },
         ];
         custSheet.addRows(data.customers);
 
@@ -508,6 +511,15 @@ export class BackupService {
                         phone: c.Teléfono,
                         docNumber: c.Documento,
                         address: c.Dirección,
+                        isBanned:
+                            c.Vetado === true ||
+                            c.Vetado === 1 ||
+                            c.Vetado === '1' ||
+                            String(c.Vetado || '').toLowerCase() === 'true' ||
+                            String(c.Vetado || '').toLowerCase() === 'si' ||
+                            String(c.Vetado || '').toLowerCase() === 'sí',
+                        bannedAt: c.FechaVeto ? new Date(c.FechaVeto) : null,
+                        banReason: c.MotivoVeto || null,
                         tenantId
                     }))
                 });

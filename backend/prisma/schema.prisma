@@ -389,11 +389,16 @@ model Customer {
   phone     String?
   address   String?
   docNumber String?   // Cédula o NIT
+  isBanned  Boolean   @default(false)
+  bannedAt  DateTime?
+  banReason String?
   
   tenantId  String
   tenant    Tenant    @relation(fields: [tenantId], references: [id])
   
   invoices  Invoice[]
+
+  @@index([tenantId, isBanned])
 }
 
 model Invoice {

@@ -76,6 +76,8 @@ interface Customer {
     id: string
     name: string
     docNumber?: string
+    isBanned?: boolean
+    banReason?: string | null
 }
 
 // Scanner Modal Component with Camera Support
@@ -524,15 +526,26 @@ function POSMobileView(props: {
                         </Card>
 
                         {selectedCustomer && (
-                            <Card className="bg-emerald-50 border-emerald-200">
+                            <Card className={cn(
+                                selectedCustomer.isBanned ? "bg-red-50 border-red-200" : "bg-emerald-50 border-emerald-200"
+                            )}>
                                 <CardContent className="p-4">
                                     <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3 text-emerald-700">
-                                            <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xl"></div>
+                                        <div className={cn(
+                                            "flex items-center gap-3",
+                                            selectedCustomer.isBanned ? "text-red-700" : "text-emerald-700"
+                                        )}>
+                                            <div className={cn(
+                                                "w-10 h-10 rounded-full text-white flex items-center justify-center text-xl",
+                                                selectedCustomer.isBanned ? "bg-red-500" : "bg-emerald-500"
+                                            )}></div>
                                             <div>
                                                 <div className="font-bold">{selectedCustomer.name}</div>
                                                 {selectedCustomer.docNumber && (
                                                     <div className="text-sm opacity-80">{selectedCustomer.docNumber}</div>
+                                                )}
+                                                {selectedCustomer.isBanned && (
+                                                    <div className="text-xs font-semibold">Cliente vetado: no se puede vender.</div>
                                                 )}
                                             </div>
                                         </div>
@@ -540,11 +553,19 @@ function POSMobileView(props: {
                                             size="icon"
                                             variant="ghost"
                                             onClick={() => setSelectedCustomer(null)}
-                                            className="text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100 h-8 w-8"
+                                            className={cn(
+                                                "h-8 w-8",
+                                                selectedCustomer.isBanned
+                                                    ? "text-red-700 hover:text-red-900 hover:bg-red-100"
+                                                    : "text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100",
+                                            )}
                                         >
                                             <X className="h-4 w-4" />
                                         </Button>
                                     </div>
+                                    {selectedCustomer.isBanned && selectedCustomer.banReason && (
+                                        <p className="mt-2 text-xs text-red-700">Motivo: {selectedCustomer.banReason}</p>
+                                    )}
                                 </CardContent>
                             </Card>
                         )}
@@ -960,7 +981,7 @@ function POSMobileView(props: {
                             size="lg"
                             className="flex-1 h-12 text-sm font-bold uppercase tracking-wide"
                             onClick={handleCheckout}
-                            disabled={processing}
+                            disabled={processing || !selectedCustomer || !!selectedCustomer?.isBanned || (cart.length === 0 && comboCart.length === 0)}
                         >
                             {processing ? 'Procesando...' : 'FINALIZAR'}
                         </Button>
@@ -1374,7 +1395,7 @@ function POSDesktopView(props: {
                     <Button
                         size="lg"
                         className="w-full h-14 text-lg font-bold shadow-lg"
-                        disabled={(cart.length === 0 && comboCart.length === 0) || !selectedCustomer}
+                        disabled={(cart.length === 0 && comboCart.length === 0) || !selectedCustomer || !!selectedCustomer?.isBanned}
                         onClick={() => setIsCheckoutOpen(true)}
                     >
                         COBRAR
@@ -1861,6 +1882,10 @@ export default function POSPage() {
             toast.error('El carrito está vacío')
             return
         }
+        if (selectedCustomer?.isBanned) {
+            toast.error('No se puede guardar ni vender con un cliente vetado')
+            return
+        }
 
         if (!warehouseId) {
             toast.error('No hay almacén seleccionado')
@@ -1933,6 +1958,11 @@ export default function POSPage() {
     const handleCheckout = async () => {
         if (!selectedCustomer) {
             toast.error('Debes seleccionar un cliente')
+            return
+        }
+        if (selectedCustomer.isBanned) {
+            const reason = selectedCustomer.banReason?.trim()
+            toast.error(reason ? `Cliente vetado. Motivo: ${reason}` : 'Cliente vetado. No se puede vender.')
             return
         }
         if (cart.length === 0 && comboCart.length === 0) {
@@ -2045,7 +2075,7 @@ export default function POSPage() {
         return () => window.removeEventListener('keydown', handleGlobalKeyDown)
     }, [handleScan])
 
-    const canProceedToStep2 = selectedCustomer !== null
+    const canProceedToStep2 = selectedCustomer !== null && !selectedCustomer.isBanned
     const canProceedToStep3 = cart.length > 0 || comboCart.length > 0
 
     if (isMobile === null) {
@@ -2210,6 +2240,12 @@ export default function POSPage() {
                                     <span className="text-gray-600">Cliente</span>
                                     <span className="font-medium">{selectedCustomer?.name}</span>
                                 </div>
+                                {selectedCustomer?.isBanned && (
+                                    <div className="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg p-2">
+                                        Cliente vetado. No se puede finalizar esta venta.
+                                        {selectedCustomer.banReason ? ` Motivo: ${selectedCustomer.banReason}` : ''}
+                                    </div>
+                                )}
                                 <div className="flex justify-between text-sm">
                                     <span className="text-gray-600">Productos</span>
                                     <span className="font-medium">{cart.length + comboCart.length} items</span>
@@ -2290,7 +2326,7 @@ export default function POSPage() {
                                 <Button
                                     className="flex-1 h-12 text-base font-bold"
                                     onClick={handleCheckout}
-                                    disabled={processing}
+                                    disabled={processing || !!selectedCustomer?.isBanned}
                                 >
                                     {processing ? 'Procesando...' : ' Confirmar Venta'}
                                 </Button>

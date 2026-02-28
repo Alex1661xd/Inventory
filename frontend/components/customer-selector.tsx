@@ -18,7 +18,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover'
-import { api } from '@/lib/backend'
+import { api, type Customer } from '@/lib/backend'
 import { toast } from 'sonner'
 import { Input } from './ui/input'
 import {
@@ -28,13 +28,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
-
-interface Customer {
-    id: string
-    name: string
-    docNumber?: string
-    phone?: string
-}
 
 const COUNTRIES = [
     { code: '57', name: 'Colombia', flag: 'CO' },
@@ -55,10 +48,12 @@ export function CustomerSelector({
     onSelect,
     selectedCustomer: externalSelectedCustomer,
     onCreateNew: onSelectNew,
+    allowBannedSelection = false,
 }: {
     onSelect: (customer: Customer | null) => void
     selectedCustomer?: Customer | null
     onCreateNew?: () => void
+    allowBannedSelection?: boolean
 }) {
     const [open, setOpen] = useState(false)
     const [value, setValue] = useState('')
@@ -70,7 +65,7 @@ export function CustomerSelector({
 
     const loadCustomers = async () => {
         try {
-            const result = await api.customers.list()
+            const result = await api.customers.list({ limit: 200, refresh: true })
             setCustomers(result.data)
         } catch (e) {
             console.error(e)
@@ -204,6 +199,16 @@ export function CustomerSelector({
                                             key={customer.id}
                                             value={`${customer.name} ${customer.docNumber || ''} ${customer.phone || ''}`}
                                             onSelect={() => {
+                                                if (customer.isBanned && !allowBannedSelection) {
+                                                    const reason = customer.banReason?.trim()
+                                                    toast.error(
+                                                        reason
+                                                            ? `No se puede vender a este cliente. Motivo: ${reason}`
+                                                            : 'No se puede vender a este cliente porque está vetado.',
+                                                    )
+                                                    return
+                                                }
+
                                                 const nextId = customer.id === selectedId ? '' : customer.id
                                                 setValue(nextId)
                                                 onSelect(nextId ? customer : null)
@@ -217,7 +222,14 @@ export function CustomerSelector({
                                                 )}
                                             />
                                             <div className="flex flex-col">
-                                                <span>{customer.name}</span>
+                                                <span className="inline-flex items-center gap-2">
+                                                    {customer.name}
+                                                    {customer.isBanned && (
+                                                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">
+                                                            Vetado
+                                                        </span>
+                                                    )}
+                                                </span>
                                                 {customer.docNumber && <span className="text-xs text-muted-foreground">{customer.docNumber}</span>}
                                             </div>
                                         </CommandItem>

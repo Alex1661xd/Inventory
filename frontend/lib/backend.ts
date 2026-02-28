@@ -284,6 +284,18 @@ export type Warehouse = {
     isDefault: boolean;
 };
 
+export type Customer = {
+    id: string;
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+    docNumber?: string | null;
+    address?: string | null;
+    isBanned: boolean;
+    bannedAt?: string | null;
+    banReason?: string | null;
+};
+
 export type StockRow = {
     id: string;
     quantity: number;
@@ -562,16 +574,34 @@ export const api = {
         remove: (id: string) => backendFetch<any>(`/users/${id}`, { method: 'DELETE' }),
     },
     customers: {
-        list: (options?: { page?: number; limit?: number; search?: string }) => {
+        list: (options?: { page?: number; limit?: number; search?: string; refresh?: boolean }) => {
             const params = new URLSearchParams();
             if (options?.page) params.set('page', options.page.toString());
             if (options?.limit) params.set('limit', options.limit.toString());
             if (options?.search) params.set('search', options.search);
-            return fetchPaginatedWithPrefetch<PaginatedResponse<any>>('/customers', params);
+            if (options?.refresh) params.set('refresh', '1');
+            if (options?.refresh) {
+                return backendFetch<PaginatedResponse<Customer>>(buildPath('/customers', params));
+            }
+            return fetchPaginatedWithPrefetch<PaginatedResponse<Customer>>('/customers', params);
         },
-        create: (payload: any) => backendFetch<any>('/customers', { method: 'POST', json: payload }),
-        update: (id: string, payload: any) => backendFetch<any>(`/customers/${id}`, { method: 'PATCH', json: payload }),
-        remove: (id: string) => backendFetch<any>(`/customers/${id}`, { method: 'DELETE' }),
+        create: (payload: {
+            name: string;
+            docNumber: string;
+            phone: string;
+            email?: string;
+            address?: string;
+        }) => backendFetch<Customer>('/customers', { method: 'POST', json: payload }),
+        update: (id: string, payload: Partial<{
+            name: string;
+            docNumber: string;
+            phone: string;
+            email?: string;
+            address?: string;
+        }>) => backendFetch<Customer>(`/customers/${id}`, { method: 'PATCH', json: payload }),
+        setBan: (id: string, payload: { isBanned: boolean; banReason?: string }) =>
+            backendFetch<Customer>(`/customers/${id}/ban`, { method: 'PATCH', json: payload }),
+        remove: (id: string) => backendFetch<Customer>(`/customers/${id}`, { method: 'DELETE' }),
     },
     invoices: {
         create: (payload: any) => backendFetch<any>('/invoices', { method: 'POST', json: payload }),
