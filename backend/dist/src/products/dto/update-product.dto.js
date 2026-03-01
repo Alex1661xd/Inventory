@@ -51,6 +51,7 @@ class UpdateProductDto {
     salePrice;
     creditPrice;
     allowCreditSale;
+    creditDownPayment;
     isPublic;
     isSellable;
     categoryId;
@@ -104,6 +105,12 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], UpdateProductDto.prototype, "allowCreditSale", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], UpdateProductDto.prototype, "creditDownPayment", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsBoolean)(),

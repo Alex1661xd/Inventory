@@ -61,6 +61,12 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
             maximumFractionDigits: 0,
         }).format(safe)
     }
+    const DEFAULT_CREDIT_INSTALLMENTS = 6
+    const getInstallmentValue = (totalCreditPrice: string | number, installments = DEFAULT_CREDIT_INSTALLMENTS) => {
+        const amount = typeof totalCreditPrice === 'string' ? Number(totalCreditPrice) : totalCreditPrice
+        if (!Number.isFinite(amount) || amount <= 0 || installments <= 0) return 0
+        return amount / installments
+    }
 
     const totalStock = useMemo(() => {
         const byWarehouse = new Map<string, number>()
@@ -420,6 +426,20 @@ export function BarcodeProductScanner({ className, onScan }: Props) {
                                     <div className="space-y-1">
                                         <div className="text-xs text-[hsl(var(--muted))] uppercase tracking-widest font-bold">Precio</div>
                                         <div className="text-3xl font-black text-[hsl(var(--primary))]">{formatCurrency(product.salePrice)}</div>
+                                        {product.allowCreditSale && Number(product.creditPrice || 0) > 0 ? (
+                                            <div className="mt-2 space-y-1">
+                                                <div className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                                    Credito habilitado
+                                                </div>
+                                                <div className="text-sm font-semibold text-indigo-700">
+                                                    {DEFAULT_CREDIT_INSTALLMENTS} cuotas de {formatCurrency(getInstallmentValue(product.creditPrice || 0, DEFAULT_CREDIT_INSTALLMENTS))}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="mt-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-stone-100 text-stone-500 border border-stone-200">
+                                                Sin credito
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="p-4 bg-[hsl(var(--foreground))] text-[hsl(var(--background))] rounded-xl flex items-center justify-between shadow-lg">

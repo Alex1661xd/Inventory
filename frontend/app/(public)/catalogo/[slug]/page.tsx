@@ -19,6 +19,8 @@ interface CatalogProduct {
     description: string | null
     images: string[]
     price: number
+    creditPrice?: number
+    allowCreditSale?: boolean
     categoryId: string | null
     categoryName: string
     available: boolean
@@ -33,6 +35,8 @@ interface CatalogProduct {
         quantity: number
     }>
 }
+
+const DEFAULT_CREDIT_INSTALLMENTS = 6
 
 interface Category {
     id: string
@@ -70,6 +74,11 @@ function isRecentlyCreated(createdAt?: string, days = 14) {
     const now = Date.now()
     const diffDays = (now - created) / (1000 * 60 * 60 * 24)
     return diffDays >= 0 && diffDays <= days
+}
+
+function getInstallmentValue(totalCreditPrice: number, installments = DEFAULT_CREDIT_INSTALLMENTS) {
+    if (!Number.isFinite(totalCreditPrice) || totalCreditPrice <= 0 || installments <= 0) return 0
+    return totalCreditPrice / installments
 }
 
 export default function CatalogPage() {
@@ -134,7 +143,11 @@ export default function CatalogPage() {
 
         return catalog.products.filter(product => {
             const matchesCategory = !selectedCategory ||
-                (selectedCategory === 'combos' ? product.type === 'COMBO' : product.categoryId === selectedCategory)
+                (selectedCategory === 'combos'
+                    ? product.type === 'COMBO'
+                    : selectedCategory === 'credit'
+                        ? product.type === 'PRODUCT' && !!product.allowCreditSale
+                        : product.categoryId === selectedCategory)
             const matchesSearch = !searchQuery ||
                 product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 product.description?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -247,6 +260,19 @@ export default function CatalogPage() {
                                 Combos
                             </button>
 
+                            <button
+                                onClick={() => setSelectedCategory('credit')}
+                                className={cn(
+                                    "px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 border-2",
+                                    selectedCategory === 'credit'
+                                        ? "text-white shadow-lg scale-105 border-transparent"
+                                        : "bg-white text-stone-400 border-stone-200 hover:bg-stone-50"
+                                )}
+                                style={selectedCategory === 'credit' ? { backgroundColor: business.accentColor } : {}}
+                            >
+                                Credito
+                            </button>
+
                             {/* Dynamic Categories */}
                             {categories
                                 .filter(cat => cat.name.toLowerCase() !== 'combos' && cat.name.toLowerCase() !== 'combo')
@@ -346,11 +372,15 @@ export default function CatalogPage() {
                                             className={cn(
                                                 "absolute top-2 right-2 px-2 py-1 rounded-full text-[10px] md:text-xs font-medium backdrop-blur-sm z-30",
                                                 product.available
-                                                    ? "bg-green-500/90 text-white"
+                                                    ? (product.type === 'PRODUCT' && product.allowCreditSale
+                                                        ? "bg-indigo-600/90 text-white"
+                                                        : "bg-green-500/90 text-white")
                                                     : "bg-red-500/90 text-white"
                                             )}
                                         >
-                                            {product.available ? '✓ Disponible' : '✕ Agotado'}
+                                            {product.available
+                                                ? (product.type === 'PRODUCT' && product.allowCreditSale ? 'Disponible para credito' : 'Disponible')
+                                                : 'Agotado'}
                                         </div>
 
                                         {/* Category Tag */}
@@ -380,12 +410,22 @@ export default function CatalogPage() {
                                                 Ahorras {formatPrice(Number(product.discountAmount || 0))}
                                             </div>
                                         )}
-                                        <p
-                                            className="mt-2 text-lg md:text-xl font-bold"
-                                            style={{ color: business.accentColor }}
-                                        >
-                                            {formatPrice(product.price)}
-                                        </p>
+                                        <div className="mt-2 space-y-1">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-stone-500">
+                                                Contado
+                                            </p>
+                                            <p
+                                                className="text-lg md:text-xl font-bold"
+                                                style={{ color: business.accentColor }}
+                                            >
+                                                {formatPrice(product.price)}
+                                            </p>
+                                            {product.type === 'PRODUCT' && product.allowCreditSale && Number(product.creditPrice || 0) > 0 && (
+                                                <p className="text-[11px] font-semibold text-indigo-700">
+                                                    Credito: {DEFAULT_CREDIT_INSTALLMENTS} cuotas de {formatPrice(getInstallmentValue(Number(product.creditPrice || 0), DEFAULT_CREDIT_INSTALLMENTS))}
+                                                </p>
+                                            )}
+                                        </div>
                                         {product.type === 'COMBO' && (product.originalPrice || 0) > product.price && (
                                             <p className="text-xs text-stone-500 line-through">
                                                 Antes {formatPrice(Number(product.originalPrice || 0))}
@@ -461,10 +501,21 @@ export default function CatalogPage() {
                                         </DialogTitle>
                                     </div>
 
-                                    <div className="pb-8 border-b border-[hsl(var(--border)/0.5)]">
-                                        <p className="text-5xl font-black tracking-tighter" style={{ color: business.accentColor }}>
-                                            {formatPrice(selectedProduct.price)}
-                                        </p>
+                                    <div className="pb-8 border-b border-[hsl(var(--border)/0.5)] space-y-3">
+                                        <div>
+                                            <p className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-[0.25em]">Contado</p>
+                                            <p className="text-5xl font-black tracking-tighter" style={{ color: business.accentColor }}>
+                                                {formatPrice(selectedProduct.price)}
+                                            </p>
+                                        </div>
+                                        {selectedProduct.type === 'PRODUCT' && selectedProduct.allowCreditSale && Number(selectedProduct.creditPrice || 0) > 0 && (
+                                            <div>
+                                                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-700">Credito</p>
+                                                <p className="mt-1 text-base font-bold text-indigo-700">
+                                                    {DEFAULT_CREDIT_INSTALLMENTS} cuotas de {formatPrice(getInstallmentValue(Number(selectedProduct.creditPrice || 0), DEFAULT_CREDIT_INSTALLMENTS))}
+                                                </p>
+                                            </div>
+                                        )}
                                         {selectedProduct.type === 'COMBO' && (selectedProduct.originalPrice || 0) > selectedProduct.price && (
                                             <div className="mt-2 space-y-1">
                                                 <p className="text-sm font-semibold text-[hsl(var(--muted))] line-through">

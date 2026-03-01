@@ -45,7 +45,7 @@ let ProductsService = class ProductsService {
     }
     async create(tenantId, dto, userId) {
         const currentProductsCount = await this.prisma.product.count({
-            where: { tenantId, active: true }
+            where: { tenantId, active: true },
         });
         if (currentProductsCount >= 500) {
             throw new common_1.BadRequestException('Has alcanzado el límite máximo de 500 productos permitido en tu plan. Por favor, actualiza tu plan para agregar más inventario.');
@@ -76,9 +76,15 @@ let ProductsService = class ProductsService {
         try {
             const allowCreditSale = dto.allowCreditSale ?? false;
             const creditPrice = Number(dto.creditPrice ?? dto.salePrice ?? 0);
+            const creditDownPaymentRaw = Number(dto.creditDownPayment ?? 0);
             if (allowCreditSale && creditPrice <= 0) {
                 throw new common_1.BadRequestException('El precio a credito debe ser mayor a 0.');
             }
+            if (allowCreditSale &&
+                (creditDownPaymentRaw < 0 || creditDownPaymentRaw >= creditPrice)) {
+                throw new common_1.BadRequestException('La cuota inicial sugerida debe ser mayor o igual a 0 y menor al precio de credito.');
+            }
+            const creditDownPayment = allowCreditSale ? creditDownPaymentRaw : 0;
             const normalizedVisualVariants = (dto.visualVariants || [])
                 .map((v, index) => ({
                 name: String(v.name || '').trim(),
@@ -86,7 +92,7 @@ let ProductsService = class ProductsService {
                 sortOrder: Number(v.sortOrder ?? index),
                 isPublic: v.isPublic ?? true,
             }))
-                .filter(v => v.name.length > 0 && v.image.length > 0);
+                .filter((v) => v.name.length > 0 && v.image.length > 0);
             const product = await this.prisma.$transaction(async (tx) => {
                 const product = await tx.product.create({
                     data: {
@@ -100,11 +106,14 @@ let ProductsService = class ProductsService {
                         salePrice: dto.salePrice ?? 0,
                         creditPrice,
                         allowCreditSale,
+                        creditDownPayment,
                         isPublic: dto.isPublic ?? true,
                         categoryId: dto.categoryId,
-                        visualVariants: normalizedVisualVariants.length > 0 ? {
-                            create: normalizedVisualVariants
-                        } : undefined,
+                        visualVariants: normalizedVisualVariants.length > 0
+                            ? {
+                                create: normalizedVisualVariants,
+                            }
+                            : undefined,
                     },
                 });
                 if (initialStock > 0 && initialWarehouseId) {
@@ -124,7 +133,7 @@ let ProductsService = class ProductsService {
                             remainingQuantity: initialStock,
                             costPrice: dto.costPrice ?? 0,
                             entryDate: new Date(),
-                        }
+                        },
                     });
                     await tx.stockMovement.create({
                         data: {
@@ -135,7 +144,7 @@ let ProductsService = class ProductsService {
                             warehouseId: initialWarehouseId,
                             notes: 'Inventario inicial al crear el producto (Lote FIFO created)',
                             userId: userId || null,
-                        }
+                        },
                     });
                 }
                 return product;
@@ -151,6 +160,7 @@ let ProductsService = class ProductsService {
                     salePrice: dto.salePrice,
                     creditPrice,
                     allowCreditSale,
+                    creditDownPayment,
                 },
                 userId,
                 tenantId,
@@ -181,7 +191,7 @@ let ProductsService = class ProductsService {
         }
         const where = {
             tenantId,
-            active: true
+            active: true,
         };
         if (filters?.sellableOnly) {
             where.isSellable = true;
@@ -207,15 +217,15 @@ let ProductsService = class ProductsService {
         if (filters?.stockStatus === 'inStock') {
             where.inventory = {
                 some: {
-                    quantity: { gt: 0 }
-                }
+                    quantity: { gt: 0 },
+                },
             };
         }
         else if (filters?.stockStatus === 'outOfStock') {
             where.inventory = {
                 every: {
-                    quantity: { lte: 0 }
-                }
+                    quantity: { lte: 0 },
+                },
             };
         }
         const [products, total] = await Promise.all([
@@ -227,13 +237,13 @@ let ProductsService = class ProductsService {
                 include: {
                     inventory: true,
                     visualVariants: {
-                        orderBy: { sortOrder: 'asc' }
-                    }
-                }
+                        orderBy: { sortOrder: 'asc' },
+                    },
+                },
             }),
-            this.prisma.product.count({ where })
+            this.prisma.product.count({ where }),
         ]);
-        const productsWithStock = products.map(p => {
+        const productsWithStock = products.map((p) => {
             const totalStock = (p.inventory || []).reduce((acc, s) => acc + s.quantity, 0);
             const { inventory, ...rest } = p;
             return {
@@ -242,6 +252,7 @@ let ProductsService = class ProductsService {
                 salePrice: Number(p.salePrice),
                 creditPrice: Number(p.creditPrice || 0),
                 allowCreditSale: !!p.allowCreditSale,
+                creditDownPayment: Number(p.creditDownPayment || 0),
                 totalStock,
                 visualVariants: (p.visualVariants || []).map((v) => ({
                     id: v.id,
@@ -249,7 +260,7 @@ let ProductsService = class ProductsService {
                     image: v.image,
                     sortOrder: v.sortOrder,
                     isPublic: v.isPublic,
-                }))
+                })),
             };
         });
         const result = {
@@ -257,11 +268,11 @@ let ProductsService = class ProductsService {
             total,
             page,
             limit,
-            totalPages: Math.ceil(total / limit)
+            totalPages: Math.ceil(total / limit),
         };
         console.log(`✅ [ProductsService] DB retornó ${products.length} productos procesados (Tenant: ${tenantId})`);
         try {
-            await this.cacheService.set(cacheKey, result, 60);
+            await this.cacheService.set(cacheKey, result, 120);
         }
         catch (e) {
             console.error('⚠️ [ProductsService] Error guardando en caché:', e.message);
@@ -280,13 +291,18 @@ let ProductsService = class ProductsService {
             include: {
                 inventory: { select: { quantity: true } },
                 visualVariants: {
-                    orderBy: { sortOrder: 'asc' }
+                    orderBy: { sortOrder: 'asc' },
                 },
                 stockBatches: {
                     where: { remainingQuantity: { gt: 0 } },
                     orderBy: { entryDate: 'desc' },
-                    select: { id: true, costPrice: true, remainingQuantity: true, entryDate: true }
-                }
+                    select: {
+                        id: true,
+                        costPrice: true,
+                        remainingQuantity: true,
+                        entryDate: true,
+                    },
+                },
             },
         });
         if (!product)
@@ -314,10 +330,12 @@ let ProductsService = class ProductsService {
                 }
             }
         }
-        const activeCosts = Array.from(groupedMap.entries()).map(([costStr, quantity]) => ({
+        const activeCosts = Array.from(groupedMap.entries())
+            .map(([costStr, quantity]) => ({
             cost: Number(costStr),
-            quantity
-        })).sort((a, b) => b.cost - a.cost);
+            quantity,
+        }))
+            .sort((a, b) => b.cost - a.cost);
         const result = {
             ...rest,
             totalStock,
@@ -355,14 +373,29 @@ let ProductsService = class ProductsService {
     async update(tenantId, id, dto) {
         const exists = await this.prisma.product.findFirst({
             where: { id, tenantId, active: true },
-            select: { id: true, salePrice: true, creditPrice: true, allowCreditSale: true },
+            select: {
+                id: true,
+                salePrice: true,
+                creditPrice: true,
+                allowCreditSale: true,
+                creditDownPayment: true,
+            },
         });
         if (!exists)
             throw new common_1.NotFoundException('Product not found');
         const nextAllowCreditSale = dto.allowCreditSale ?? exists.allowCreditSale;
-        const nextCreditPrice = Number(dto.creditPrice ?? exists.creditPrice ?? dto.salePrice ?? exists.salePrice ?? 0);
+        const nextCreditPrice = Number(dto.creditPrice ??
+            exists.creditPrice ??
+            dto.salePrice ??
+            exists.salePrice ??
+            0);
+        const nextCreditDownPayment = Number(dto.creditDownPayment ?? exists.creditDownPayment ?? 0);
         if (nextAllowCreditSale && nextCreditPrice <= 0) {
             throw new common_1.BadRequestException('El precio a credito debe ser mayor a 0.');
+        }
+        if (nextAllowCreditSale &&
+            (nextCreditDownPayment < 0 || nextCreditDownPayment >= nextCreditPrice)) {
+            throw new common_1.BadRequestException('La cuota inicial sugerida debe ser mayor o igual a 0 y menor al precio de credito.');
         }
         try {
             const normalizedVisualVariants = dto.visualVariants !== undefined
@@ -373,26 +406,33 @@ let ProductsService = class ProductsService {
                     sortOrder: Number(v?.sortOrder ?? index),
                     isPublic: v?.isPublic ?? true,
                 }))
-                    .filter(v => v.name.length > 0 && v.image.length > 0)
+                    .filter((v) => v.name.length > 0 && v.image.length > 0)
                 : null;
             const result = await this.prisma.$transaction(async (tx) => {
                 if (normalizedVisualVariants !== null) {
                     await tx.productVisualVariant.deleteMany({
-                        where: { tenantId, productId: id }
+                        where: { tenantId, productId: id },
                     });
                     if (normalizedVisualVariants.length > 0) {
                         await tx.productVisualVariant.createMany({
-                            data: normalizedVisualVariants.map(v => ({
+                            data: normalizedVisualVariants.map((v) => ({
                                 ...v,
                                 tenantId,
                                 productId: id,
-                            }))
+                            })),
                         });
                     }
                 }
                 const { visualVariants, ...productData } = dto;
                 if (dto.creditPrice !== undefined) {
                     productData.creditPrice = nextCreditPrice;
+                }
+                if (dto.creditDownPayment !== undefined ||
+                    dto.allowCreditSale !== undefined ||
+                    dto.creditPrice !== undefined) {
+                    productData.creditDownPayment = nextAllowCreditSale
+                        ? nextCreditDownPayment
+                        : 0;
                 }
                 return tx.product.update({
                     where: { id },
@@ -424,19 +464,19 @@ let ProductsService = class ProductsService {
             await this.prisma.$transaction(async (tx) => {
                 await tx.product.update({
                     where: { id },
-                    data: { active: false }
+                    data: { active: false },
                 });
                 await tx.stock.updateMany({
                     where: { productId: id },
-                    data: { quantity: 0 }
+                    data: { quantity: 0 },
                 });
                 await tx.stockBatch.updateMany({
                     where: { productId: id, remainingQuantity: { gt: 0 } },
-                    data: { remainingQuantity: 0 }
+                    data: { remainingQuantity: 0 },
                 });
                 const stocks = await tx.stock.findMany({
                     where: { productId: id },
-                    select: { warehouseId: true }
+                    select: { warehouseId: true },
                 });
                 for (const s of stocks) {
                     await tx.stockMovement.create({
@@ -447,13 +487,11 @@ let ProductsService = class ProductsService {
                             quantity: 0,
                             balanceAfter: 0,
                             notes: 'Producto eliminado (soft-delete) — stock ajustado a 0',
-                        }
+                        },
                     });
                 }
             });
-            const imagesToDelete = product.images && product.images.length > 0
-                ? product.images
-                : [];
+            const imagesToDelete = product.images && product.images.length > 0 ? product.images : [];
             if (imagesToDelete.length > 0) {
                 await this.deleteImagesFromStorage(imagesToDelete);
             }
@@ -476,8 +514,8 @@ let ProductsService = class ProductsService {
         try {
             const supabase = this.supabaseService.getClient();
             const paths = images
-                .filter(url => url && url.includes('supabase'))
-                .map(url => {
+                .filter((url) => url && url.includes('supabase'))
+                .map((url) => {
                 try {
                     const urlObj = new URL(url);
                     const parts = urlObj.pathname.split('/product-images/');
@@ -487,7 +525,7 @@ let ProductsService = class ProductsService {
                     return null;
                 }
             })
-                .filter(p => p !== null);
+                .filter((p) => p !== null);
             if (paths.length > 0) {
                 console.log(`🧹 [Storage] Eliminando ${paths.length} imágenes del storage para producto eliminado`);
                 await supabase.storage.from('product-images').remove(paths);

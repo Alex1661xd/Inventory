@@ -293,11 +293,17 @@ export class InvoicesService {
         }
 
         const allProductIds = Array.from(new Set(expandedItems.map(item => item.productId)));
-        const productRecords = await (this.prisma as any).product.findMany({
+        const productRecords: Array<{
+            id: string;
+            name: string;
+            active: boolean;
+            isSellable: boolean;
+            allowCreditSale: boolean;
+        }> = await (this.prisma as any).product.findMany({
             where: { tenantId, id: { in: allProductIds } },
             select: { id: true, name: true, active: true, isSellable: true, allowCreditSale: true },
         });
-        const productMap = new Map(productRecords.map(p => [p.id, p]));
+        const productMap = new Map<string, (typeof productRecords)[number]>(productRecords.map(p => [p.id, p]));
 
         for (const item of expandedItems) {
             const product: any = productMap.get(item.productId);
@@ -404,34 +410,45 @@ export class InvoicesService {
 
         const result = await this.prisma.$transaction(async (tx) => {
             const nextInvoiceNumber = await this.sequenceService.nextVal(tenantId, 'invoice', tx);
+            const stockAfterByProduct = new Map<string, number>();
 
             if (invoiceStatus === 'PAID') {
-                for (const [productId, requiredQty] of stockNeededMap.entries()) {
-                    const stockRecord: any = await tx.stock.findUnique({
-                        where: {
-                            productId_warehouseId: {
-                                productId,
-                                warehouseId: dto.warehouseId,
-                            }
-                        },
-                        include: {
-                            product: {
-                                select: { name: true, active: true, isSellable: true }
-                            }
-                        }
-                    });
+                const orderedStockNeeds = Array.from(stockNeededMap.entries())
+                    .sort((a, b) => a[0].localeCompare(b[0]));
 
-                    if (!stockRecord || !stockRecord.product || !stockRecord.product.active || !stockRecord.product.isSellable) {
+                for (const [productId, requiredQty] of orderedStockNeeds) {
+                    // Atomic guard: only one concurrent transaction can reserve available stock.
+                    const updatedRows: any[] = await (tx as any).$queryRawUnsafe(
+                        `UPDATE "Stock"
+                         SET "quantity" = "quantity" - $1
+                         WHERE "productId" = $2
+                           AND "warehouseId" = $3
+                           AND "quantity" >= $1
+                         RETURNING "quantity"`,
+                        requiredQty,
+                        productId,
+                        dto.warehouseId
+                    );
+
+                    if (!updatedRows || updatedRows.length === 0) {
+                        const currentStock: any = await tx.stock.findUnique({
+                            where: {
+                                productId_warehouseId: {
+                                    productId,
+                                    warehouseId: dto.warehouseId,
+                                }
+                            }
+                        });
+
+                        const availableQty = Number(currentStock?.quantity || 0);
+                        const productName = productMap.get(productId)?.name || productId;
+
                         throw new BadRequestException(
-                            `El producto con ID "${productId}" no existe, esta desactivado o no esta habilitado para venta.`
+                            `Stock insuficiente para "${productName}". Disponible: ${availableQty}, Solicitado: ${requiredQty}`
                         );
                     }
 
-                    if (stockRecord.quantity < requiredQty) {
-                        throw new BadRequestException(
-                            `Stock insuficiente para "${stockRecord.product.name}". Disponible: ${stockRecord.quantity}, Solicitado: ${requiredQty}`
-                        );
-                    }
+                    stockAfterByProduct.set(productId, Number(updatedRows[0].quantity || 0));
                 }
             }
 
@@ -511,23 +528,33 @@ export class InvoicesService {
             }
 
             if (invoiceStatus === 'PAID') {
+                const runningStockByProduct = new Map<string, number>();
+                for (const [productId, requiredQty] of stockNeededMap.entries()) {
+                    const stockAfter = Number(stockAfterByProduct.get(productId) || 0);
+                    runningStockByProduct.set(productId, stockAfter + requiredQty);
+                }
+
                 for (const invoiceItem of (invoice as any).items) {
-                    let pendingToSubtract = invoiceItem.quantity;
+                    let pendingToSubtract = Number(invoiceItem.quantity || 0);
                     let calculatedTotalCost = 0;
 
-                    const batches = await tx.stockBatch.findMany({
-                        where: {
-                            productId: invoiceItem.productId,
-                            warehouseId: dto.warehouseId,
-                            remainingQuantity: { gt: 0 }
-                        },
-                        orderBy: { entryDate: 'asc' }
-                    });
+                    const batches: any[] = await (tx as any).$queryRawUnsafe(
+                        // Lock FIFO rows to avoid concurrent consumption races between sellers.
+                        `SELECT "id", "remainingQuantity", "costPrice"
+                         FROM "StockBatch"
+                         WHERE "productId" = $1
+                           AND "warehouseId" = $2
+                           AND "remainingQuantity" > 0
+                         ORDER BY "entryDate" ASC, "id" ASC
+                         FOR UPDATE`,
+                        invoiceItem.productId,
+                        dto.warehouseId
+                    );
 
                     for (const batch of batches) {
                         if (pendingToSubtract <= 0) break;
 
-                        const qtyToTake = Math.min(batch.remainingQuantity, pendingToSubtract);
+                        const qtyToTake = Math.min(Number(batch.remainingQuantity || 0), pendingToSubtract);
 
                         await tx.stockBatch.update({
                             where: { id: batch.id },
@@ -547,15 +574,9 @@ export class InvoicesService {
                         data: { totalCost: calculatedTotalCost }
                     });
 
-                    const updatedStock = await tx.stock.update({
-                        where: {
-                            productId_warehouseId: {
-                                productId: invoiceItem.productId,
-                                warehouseId: dto.warehouseId
-                            }
-                        },
-                        data: { quantity: { decrement: invoiceItem.quantity } }
-                    });
+                    const currentBalance = Number(runningStockByProduct.get(invoiceItem.productId) || 0);
+                    const nextBalance = currentBalance - Number(invoiceItem.quantity || 0);
+                    runningStockByProduct.set(invoiceItem.productId, nextBalance);
 
                     await tx.stockMovement.create({
                         data: {
@@ -563,7 +584,7 @@ export class InvoicesService {
                             warehouseId: dto.warehouseId,
                             type: StockMovementType.SALE,
                             quantity: -invoiceItem.quantity,
-                            balanceAfter: updatedStock.quantity,
+                            balanceAfter: nextBalance,
                             reference: `Invoice #${invoice.invoiceNumber}`,
                             notes: invoiceItem.comboName
                                 ? `Venta #${invoice.invoiceNumber} (Consumido FIFO) - Combo: ${invoiceItem.comboName}`

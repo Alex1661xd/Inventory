@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { api, type Product } from '@/lib/backend'
+import { api, type Customer, type Product } from '@/lib/backend'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from 'sonner'
 import { CustomerSelector } from '@/components/customer-selector'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { Scan, X, Plus, Minus, Trash2, ChevronLeft, ChevronRight, Pause, Play, UserPlus, Camera, Loader2, Wallet } from 'lucide-react'
+import { Scan, X, Plus, Minus, Trash2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Pause, Play, UserPlus, Camera, Loader2, Wallet } from 'lucide-react'
 import { cn, formatThousands, parseThousands } from '@/lib/utils';
 import { BrowserMultiFormatReader } from '@zxing/browser'
 import { NotFoundException } from '@zxing/library'
@@ -71,14 +71,6 @@ interface ComboCartItem {
 
 // Stock map type: { productId: availableQuantity }
 type StockMap = { [productId: string]: number }
-
-interface Customer {
-    id: string
-    name: string
-    docNumber?: string
-    isBanned?: boolean
-    banReason?: string | null
-}
 
 // Scanner Modal Component with Camera Support
 function ScannerModal(props: {
@@ -370,6 +362,14 @@ function POSMobileView(props: {
     canProceedToStep3: boolean;
     setShowScanner: (b: boolean) => void;
     handleCheckout: () => void;
+    saleMode: 'CASH' | 'CREDIT';
+    setSaleMode: (m: 'CASH' | 'CREDIT') => void;
+    creditDownPayment: string | number;
+    setCreditDownPayment: (val: string | number) => void;
+    creditInstallments: string | number;
+    setCreditInstallments: (val: string | number) => void;
+    creditFirstDueDate: string;
+    setCreditFirstDueDate: (val: string) => void;
     paymentMethod: 'CASH' | 'CARD' | 'TRANSFER' | 'OTHER';
     setPaymentMethod: (m: 'CASH' | 'CARD' | 'TRANSFER' | 'OTHER') => void;
     onCreateNewCustomer: () => void;
@@ -385,6 +385,7 @@ function POSMobileView(props: {
     setDiscountApplied: (val: number | string) => void;
     subtotal: number;
     comboSubtotal: number;
+    creditCheckoutError: string | null;
 }) {
     const {
         mobileStep,
@@ -412,6 +413,14 @@ function POSMobileView(props: {
         canProceedToStep3,
         setShowScanner,
         handleCheckout,
+        saleMode,
+        setSaleMode,
+        creditDownPayment,
+        setCreditDownPayment,
+        creditInstallments,
+        setCreditInstallments,
+        creditFirstDueDate,
+        setCreditFirstDueDate,
         paymentMethod,
         setPaymentMethod,
         onCreateNewCustomer,
@@ -426,14 +435,15 @@ function POSMobileView(props: {
         discountApplied,
         setDiscountApplied,
         subtotal,
-        comboSubtotal
+        comboSubtotal,
+        creditCheckoutError
     } = props;
-
     const stepLabels = [
         { step: 1, label: 'Cliente', icon: '' },
         { step: 2, label: 'Productos', icon: '' },
         { step: 3, label: 'Pago', icon: '' },
     ]
+    const [showDetails, setShowDetails] = useState(false)
 
     return (
         <div className="flex flex-col h-[calc(100vh-80px)] bg-gray-50">
@@ -574,6 +584,95 @@ function POSMobileView(props: {
 
                 {mobileStep === 2 && (
                     <div className="space-y-4">
+                        {/* Sale Type Selection (Mobile Step 2) */}
+                        <Card>
+                            <CardContent className="p-3">
+                                <div className="text-center mb-2">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Condicion de Venta</span>
+                                </div>
+                                <div className="flex justify-center">
+                                    <div className="w-full max-w-sm flex bg-gray-100 p-1 rounded-xl">
+                                        <button
+                                            onClick={() => setSaleMode('CASH')}
+                                            className={cn(
+                                                "flex-1 py-3 px-2 rounded-lg font-black text-xs uppercase tracking-widest transition-all duration-200 flex items-center justify-center",
+                                                saleMode === 'CASH'
+                                                    ? "bg-white text-blue-700 shadow ring-1 ring-black/5"
+                                                    : "text-gray-500 hover:text-gray-700"
+                                            )}
+                                        >
+                                            Contado
+                                        </button>
+                                        <button
+                                            onClick={() => setSaleMode('CREDIT')}
+                                            className={cn(
+                                                "flex-1 py-3 px-2 rounded-lg font-black text-xs uppercase tracking-widest transition-all duration-200 flex items-center justify-center",
+                                                saleMode === 'CREDIT'
+                                                    ? "bg-white text-amber-700 shadow ring-1 ring-black/5"
+                                                    : "text-gray-500 hover:text-gray-700"
+                                            )}
+                                        >
+                                            Credito
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {saleMode === 'CREDIT' && (
+                                    <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/60 p-3 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px] text-gray-500 font-bold uppercase tracking-widest ml-1">Abono inicial (Hoy)</Label>
+                                            <div className="relative">
+                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">$</span>
+                                                <Input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    value={formatThousands(creditDownPayment)}
+                                                    onChange={(e) => setCreditDownPayment(formatThousands(e.target.value))}
+                                                    className="h-12 pl-8 text-lg font-black text-gray-900 border-gray-200 bg-gray-50/80 rounded-xl focus:border-amber-400 focus:ring-amber-200"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1.5">
+                                                <Label className="text-[10px] text-gray-500 font-bold uppercase tracking-widest ml-1">Nº Cuotas</Label>
+                                                <Input
+                                                    type="number"
+                                                    value={creditInstallments}
+                                                    onChange={(e) => setCreditInstallments(e.target.value)}
+                                                    className="h-12 text-lg font-black text-center border-gray-200 bg-gray-50/80 rounded-xl focus:border-amber-400 focus:ring-amber-200"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-[10px] text-gray-500 font-bold uppercase tracking-widest ml-1">1ra Fecha</Label>
+                                                <Input
+                                                    type="date"
+                                                    value={creditFirstDueDate}
+                                                    onChange={(e) => setCreditFirstDueDate(e.target.value)}
+                                                    className="h-12 text-sm font-bold border-gray-200 bg-gray-50/80 rounded-xl focus:border-amber-400 focus:ring-amber-200 px-2"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2 text-center">
+                                            <div className="rounded-xl bg-white border border-gray-200 px-2 py-2">
+                                                <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">Total</div>
+                                                <div className="text-sm font-black text-gray-900">${formatThousands(grandTotal)}</div>
+                                            </div>
+                                            <div className="rounded-xl bg-white border border-emerald-200 px-2 py-2">
+                                                <div className="text-[10px] uppercase tracking-widest text-emerald-600 font-bold">Abono</div>
+                                                <div className="text-sm font-black text-emerald-700">${formatThousands(creditDownPayment)}</div>
+                                            </div>
+                                            <div className="rounded-xl bg-white border border-amber-200 px-2 py-2">
+                                                <div className="text-[10px] uppercase tracking-widest text-amber-600 font-bold">Saldo</div>
+                                                <div className="text-sm font-black text-amber-700">
+                                                    ${formatThousands(Math.max(0, grandTotal - parseThousands(String(creditDownPayment))))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
                         {/* Search */}
                         <Card>
                             <CardContent className="p-4">
@@ -590,7 +689,7 @@ function POSMobileView(props: {
                                         onClick={() => setShowScanner(true)}
                                         className="h-10 w-10"
                                     >
-                                        <Camera className="h-5 w-5" />
+                                        <Scan className="h-5 w-5" />
                                     </Button>
                                 </div>
                             </CardContent>
@@ -824,6 +923,7 @@ function POSMobileView(props: {
                                 </div>
                             </CardHeader>
                             <CardContent className="space-y-4 pt-4">
+
                                 {/* Customer */}
                                 <div className="p-3 bg-gray-50 rounded">
                                     <div className="text-xs text-gray-500 mb-1">Cliente</div>
@@ -861,39 +961,68 @@ function POSMobileView(props: {
                                     </div>
                                 )}
 
-                                {/* Subtotal y Descuento */}
+                                {/* Subtotal y Descuento (Colapsable) */}
                                 <div className="space-y-3 pt-3 border-t">
-                                    <div className="flex justify-between items-center text-sm text-gray-500">
-                                        <span>Subtotal productos</span>
-                                        <span>${formatThousands(subtotal - comboSubtotal)}</span>
-                                    </div>
-                                    {comboSubtotal > 0 && (
-                                        <div className="flex justify-between items-center text-sm text-amber-700">
-                                            <span>Subtotal combos</span>
-                                            <span>${formatThousands(comboSubtotal)}</span>
+                                    <h3
+                                        className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 flex items-center justify-between cursor-pointer py-1"
+                                        onClick={() => setShowDetails(!showDetails)}
+                                    >
+                                        Detalles de Valores
+                                        {showDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                    </h3>
+
+                                    {showDetails && (
+                                        <div className="space-y-2 animate-in slide-in-from-top-1 duration-200">
+                                            <div className="flex justify-between items-center text-xs text-gray-500">
+                                                <span>Subtotal productos</span>
+                                                <span>${formatThousands(subtotal - comboSubtotal)}</span>
+                                            </div>
+                                            {comboSubtotal > 0 && (
+                                                <div className="flex justify-between items-center text-xs text-amber-700">
+                                                    <span>Subtotal combos</span>
+                                                    <span>${formatThousands(comboSubtotal)}</span>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between items-center text-xs text-gray-400">
+                                                <span>Subtotal Base</span>
+                                                <span>${formatThousands(subtotal)}</span>
+                                            </div>
+
+                                            {saleMode === 'CREDIT' && (
+                                                <>
+                                                    <div className="flex justify-between items-center text-xs text-emerald-600 font-medium pt-1 border-t border-dashed">
+                                                        <span>Abono inicial (hoy)</span>
+                                                        <span>${formatThousands(creditDownPayment)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center text-xs text-amber-700 font-bold">
+                                                        <span>Saldo pendiente</span>
+                                                        <span>
+                                                            ${formatThousands(Math.max(0, grandTotal - parseThousands(String(creditDownPayment))))}
+                                                        </span>
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     )}
-                                    <div className="flex justify-between items-center text-sm text-gray-500">
-                                        <span>Subtotal</span>
-                                        <span>${formatThousands(subtotal)}</span>
-                                    </div>
+
                                     <div className="space-y-1">
-                                        <Label className="text-sm font-medium">Descuento aplicado</Label>
+                                        <Label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Descuento Global</Label>
                                         <div className="relative">
                                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
                                             <Input
                                                 type="text"
                                                 inputMode="numeric"
-                                                className="pl-8 h-11 text-lg"
+                                                className="pl-8 h-11 text-lg font-black bg-gray-50/50"
                                                 placeholder="0"
                                                 value={discountApplied === 0 ? '' : discountApplied}
                                                 onChange={(e) => setDiscountApplied(formatThousands(e.target.value))}
                                             />
                                         </div>
                                     </div>
-                                    <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
-                                        <span className="text-lg font-bold">TOTAL NETO</span>
-                                        <span className="text-3xl font-black text-gray-900">
+
+                                    <div className="flex justify-between items-center bg-gray-900 p-4 rounded-xl shadow-inner mt-2">
+                                        <span className="text-xs font-bold text-white/70 uppercase tracking-widest">Total Neto</span>
+                                        <span className="text-3xl font-black text-white">
                                             ${formatThousands(grandTotal)}
                                         </span>
                                     </div>
@@ -917,7 +1046,7 @@ function POSMobileView(props: {
                                 </div>
 
                                 {/* Cambio / Vuelto (Mobile) */}
-                                {paymentMethod === 'CASH' && (
+                                {saleMode === 'CASH' && paymentMethod === 'CASH' && (
                                     <div className="space-y-3 pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
                                         <div className="space-y-1">
                                             <Label className="text-sm text-gray-500 font-medium">Monto Recibido</Label>
@@ -977,14 +1106,19 @@ function POSMobileView(props: {
                     )}
 
                     {mobileStep === 3 ? (
-                        <Button
-                            size="lg"
-                            className="flex-1 h-12 text-sm font-bold uppercase tracking-wide"
-                            onClick={handleCheckout}
-                            disabled={processing || !selectedCustomer || !!selectedCustomer?.isBanned || (cart.length === 0 && comboCart.length === 0)}
-                        >
-                            {processing ? 'Procesando...' : 'FINALIZAR'}
-                        </Button>
+                        <div className="flex-1 space-y-1">
+                            <Button
+                                size="lg"
+                                className="w-full h-12 text-sm font-bold uppercase tracking-wide"
+                                onClick={handleCheckout}
+                                disabled={processing || !selectedCustomer || !!selectedCustomer?.isBanned || (cart.length === 0 && comboCart.length === 0) || !!creditCheckoutError}
+                            >
+                                {processing ? 'Procesando...' : 'FINALIZAR'}
+                            </Button>
+                            {creditCheckoutError && (
+                                <p className="text-[11px] text-amber-700 font-medium px-1">{creditCheckoutError}</p>
+                            )}
+                        </div>
                     ) : (
                         <Button
                             size="lg"
@@ -1026,21 +1160,30 @@ function POSDesktopView(props: {
     getComboAvailableUnits: (combo: ComboForPOS) => number;
     grandTotal: number;
     selectedCustomer: Customer | null;
-    stockMap: StockMap;
     setSelectedCustomer: (c: Customer | null) => void;
     pauseSale: () => void;
     onReset: () => void;
     processing: boolean;
     setIsCheckoutOpen: (b: boolean) => void;
+    stockMap: StockMap;
     onShowCashControl: () => void;
     onShowCashTransaction: () => void;
     onCreateNewCustomer: () => void;
+    saleMode: 'CASH' | 'CREDIT';
+    setSaleMode: (m: 'CASH' | 'CREDIT') => void;
+    creditDownPayment: string | number;
+    setCreditDownPayment: (val: string | number) => void;
+    creditInstallments: string | number;
+    setCreditInstallments: (val: string | number) => void;
+    creditFirstDueDate: string;
+    setCreditFirstDueDate: (val: string) => void;
     amountReceived: string | number;
     setAmountReceived: (val: string | number) => void;
     discountApplied: string | number;
     setDiscountApplied: (val: string | number) => void;
     subtotal: number;
     comboSubtotal: number;
+    creditCheckoutError: string | null;
 }) {
     const {
         loading,
@@ -1072,61 +1215,71 @@ function POSDesktopView(props: {
         onShowCashControl,
         onShowCashTransaction,
         onCreateNewCustomer,
+        saleMode,
+        setSaleMode,
+        creditDownPayment,
+        setCreditDownPayment,
+        creditInstallments,
+        setCreditInstallments,
+        creditFirstDueDate,
+        setCreditFirstDueDate,
+        amountReceived,
+        setAmountReceived,
         discountApplied,
         setDiscountApplied,
         subtotal,
-        comboSubtotal
+        comboSubtotal,
+        creditCheckoutError
     } = props;
+    const [showFinancialDetails, setShowFinancialDetails] = useState(false)
 
     return (
         <div className="h-[calc(100vh-80px)] flex gap-4">
             {/* Left: Products List */}
             <div className="flex-1 flex flex-col bg-white rounded-lg shadow-sm border overflow-hidden">
                 {/* Search Header */}
-                <div className="p-4 border-b bg-gray-50 space-y-3">
-                    <div className="flex gap-2">
-                        <Input
-                            placeholder="Buscar por nombre, código o SKU..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="flex-1 h-11"
-                        />
-                        <Button
-                            variant="outline"
-                            size="lg"
-                            onClick={() => setShowScanner(true)}
-                            className="px-4"
-                        >
-                            <Scan className="h-5 w-5" />
-                        </Button>
-                        <Button
-                            variant="secondary"
-                            size="lg"
-                            onClick={goToSales}
-                            className="px-4"
-                        >
-                            <Play className="h-5 w-5 mr-2" />
-                            Pendientes
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="lg"
-                            onClick={onShowCashTransaction}
-                            className="px-4"
-                        >
-                            <Wallet className="h-5 w-5 mr-2" />
-                            Movimiento
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="lg"
-                            onClick={onShowCashControl}
-                            className="px-4"
-                        >
-                            <X className="h-5 w-5 mr-2" />
-                            Caja
-                        </Button>
-                    </div>
+                <div className="p-4 border-b bg-gray-50 flex items-center gap-2">
+                    <Input
+                        placeholder="Buscar por nombre, código o SKU..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="flex-1 h-11"
+                    />
+                    <Button
+                        variant="outline"
+                        size="lg"
+                        onClick={() => setShowScanner(true)}
+                        className="px-4"
+                    >
+                        <Scan className="h-5 w-5" />
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        size="lg"
+                        onClick={goToSales}
+                        className="px-4"
+                    >
+                        <Play className="h-5 w-5 mr-2" />
+                        Pendientes
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="lg"
+                        onClick={onShowCashTransaction}
+                        className="px-4"
+                    >
+                        <Wallet className="h-5 w-5 mr-2" />
+                        Movimiento
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="lg"
+                        onClick={onShowCashControl}
+                        className="px-4"
+                    >
+                        <X className="h-5 w-5 mr-2" />
+                        Caja
+                    </Button>
                 </div>
 
                 {filteredCombos.length > 0 && (
@@ -1231,18 +1384,95 @@ function POSDesktopView(props: {
                         </table>
                     )}
                 </div>
+
+                {/* Left Panel Footer - Sale Type Selector */}
+                <div className="p-4 border-t bg-gray-50">
+                    <div className="max-w-2xl mx-auto space-y-3">
+                        <div className="text-center">
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Condicion de Venta</span>
+                        </div>
+
+                        <div className="flex justify-center">
+                            <div className="inline-flex bg-gray-200/70 p-1 rounded-xl border border-gray-200/60">
+                                <button
+                                    onClick={() => setSaleMode('CASH')}
+                                    className={cn(
+                                        "px-8 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all",
+                                        saleMode === 'CASH'
+                                            ? "bg-white text-blue-700 shadow-md ring-1 ring-black/5"
+                                            : "text-gray-500 hover:text-gray-700 hover:bg-gray-100/30"
+                                    )}
+                                >
+                                    Contado
+                                </button>
+                                <button
+                                    onClick={() => setSaleMode('CREDIT')}
+                                    className={cn(
+                                        "px-8 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all",
+                                        saleMode === 'CREDIT'
+                                            ? "bg-white text-amber-700 shadow-md ring-1 ring-black/5"
+                                            : "text-gray-500 hover:text-gray-700 hover:bg-gray-100/30"
+                                    )}
+                                >
+                                    Credito
+                                </button>
+                            </div>
+                        </div>
+
+                        {saleMode === 'CREDIT' && (
+                            <div className="rounded-2xl border border-amber-200 bg-white p-4 animate-in fade-in slide-in-from-top-2">
+                                <div className="grid grid-cols-3 gap-3 items-end">
+                                    <div className="space-y-1.5">
+                                        <Label className="text-[10px] text-gray-500 font-bold uppercase tracking-widest ml-1">Abono Inicial (Hoy)</Label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">$</span>
+                                            <Input
+                                                type="text"
+                                                inputMode="numeric"
+                                                value={formatThousands(creditDownPayment)}
+                                                onChange={(e) => setCreditDownPayment(formatThousands(e.target.value))}
+                                                className="h-10 pl-8 text-sm font-black border-gray-200 bg-gray-50 focus:bg-white rounded-xl"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-[10px] text-gray-500 font-bold uppercase tracking-widest ml-1">No. Cuotas</Label>
+                                        <Input
+                                            type="number"
+                                            value={creditInstallments}
+                                            onChange={(e) => setCreditInstallments(e.target.value)}
+                                            className="h-10 text-sm font-black text-center border-gray-200 bg-gray-50 focus:bg-white rounded-xl"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-[10px] text-gray-500 font-bold uppercase tracking-widest ml-1">Primera Fecha</Label>
+                                        <Input
+                                            type="date"
+                                            value={creditFirstDueDate}
+                                            onChange={(e) => setCreditFirstDueDate(e.target.value)}
+                                            className="h-10 text-xs font-black border-gray-200 bg-gray-50 focus:bg-white px-2 rounded-xl"
+                                        />
+                                    </div>
+                                </div>
+
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
             {/* Right: Cart */}
             <div className="w-96 flex flex-col bg-white rounded-lg shadow-lg border overflow-hidden">
                 {/* Cart Header */}
-                <div className="p-4 border-b bg-gray-50">
-                    <h2 className="font-bold text-lg mb-3">Venta Actual</h2>
+                <div className="p-4 border-b bg-gray-50 space-y-3">
+                    <h2 className="font-bold text-lg">Venta Actual</h2>
                     <CustomerSelector
                         onSelect={setSelectedCustomer}
                         selectedCustomer={selectedCustomer}
                         onCreateNew={onCreateNewCustomer}
                     />
+
+
                 </div>
 
                 {/* Cart Items */}
@@ -1356,21 +1586,50 @@ function POSDesktopView(props: {
                 {/* Cart Footer */}
                 <div className="border-t bg-gray-50 p-4 space-y-3">
                     <div className="space-y-2 pb-2">
-                        <div className="flex justify-between text-sm text-gray-500">
-                            <span>Subtotal productos</span>
-                            <span>${formatThousands(subtotal - comboSubtotal)}</span>
+                        <div className="flex justify-center">
+                            <button
+                                type="button"
+                                onClick={() => setShowFinancialDetails(!showFinancialDetails)}
+                                className="text-[11px] font-medium text-gray-500 underline underline-offset-2 hover:text-gray-700 transition-colors"
+                            >
+                                {showFinancialDetails ? 'Ocultar detalle' : 'Ver detalle'}
+                            </button>
                         </div>
-                        {comboSubtotal > 0 && (
-                            <div className="flex justify-between text-sm text-amber-700">
-                                <span>Subtotal combos</span>
-                                <span>${formatThousands(comboSubtotal)}</span>
+
+                        {showFinancialDetails && (
+                            <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                <div className="flex justify-between text-sm text-gray-500">
+                                    <span>Subtotal productos</span>
+                                    <span>${formatThousands(subtotal - comboSubtotal)}</span>
+                                </div>
+                                {comboSubtotal > 0 && (
+                                    <div className="flex justify-between text-sm text-amber-700">
+                                        <span>Subtotal combos</span>
+                                        <span>${formatThousands(comboSubtotal)}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between text-sm text-gray-500">
+                                    <span>Subtotal</span>
+                                    <span>${formatThousands(subtotal)}</span>
+                                </div>
+                                {saleMode === 'CREDIT' && (
+                                    <>
+                                        <div className="flex justify-between text-sm text-emerald-700">
+                                            <span>Abono inicial (hoy)</span>
+                                            <span className="font-semibold">${formatThousands(creditDownPayment)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm text-amber-700">
+                                            <span>Saldo pendiente</span>
+                                            <span className="font-semibold">
+                                                ${formatThousands(Math.max(0, grandTotal - parseThousands(String(creditDownPayment))))}
+                                            </span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
-                        <div className="flex justify-between text-sm text-gray-500">
-                            <span>Subtotal</span>
-                            <span>${formatThousands(subtotal)}</span>
-                        </div>
-                        <div className="space-y-1">
+
+                        <div className="space-y-1 pt-1">
                             <Label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Descuento</Label>
                             <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
@@ -1387,7 +1646,7 @@ function POSDesktopView(props: {
                     </div>
 
                     <div className="flex justify-between items-center border-t pt-2">
-                        <span className="text-lg font-semibold text-gray-700">TOTAL:</span>
+                        <span className="text-lg font-semibold text-gray-700">{saleMode === 'CREDIT' ? 'TOTAL CREDITO:' : 'TOTAL:'}</span>
                         <span className="text-3xl font-black text-gray-900">
                             ${formatThousands(grandTotal)}
                         </span>
@@ -1395,33 +1654,38 @@ function POSDesktopView(props: {
                     <Button
                         size="lg"
                         className="w-full h-14 text-lg font-bold shadow-lg"
-                        disabled={(cart.length === 0 && comboCart.length === 0) || !selectedCustomer || !!selectedCustomer?.isBanned}
+                        disabled={(cart.length === 0 && comboCart.length === 0) || !selectedCustomer || !!selectedCustomer?.isBanned || !!creditCheckoutError}
                         onClick={() => setIsCheckoutOpen(true)}
                     >
                         COBRAR
                     </Button>
-                    <Button
-                        variant="secondary"
-                        size="lg"
-                        className="w-full"
-                        onClick={pauseSale}
-                        disabled={processing}
-                    >
-                        <Pause className="mr-2 h-5 w-5" />
-                        Pausar Venta
-                    </Button>
-                    {(cart.length > 0 || comboCart.length > 0 || selectedCustomer) && (
+                    {creditCheckoutError && (
+                        <p className="text-xs text-amber-700 font-medium">{creditCheckoutError}</p>
+                    )}
+                    <div className="flex gap-2">
                         <Button
-                            variant="ghost"
+                            variant="secondary"
                             size="lg"
-                            className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
-                            onClick={onReset}
+                            className="flex-1 h-12"
+                            onClick={pauseSale}
                             disabled={processing}
                         >
-                            <Trash2 className="mr-2 h-5 w-5" />
-                            Cancelar Venta
+                            <Pause className="mr-2 h-4 w-4" />
+                            Pausar
                         </Button>
-                    )}
+                        {(cart.length > 0 || comboCart.length > 0 || selectedCustomer) && (
+                            <Button
+                                variant="outline"
+                                size="lg"
+                                className="flex-1 h-12 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-100"
+                                onClick={onReset}
+                                disabled={processing}
+                            >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Cancelar
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
@@ -1443,9 +1707,14 @@ export default function POSPage() {
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
     const [processing, setProcessing] = useState(false)
+    const [saleMode, setSaleMode] = useState<'CASH' | 'CREDIT'>('CASH')
     const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'TRANSFER' | 'OTHER'>('CASH')
     const [amountReceived, setAmountReceived] = useState<number | string>('')
     const [discountApplied, setDiscountApplied] = useState<number | string>(0)
+    const [creditDownPayment, setCreditDownPayment] = useState<number | string>(0)
+    const [creditDownPaymentTouched, setCreditDownPaymentTouched] = useState(false)
+    const [creditInstallments, setCreditInstallments] = useState<number | string>(6)
+    const [creditFirstDueDate, setCreditFirstDueDate] = useState<string>('')
     const [warehouseId, setWarehouseId] = useState<string>('')
     const [stockMap, setStockMap] = useState<StockMap>({})
     const [showScanner, setShowScanner] = useState(false)
@@ -1576,6 +1845,9 @@ export default function POSPage() {
             // 1. Obtener la factura pausada
             const invoice = await api.invoices.get(id)
             if (invoice) {
+                setSaleModeWithDefaults('CASH')
+                setCreditInstallments(6)
+                setCreditFirstDueDate('')
                 setResumedSaleId(invoice.id)
                 if (invoice.customer) setSelectedCustomer(invoice.customer)
 
@@ -1622,14 +1894,14 @@ export default function POSPage() {
                     if (comboItems.length === 0) {
                         const grouped: Record<string, { name: string; qty: number }> = {}
                         const lineQty = Math.max(1, Number(comboLine.quantity || 1))
-                        ;(invoice.items || []).forEach((item: any) => {
-                            if (item.comboId !== comboId) return
-                            const key = item.productId
-                            const baseQty = Math.max(1, Math.round(Number(item.quantity || 0) / lineQty))
-                            if (!grouped[key]) {
-                                grouped[key] = { name: item.product?.name || 'Producto', qty: baseQty }
-                            }
-                        })
+                            ; (invoice.items || []).forEach((item: any) => {
+                                if (item.comboId !== comboId) return
+                                const key = item.productId
+                                const baseQty = Math.max(1, Math.round(Number(item.quantity || 0) / lineQty))
+                                if (!grouped[key]) {
+                                    grouped[key] = { name: item.product?.name || 'Producto', qty: baseQty }
+                                }
+                            })
                         Object.entries(grouped).forEach(([productId, data]) => {
                             comboItems.push({
                                 productId,
@@ -1770,6 +2042,11 @@ export default function POSPage() {
     }
 
     const addComboToCart = (combo: ComboForPOS) => {
+        if (saleMode === 'CREDIT') {
+            toast.error('En ventas a credito no se permiten combos')
+            return
+        }
+
         const existing = comboCart.find(c => c.comboId === combo.id)
         const currentQty = existing?.quantity ?? 0
         const maxQty = getComboAvailableUnits(combo, currentQty)
@@ -1846,10 +2123,44 @@ export default function POSPage() {
         ))
     }
 
-    const productSubtotal = cart.reduce((acc, item) => acc + (Number(item.salePrice) * item.quantity), 0)
+    const getCartUnitPrice = (item: CartItem) => {
+        if (saleMode === 'CREDIT') {
+            if (item.allowCreditSale) return Number(item.creditPrice || item.salePrice || 0)
+        }
+        return Number(item.salePrice || 0)
+    }
+
+    const productSubtotal = cart.reduce((acc, item) => acc + (getCartUnitPrice(item) * item.quantity), 0)
     const comboSubtotal = comboCart.reduce((acc, comboLine) => acc + (Number(comboLine.unitPrice) * comboLine.quantity), 0)
     const subtotal = productSubtotal + comboSubtotal
     const grandTotal = Math.max(0, subtotal - parseThousands(String(discountApplied)))
+    const suggestedCreditDownPayment = cart.reduce(
+        (acc, item) => acc + (Number(item.creditDownPayment || 0) * Number(item.quantity || 0)),
+        0
+    )
+
+    const setSaleModeWithDefaults = (mode: 'CASH' | 'CREDIT') => {
+        setSaleMode(mode)
+        if (mode === 'CASH') {
+            setCreditDownPayment(0)
+            setCreditDownPaymentTouched(false)
+            return
+        }
+        setCreditDownPaymentTouched(false)
+    }
+
+    const setCreditDownPaymentFromInput = (val: string | number) => {
+        setCreditDownPayment(val)
+        setCreditDownPaymentTouched(true)
+    }
+
+    useEffect(() => {
+        if (saleMode !== 'CREDIT') return
+        if (creditDownPaymentTouched) return
+        const maxSuggested = Math.max(0, grandTotal - 1)
+        const nextSuggested = Math.max(0, Math.min(suggestedCreditDownPayment, maxSuggested))
+        setCreditDownPayment(nextSuggested)
+    }, [saleMode, creditDownPaymentTouched, suggestedCreditDownPayment, grandTotal])
 
     const handleScan = (code: string) => {
         const found = products.find(p => p.barcode === code)
@@ -1879,7 +2190,11 @@ export default function POSPage() {
 
     const pauseSale = async () => {
         if (cart.length === 0 && comboCart.length === 0) {
-            toast.error('El carrito está vacío')
+            toast.error('El carrito esta vacio')
+            return
+        }
+        if (saleMode === 'CREDIT') {
+            toast.error('No se pueden pausar ventas a credito')
             return
         }
         if (selectedCustomer?.isBanned) {
@@ -1888,18 +2203,17 @@ export default function POSPage() {
         }
 
         if (!warehouseId) {
-            toast.error('No hay almacén seleccionado')
+            toast.error('No hay almacen seleccionado')
             return
         }
 
         setProcessing(true)
         try {
-            // Create a NEW pending invoice
             await api.invoices.create({
                 total: grandTotal,
                 discount: parseThousands(String(discountApplied)),
                 status: 'PENDING',
-                paymentMethod: 'CASH', // Default for pending
+                paymentMethod: 'CASH',
                 customerId: selectedCustomer?.id,
                 warehouseId,
                 items: cart.filter(item => item.quantity > 0).map(item => ({
@@ -1913,20 +2227,18 @@ export default function POSPage() {
                 })),
             })
 
-            // If we were resuming an old one, cancel it
             if (resumedSaleId) {
                 await api.invoices.cancel(resumedSaleId)
             }
 
-            toast.success('Venta pausada y guardada en la nube ️')
+            toast.success('Venta pausada y guardada en la nube')
 
-            // Reset
             setCart([])
             setComboCart([])
             setSelectedCustomer(null)
             setResumedSaleId(null)
             setMobileStep(1)
-            router.push('/sales') // Redirect to history to see it
+            router.push('/sales')
         } catch (e: any) {
             toast.error(e.message)
         } finally {
@@ -1952,6 +2264,9 @@ export default function POSPage() {
         setMobilePage(1)
         setSearch('')
         setShowResetConfirm(false)
+        setSaleModeWithDefaults('CASH')
+        setCreditInstallments(6)
+        setCreditFirstDueDate('')
         toast.info('Venta local cancelada')
     }
 
@@ -1970,38 +2285,83 @@ export default function POSPage() {
             return
         }
         if (!warehouseId) {
-            toast.error('No hay almacén seleccionado')
+            toast.error('No hay almacen seleccionado')
             return
+        }
+
+        const isCreditCheckout = saleMode === 'CREDIT'
+        const downPaymentValue = parseThousands(String(creditDownPayment))
+        const installmentsCount = Math.max(1, parseInt(String(creditInstallments || 1), 10))
+
+        if (isCreditCheckout) {
+            if (comboCart.length > 0) {
+                toast.error('La venta a credito no permite combos por ahora')
+                return
+            }
+
+            const invalidCreditItem = cart.find(item => !item.allowCreditSale)
+            if (invalidCreditItem) {
+                toast.error(`El producto "${invalidCreditItem.name}" no permite venta a credito`)
+                return
+            }
+
+            if (downPaymentValue < 0 || downPaymentValue >= grandTotal) {
+                toast.error('La cuota inicial debe ser mayor o igual a 0 y menor al total')
+                return
+            }
+
+            if (!Number.isFinite(installmentsCount) || installmentsCount < 1) {
+                toast.error('Debes indicar una cantidad valida de cuotas')
+                return
+            }
+
+            if (!creditFirstDueDate) {
+                toast.error('Debes indicar la fecha de la primera cuota')
+                return
+            }
+        } else if (paymentMethod === 'CASH') {
+            const received = parseThousands(String(amountReceived))
+            if (received < grandTotal) {
+                toast.error(`Falta $${formatThousands(grandTotal - received)} para completar el pago`)
+                return
+            }
         }
 
         setProcessing(true)
         try {
+            const itemsPayload = cart.filter(item => item.quantity > 0).map(item => ({
+                productId: item.id,
+                quantity: item.quantity,
+                unitPrice: getCartUnitPrice(item)
+            }))
+
             const newInvoice = await api.invoices.create({
                 total: grandTotal,
                 discount: parseThousands(String(discountApplied)),
                 status: 'PAID',
                 paymentMethod,
+                isCreditSale: isCreditCheckout,
+                credit: isCreditCheckout ? {
+                    downPayment: downPaymentValue,
+                    installmentsCount,
+                    firstDueDate: creditFirstDueDate,
+                } : undefined,
                 customerId: selectedCustomer.id,
                 warehouseId,
-                items: cart.filter(item => item.quantity > 0).map(item => ({
-                    productId: item.id,
-                    quantity: item.quantity,
-                    unitPrice: Number(item.salePrice)
-                })),
-                comboLines: comboCart.map(comboLine => ({
+                items: itemsPayload,
+                comboLines: isCreditCheckout ? [] : comboCart.map(comboLine => ({
                     comboId: comboLine.comboId,
                     quantity: comboLine.quantity,
                 })),
-                amountReceived: paymentMethod === 'CASH' ? parseThousands(String(amountReceived)) : undefined,
-                amountReturned: paymentMethod === 'CASH' ? (parseThousands(String(amountReceived)) - grandTotal) : undefined
+                amountReceived: !isCreditCheckout && paymentMethod === 'CASH' ? parseThousands(String(amountReceived)) : undefined,
+                amountReturned: !isCreditCheckout && paymentMethod === 'CASH' ? (parseThousands(String(amountReceived)) - grandTotal) : undefined
             })
 
-            // If we resumed a pending sale, cancel the pending one
             if (resumedSaleId) {
                 await api.invoices.cancel(resumedSaleId)
             }
 
-            toast.success('Venta registrada exitosamente')
+            toast.success(isCreditCheckout ? 'Credito registrado exitosamente' : 'Venta registrada exitosamente')
             setCart([])
             setComboCart([])
             setSelectedCustomer(null)
@@ -2010,8 +2370,10 @@ export default function POSPage() {
             setMobileStep(1)
             setAmountReceived('')
             setDiscountApplied(0)
+            setSaleModeWithDefaults('CASH')
+            setCreditInstallments(6)
+            setCreditFirstDueDate('')
 
-            // Redirect to sales history with the new invoice ID to show WhatsApp share
             router.push(`/sales?newSaleId=${newInvoice.id}`)
         } catch (e: any) {
             toast.error(e.message)
@@ -2026,10 +2388,18 @@ export default function POSPage() {
         p.sku?.toLowerCase().includes(search.toLowerCase())
     )
 
-    const filteredCombos = combos.filter(c =>
+    const filteredCombos = (saleMode === 'CREDIT' ? [] : combos).filter(c =>
         c.name.toLowerCase().includes(search.toLowerCase()) ||
         c.description?.toLowerCase().includes(search.toLowerCase())
     )
+    const invalidCreditItem = cart.find(item => !item.allowCreditSale)
+    const creditCheckoutError = saleMode !== 'CREDIT'
+        ? null
+        : comboCart.length > 0
+            ? 'Para vender a credito, elimina los combos del carrito.'
+            : invalidCreditItem
+                ? `El producto "${invalidCreditItem.name}" no permite venta a credito.`
+                : null
 
     // Reset mobile pagination when search changes
     useEffect(() => {
@@ -2098,6 +2468,9 @@ export default function POSPage() {
                 </div>
             )}
 
+            {/* Sale Type Card Removed and Integrated into Mobile/Desktop Views */}
+
+
             {isMobile ? (
                 <POSMobileView
                     mobileStep={mobileStep}
@@ -2125,6 +2498,14 @@ export default function POSPage() {
                     canProceedToStep3={canProceedToStep3}
                     setShowScanner={setShowScanner}
                     handleCheckout={handleCheckout}
+                    saleMode={saleMode}
+                    setSaleMode={setSaleModeWithDefaults}
+                    creditDownPayment={creditDownPayment}
+                    setCreditDownPayment={setCreditDownPaymentFromInput}
+                    creditInstallments={creditInstallments}
+                    setCreditInstallments={setCreditInstallments}
+                    creditFirstDueDate={creditFirstDueDate}
+                    setCreditFirstDueDate={setCreditFirstDueDate}
                     paymentMethod={paymentMethod}
                     setPaymentMethod={setPaymentMethod}
                     onCreateNewCustomer={() => setShowCreateCustomer(true)}
@@ -2140,6 +2521,7 @@ export default function POSPage() {
                     setDiscountApplied={setDiscountApplied}
                     subtotal={subtotal}
                     comboSubtotal={comboSubtotal}
+                    creditCheckoutError={creditCheckoutError}
                 />
             ) : (
                 <POSDesktopView
@@ -2172,12 +2554,21 @@ export default function POSPage() {
                     setIsCheckoutOpen={setIsCheckoutOpen}
                     stockMap={stockMap}
                     onCreateNewCustomer={() => setShowCreateCustomer(true)}
+                    saleMode={saleMode}
+                    setSaleMode={setSaleModeWithDefaults}
+                    creditDownPayment={creditDownPayment}
+                    setCreditDownPayment={setCreditDownPaymentFromInput}
+                    creditInstallments={creditInstallments}
+                    setCreditInstallments={setCreditInstallments}
+                    creditFirstDueDate={creditFirstDueDate}
+                    setCreditFirstDueDate={setCreditFirstDueDate}
                     amountReceived={amountReceived}
                     setAmountReceived={setAmountReceived}
                     discountApplied={discountApplied}
                     setDiscountApplied={setDiscountApplied}
                     subtotal={subtotal}
                     comboSubtotal={comboSubtotal}
+                    creditCheckoutError={creditCheckoutError}
                 />
             )}
 
@@ -2231,7 +2622,7 @@ export default function POSPage() {
                     <Card className="w-full max-w-md animate-scale-in">
                         <CardHeader className="text-center pb-2">
                             <CardTitle className="text-xl">Finalizar Venta</CardTitle>
-                            <CardDescription>Selecciona el método de pago</CardDescription>
+                            <CardDescription>{saleMode === 'CREDIT' ? 'Registraras el abono inicial. El saldo quedara pendiente en cartera.' : 'Selecciona el metodo de pago'}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {/* Order Summary */}
@@ -2250,8 +2641,26 @@ export default function POSPage() {
                                     <span className="text-gray-600">Productos</span>
                                     <span className="font-medium">{cart.length + comboCart.length} items</span>
                                 </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Tipo de venta</span>
+                                    <span className="font-medium">{saleMode === 'CREDIT' ? 'Credito' : 'Contado'}</span>
+                                </div>
+                                {saleMode === 'CREDIT' && (
+                                    <>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-600">Abono inicial (se cobra hoy)</span>
+                                            <span className="font-medium text-emerald-700">${formatThousands(creditDownPayment)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-600">Saldo pendiente a credito</span>
+                                            <span className="font-medium text-amber-700">
+                                                ${formatThousands(Math.max(0, grandTotal - parseThousands(String(creditDownPayment))))}
+                                            </span>
+                                        </div>
+                                    </>
+                                )}
                                 <div className="pt-2 border-t flex justify-between">
-                                    <span className="text-lg font-semibold">Total</span>
+                                    <span className="text-lg font-semibold">{saleMode === 'CREDIT' ? 'Total credito' : 'Total'}</span>
                                     <span className="text-2xl font-bold text-gray-900">${formatThousands(grandTotal)}</span>
                                 </div>
                             </div>
@@ -2280,7 +2689,7 @@ export default function POSPage() {
                             </div>
 
                             {/* Cambio / Vuelto (Desktop Modal) */}
-                            {paymentMethod === 'CASH' && (
+                            {saleMode === 'CASH' && paymentMethod === 'CASH' && (
                                 <div className="space-y-3 pt-2 p-4 bg-gray-50/50 rounded-xl border-dashed border-2 border-gray-100 animate-in fade-in slide-in-from-top-2 duration-300">
                                     <div className="space-y-1">
                                         <Label className="text-xs text-gray-500 font-bold uppercase tracking-wider">Monto Recibido</Label>
@@ -2326,11 +2735,14 @@ export default function POSPage() {
                                 <Button
                                     className="flex-1 h-12 text-base font-bold"
                                     onClick={handleCheckout}
-                                    disabled={processing || !!selectedCustomer?.isBanned}
+                                    disabled={processing || !!selectedCustomer?.isBanned || !!creditCheckoutError}
                                 >
                                     {processing ? 'Procesando...' : ' Confirmar Venta'}
                                 </Button>
                             </div>
+                            {creditCheckoutError && (
+                                <p className="text-xs text-amber-700 font-medium">{creditCheckoutError}</p>
+                            )}
                         </CardContent>
                     </Card>
                 </div>

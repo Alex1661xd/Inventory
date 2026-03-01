@@ -35,6 +35,8 @@ export class CatalogService {
                 description: true,
                 images: true,
                 salePrice: true,
+                creditPrice: true,
+                allowCreditSale: true,
                 createdAt: true,
                 category: {
                     select: {
@@ -121,6 +123,8 @@ export class CatalogService {
                     ...((product.visualVariants || []).map(v => v.image).filter(Boolean)),
                 ].filter((img, index, arr) => arr.indexOf(img) === index),
                 price: Number(product.salePrice),
+                creditPrice: Number(product.creditPrice || 0),
+                allowCreditSale: !!product.allowCreditSale,
                 categoryId: product.category?.id || null,
                 categoryName: product.category?.name || 'Sin categoria',
                 available: totalStock > 0,
@@ -164,6 +168,8 @@ export class CatalogService {
                     description: comboDescription,
                     images: comboImages,
                     price: Number(finalUnitPrice || 0),
+                    creditPrice: 0,
+                    allowCreditSale: false,
                     originalPrice: Number(baseUnitPrice || 0),
                     discountAmount: Math.max(0, Number(baseUnitPrice || 0) - Number(finalUnitPrice || 0)),
                     discountPercent: baseUnitPrice > 0

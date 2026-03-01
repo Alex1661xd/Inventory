@@ -56,7 +56,7 @@ async function backendFetch<T>(
 
 type PageLike = { page?: number; totalPages?: number };
 
-const PAGINATED_CACHE_TTL_MS = 30_000;
+const PAGINATED_CACHE_TTL_MS = 120_000;
 const paginatedResponseCache = new Map<string, { expiresAt: number; data: unknown }>();
 const paginatedInFlight = new Map<string, Promise<unknown>>();
 
@@ -204,6 +204,7 @@ export type Product = {
     salePrice: string;
     creditPrice?: string;
     allowCreditSale?: boolean;
+    creditDownPayment?: string;
     isPublic: boolean;
     isSellable: boolean;
     tenantId: string;
@@ -498,6 +499,7 @@ export const api = {
             salePrice?: number;
             creditPrice?: number;
             allowCreditSale?: boolean;
+            creditDownPayment?: number;
             isPublic?: boolean;
             isSellable?: boolean;
             initialStock?: number;
@@ -514,6 +516,7 @@ export const api = {
             salePrice?: number;
             creditPrice?: number;
             allowCreditSale?: boolean;
+            creditDownPayment?: number;
             isPublic?: boolean;
             isSellable?: boolean;
             categoryId?: string;

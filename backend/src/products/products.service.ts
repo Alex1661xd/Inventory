@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -10,626 +14,741 @@ import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class ProductsService {
-    constructor(
-        private readonly prisma: PrismaService,
-        private readonly cacheService: CacheService,
-        private readonly supabaseService: SupabaseService,
-        private readonly auditService: AuditService,
-    ) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheService: CacheService,
+    private readonly supabaseService: SupabaseService,
+    private readonly auditService: AuditService,
+  ) {}
 
-    private generateBarcode() {
-        return `PRD-${randomBytes(4).toString('hex').toUpperCase()}`;
+  private generateBarcode() {
+    return `PRD-${randomBytes(4).toString('hex').toUpperCase()}`;
+  }
+
+  private async generateUniqueBarcode(tenantId: string) {
+    for (let i = 0; i < 10; i++) {
+      const barcode = this.generateBarcode();
+      const exists = await this.prisma.product.findFirst({
+        where: { tenantId, barcode },
+        select: { id: true },
+      });
+
+      if (!exists) return barcode;
     }
 
-    private async generateUniqueBarcode(tenantId: string) {
-        for (let i = 0; i < 10; i++) {
-            const barcode = this.generateBarcode();
-            const exists = await this.prisma.product.findFirst({
-                where: { tenantId, barcode },
-                select: { id: true },
-            });
+    throw new BadRequestException('Could not generate a unique barcode');
+  }
 
-            if (!exists) return barcode;
-        }
+  async create(tenantId: string, dto: CreateProductDto, userId?: string) {
+    // 1. Validar límite de productos (Plan Básico: 500 productos)
+    const currentProductsCount = await this.prisma.product.count({
+      // @ts-ignore
+      where: { tenantId, active: true },
+    });
 
-        throw new BadRequestException('Could not generate a unique barcode');
+    if (currentProductsCount >= 500) {
+      throw new BadRequestException(
+        'Has alcanzado el límite máximo de 500 productos permitido en tu plan. Por favor, actualiza tu plan para agregar más inventario.',
+      );
     }
 
-    async create(tenantId: string, dto: CreateProductDto, userId?: string) {
-        // 1. Validar límite de productos (Plan Básico: 500 productos)
-        const currentProductsCount = await this.prisma.product.count({
-            // @ts-ignore
-            where: { tenantId, active: true }
+    const barcode = await this.generateUniqueBarcode(tenantId);
+
+    const initialStock = dto.initialStock ?? 0;
+    let initialWarehouseId = dto.initialWarehouseId;
+
+    if (initialStock > 0 && !initialWarehouseId) {
+      const firstWarehouse = await this.prisma.warehouse.findFirst({
+        where: { tenantId },
+        orderBy: { name: 'asc' },
+        select: { id: true },
+      });
+
+      if (!firstWarehouse) {
+        throw new BadRequestException('No warehouse found for this tenant');
+      }
+
+      initialWarehouseId = firstWarehouse.id;
+    }
+
+    if (initialStock > 0 && initialWarehouseId) {
+      const warehouseExists = await this.prisma.warehouse.findFirst({
+        where: { id: initialWarehouseId, tenantId },
+        select: { id: true },
+      });
+
+      if (!warehouseExists) {
+        throw new BadRequestException('initialWarehouseId is invalid');
+      }
+    }
+
+    try {
+      const allowCreditSale = dto.allowCreditSale ?? false;
+      const creditPrice = Number(dto.creditPrice ?? dto.salePrice ?? 0);
+      const creditDownPaymentRaw = Number(dto.creditDownPayment ?? 0);
+      if (allowCreditSale && creditPrice <= 0) {
+        throw new BadRequestException(
+          'El precio a credito debe ser mayor a 0.',
+        );
+      }
+      if (
+        allowCreditSale &&
+        (creditDownPaymentRaw < 0 || creditDownPaymentRaw >= creditPrice)
+      ) {
+        throw new BadRequestException(
+          'La cuota inicial sugerida debe ser mayor o igual a 0 y menor al precio de credito.',
+        );
+      }
+      const creditDownPayment = allowCreditSale ? creditDownPaymentRaw : 0;
+
+      const normalizedVisualVariants = (dto.visualVariants || [])
+        .map((v, index) => ({
+          name: String(v.name || '').trim(),
+          image: String(v.image || '').trim(),
+          sortOrder: Number(v.sortOrder ?? index),
+          isPublic: v.isPublic ?? true,
+        }))
+        .filter((v) => v.name.length > 0 && v.image.length > 0);
+
+      const product = await this.prisma.$transaction(async (tx) => {
+        const product = await (tx.product as any).create({
+          data: {
+            tenantId,
+            name: dto.name,
+            description: dto.description,
+            barcode,
+            sku: dto.sku,
+            images: dto.images ?? [],
+            costPrice: dto.costPrice ?? 0,
+            salePrice: dto.salePrice ?? 0,
+            creditPrice,
+            allowCreditSale,
+            creditDownPayment,
+            isPublic: dto.isPublic ?? true,
+            categoryId: dto.categoryId,
+            visualVariants:
+              normalizedVisualVariants.length > 0
+                ? {
+                    create: normalizedVisualVariants,
+                  }
+                : undefined,
+          },
         });
-
-        if (currentProductsCount >= 500) {
-            throw new BadRequestException(
-                'Has alcanzado el límite máximo de 500 productos permitido en tu plan. Por favor, actualiza tu plan para agregar más inventario.'
-            );
-        }
-
-        const barcode = await this.generateUniqueBarcode(tenantId);
-
-        const initialStock = dto.initialStock ?? 0;
-        let initialWarehouseId = dto.initialWarehouseId;
-
-        if (initialStock > 0 && !initialWarehouseId) {
-            const firstWarehouse = await this.prisma.warehouse.findFirst({
-                where: { tenantId },
-                orderBy: { name: 'asc' },
-                select: { id: true },
-            });
-
-            if (!firstWarehouse) {
-                throw new BadRequestException('No warehouse found for this tenant');
-            }
-
-            initialWarehouseId = firstWarehouse.id;
-        }
 
         if (initialStock > 0 && initialWarehouseId) {
-            const warehouseExists = await this.prisma.warehouse.findFirst({
-                where: { id: initialWarehouseId, tenantId },
-                select: { id: true },
-            });
-
-            if (!warehouseExists) {
-                throw new BadRequestException('initialWarehouseId is invalid');
-            }
-        }
-
-        try {
-            const allowCreditSale = dto.allowCreditSale ?? false;
-            const creditPrice = Number(dto.creditPrice ?? dto.salePrice ?? 0);
-            if (allowCreditSale && creditPrice <= 0) {
-                throw new BadRequestException('El precio a credito debe ser mayor a 0.');
-            }
-
-            const normalizedVisualVariants = (dto.visualVariants || [])
-                .map((v, index) => ({
-                    name: String(v.name || '').trim(),
-                    image: String(v.image || '').trim(),
-                    sortOrder: Number(v.sortOrder ?? index),
-                    isPublic: v.isPublic ?? true,
-                }))
-                .filter(v => v.name.length > 0 && v.image.length > 0);
-
-            const product = await this.prisma.$transaction(async (tx) => {
-                const product = await (tx.product as any).create({
-                    data: {
-                        tenantId,
-                        name: dto.name,
-                        description: dto.description,
-                        barcode,
-                        sku: dto.sku,
-                        images: dto.images ?? [],
-                        costPrice: dto.costPrice ?? 0,
-                        salePrice: dto.salePrice ?? 0,
-                        creditPrice,
-                        allowCreditSale,
-                        isPublic: dto.isPublic ?? true,
-                        categoryId: dto.categoryId,
-                        visualVariants: normalizedVisualVariants.length > 0 ? {
-                            create: normalizedVisualVariants
-                        } : undefined,
-                    },
-                });
-
-                if (initialStock > 0 && initialWarehouseId) {
-                    await tx.stock.create({
-                        data: {
-                            productId: product.id,
-                            warehouseId: initialWarehouseId,
-                            quantity: initialStock,
-                        },
-                    });
-
-                    // IMPORTANTE: Crear lote FIFO para el stock inicial
-                    await tx.stockBatch.create({
-                        data: {
-                            tenantId,
-                            productId: product.id,
-                            warehouseId: initialWarehouseId,
-                            initialQuantity: initialStock,
-                            remainingQuantity: initialStock,
-                            costPrice: dto.costPrice ?? 0,
-                            entryDate: new Date(),
-                        }
-                    });
-
-                    // Record initial stock in Kardex
-                    await tx.stockMovement.create({
-                        data: {
-                            type: StockMovementType.INITIAL,
-                            quantity: initialStock,
-                            balanceAfter: initialStock,
-                            productId: product.id,
-                            warehouseId: initialWarehouseId,
-                            notes: 'Inventario inicial al crear el producto (Lote FIFO created)',
-                            userId: userId || null,
-                        }
-                    });
-                }
-
-                return product;
-            });
-
-            // Invalidar caché de productos del tenant
-            await this.invalidateProductCache(tenantId);
-
-            // Audit log
-            this.auditService.log({
-                action: 'CREATE',
-                entity: 'Product',
-                entityId: product.id,
-                newValue: {
-                    name: dto.name,
-                    costPrice: dto.costPrice,
-                    salePrice: dto.salePrice,
-                    creditPrice,
-                    allowCreditSale,
-                },
-                userId,
-                tenantId,
-            });
-
-            return product;
-        } catch (error: any) {
-            throw new BadRequestException(error?.message ?? 'Error creating product');
-        }
-    }
-
-    async findAllWithTotalStock(
-        tenantId: string,
-        page: number = 1,
-        limit: number = 50,
-        search?: string,
-        filters?: {
-            categoryId?: string;
-            minPrice?: number;
-            maxPrice?: number;
-            stockStatus?: string;
-            sellableOnly?: boolean;
-        },
-        refresh: boolean = false
-    ) {
-        if (!tenantId) {
-            console.error('❌ [ProductsService] Intento de findAllWithTotalStock sin tenantId');
-            return { data: [], total: 0, page, totalPages: 0 };
-        }
-
-        const skip = (page - 1) * limit;
-        const cacheKey = this.cacheService.generateKey(
-            tenantId,
-            'products',
-            'list',
-            `p${page}-l${limit}-s${search || 'all'}-c${filters?.categoryId || 'all'}-min${filters?.minPrice || '0'}-max${filters?.maxPrice || 'inf'}-st${filters?.stockStatus || 'all'}-sell${filters?.sellableOnly || 'false'}`
-        );
-
-        if (!refresh) {
-            try {
-                const cached = await this.cacheService.get<any>(cacheKey);
-                if (cached) {
-                    return cached;
-                }
-            } catch (e) {
-                console.error('⚠️ [ProductsService] Error leyendo caché:', e.message);
-            }
-        }
-
-        const where: any = {
-            tenantId,
-            active: true
-        };
-
-        if (filters?.sellableOnly) {
-            where.isSellable = true;
-        }
-
-        if (search) {
-            where.OR = [
-                { name: { contains: search, mode: 'insensitive' } },
-                { description: { contains: search, mode: 'insensitive' } },
-                { sku: { contains: search, mode: 'insensitive' } },
-                { barcode: { contains: search, mode: 'insensitive' } },
-            ];
-        }
-
-        if (filters?.categoryId) {
-            where.categoryId = filters.categoryId;
-        }
-
-        if (filters?.minPrice !== undefined || filters?.maxPrice !== undefined) {
-            where.salePrice = {};
-            if (filters.minPrice !== undefined) where.salePrice.gte = filters.minPrice;
-            if (filters.maxPrice !== undefined) where.salePrice.lte = filters.maxPrice;
-        }
-
-        if (filters?.stockStatus === 'inStock') {
-            where.inventory = {
-                some: {
-                    quantity: { gt: 0 }
-                }
-            };
-        } else if (filters?.stockStatus === 'outOfStock') {
-            where.inventory = {
-                every: {
-                    quantity: { lte: 0 }
-                }
-            };
-        }
-
-        const [products, total] = await Promise.all([
-            (this.prisma.product as any).findMany({
-                where,
-                orderBy: { createdAt: 'desc' },
-                skip,
-                take: limit,
-                include: {
-                    inventory: true,
-                    visualVariants: {
-                        orderBy: { sortOrder: 'asc' }
-                    }
-                }
-            }),
-            this.prisma.product.count({ where })
-        ]);
-
-        const productsWithStock = products.map(p => {
-            const totalStock = (p.inventory || []).reduce((acc: number, s: any) => acc + s.quantity, 0);
-            const { inventory, ...rest } = p;
-            return {
-                ...rest,
-                costPrice: Number(p.costPrice),
-                salePrice: Number(p.salePrice),
-                creditPrice: Number((p as any).creditPrice || 0),
-                allowCreditSale: !!(p as any).allowCreditSale,
-                totalStock,
-                visualVariants: ((p as any).visualVariants || []).map((v: any) => ({
-                    id: v.id,
-                    name: v.name,
-                    image: v.image,
-                    sortOrder: v.sortOrder,
-                    isPublic: v.isPublic,
-                }))
-            };
-        });
-
-        const result = {
-            data: productsWithStock,
-            total,
-            page,
-            limit,
-            totalPages: Math.ceil(total / limit)
-        };
-
-        console.log(`✅ [ProductsService] DB retornó ${products.length} productos procesados (Tenant: ${tenantId})`);
-
-        // 5. Guardar en caché
-        try {
-            await this.cacheService.set(cacheKey, result, 60);
-        } catch (e) {
-            console.error('⚠️ [ProductsService] Error guardando en caché:', e.message);
-        }
-
-        return result;
-    }
-
-    async findOne(tenantId: string, id: string, refresh = false) {
-        // Intentar obtener del caché (a menos que se pida refrescar)
-        const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'detail', id);
-
-        if (!refresh) {
-            const cached = await this.cacheService.get<any>(cacheKey);
-            if (cached) return cached;
-        }
-
-        const product = await (this.prisma.product as any).findFirst({
-            // @ts-ignore
-            where: { id, tenantId, active: true },
-            include: {
-                inventory: { select: { quantity: true } },
-                visualVariants: {
-                    orderBy: { sortOrder: 'asc' }
-                },
-                // @ts-ignore
-                stockBatches: {
-                    where: { remainingQuantity: { gt: 0 } },
-                    orderBy: { entryDate: 'desc' },
-                    select: { id: true, costPrice: true, remainingQuantity: true, entryDate: true }
-                }
+          await tx.stock.create({
+            data: {
+              productId: product.id,
+              warehouseId: initialWarehouseId,
+              quantity: initialStock,
             },
-        });
+          });
 
-        if (!product) throw new NotFoundException('Product not found');
+          // IMPORTANTE: Crear lote FIFO para el stock inicial
+          await tx.stockBatch.create({
+            data: {
+              tenantId,
+              productId: product.id,
+              warehouseId: initialWarehouseId,
+              initialQuantity: initialStock,
+              remainingQuantity: initialStock,
+              costPrice: dto.costPrice ?? 0,
+              entryDate: new Date(),
+            },
+          });
 
-        // @ts-ignore
-        const totalStock = (product.inventory || []).reduce((acc, s) => acc + s.quantity, 0);
-        // @ts-ignore
-        const { inventory, stockBatches, ...rest } = product;
-
-        // Agrupamos por costo usando un String como clave para evitar duplicados por precisión
-        const groupedMap = new Map<string, number>();
-        let leftToShow = totalStock;
-
-        if (stockBatches && stockBatches.length > 0) {
-            // Refuerzo: Ordenamos también en memoria por fecha descendente
-            // @ts-ignore
-            // Refuerzo: Ordenamos también en memoria por fecha descendente y luego por ID descendente
-            // @ts-ignore
-            const sortedBatches = (stockBatches || []).sort((a, b) => {
-                const dateDiff = new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime();
-                if (dateDiff !== 0) return dateDiff;
-                // Si tienen la misma fecha exacta, usamos el ID que suele ser UUID v4 o secuencial, pero al menos da determinismo
-                // Aunque lo mejor sería 'createdAt', pero no lo estamos seleccionando. Asumimos que los nuevos entran después.
-                return b.id.localeCompare(a.id);
-            });
-
-            for (const batch of sortedBatches) {
-                if (leftToShow <= 0) break;
-
-                const qtyInBatch = batch.remainingQuantity || 0;
-                const qtyToShow = Math.min(qtyInBatch, leftToShow);
-
-                if (qtyToShow > 0) {
-                    // Usamos el valor numérico formateado como clave para agrupar
-                    const priceKey = Number(batch.costPrice).toString();
-                    groupedMap.set(priceKey, (groupedMap.get(priceKey) || 0) + qtyToShow);
-                    leftToShow -= qtyToShow;
-                }
-            }
+          // Record initial stock in Kardex
+          await tx.stockMovement.create({
+            data: {
+              type: StockMovementType.INITIAL,
+              quantity: initialStock,
+              balanceAfter: initialStock,
+              productId: product.id,
+              warehouseId: initialWarehouseId,
+              notes:
+                'Inventario inicial al crear el producto (Lote FIFO created)',
+              userId: userId || null,
+            },
+          });
         }
 
-        const activeCosts = Array.from(groupedMap.entries()).map(([costStr, quantity]) => ({
-            cost: Number(costStr),
-            quantity
-        })).sort((a, b) => b.cost - a.cost);
+        return product;
+      });
 
-        const result = {
-            ...rest,
-            totalStock,
-            activeCosts,
-            visualVariants: (product as any).visualVariants || [],
-        };
+      // Invalidar caché de productos del tenant
+      await this.invalidateProductCache(tenantId);
 
-        // Guardar en caché por 10 minutos
-        await this.cacheService.set(cacheKey, result, 600);
+      // Audit log
+      this.auditService.log({
+        action: 'CREATE',
+        entity: 'Product',
+        entityId: product.id,
+        newValue: {
+          name: dto.name,
+          costPrice: dto.costPrice,
+          salePrice: dto.salePrice,
+          creditPrice,
+          allowCreditSale,
+          creditDownPayment,
+        },
+        userId,
+        tenantId,
+      });
 
-        return result;
+      return product;
+    } catch (error: any) {
+      throw new BadRequestException(error?.message ?? 'Error creating product');
+    }
+  }
+
+  async findAllWithTotalStock(
+    tenantId: string,
+    page: number = 1,
+    limit: number = 50,
+    search?: string,
+    filters?: {
+      categoryId?: string;
+      minPrice?: number;
+      maxPrice?: number;
+      stockStatus?: string;
+      sellableOnly?: boolean;
+    },
+    refresh: boolean = false,
+  ) {
+    if (!tenantId) {
+      console.error(
+        '❌ [ProductsService] Intento de findAllWithTotalStock sin tenantId',
+      );
+      return { data: [], total: 0, page, totalPages: 0 };
     }
 
-    async findByBarcode(tenantId: string, barcode: string) {
-        const normalized = (barcode ?? '').trim();
-        if (!normalized) throw new BadRequestException('barcode is required');
+    const skip = (page - 1) * limit;
+    const cacheKey = this.cacheService.generateKey(
+      tenantId,
+      'products',
+      'list',
+      `p${page}-l${limit}-s${search || 'all'}-c${filters?.categoryId || 'all'}-min${filters?.minPrice || '0'}-max${filters?.maxPrice || 'inf'}-st${filters?.stockStatus || 'all'}-sell${filters?.sellableOnly || 'false'}`,
+    );
 
-        // Caché por código de barras (crítico para vendedores)
-        const cacheKey = this.cacheService.generateKey(tenantId, 'products', 'barcode', normalized);
+    if (!refresh) {
+      try {
         const cached = await this.cacheService.get<any>(cacheKey);
-
         if (cached) {
-            return cached;
+          return cached;
         }
-
-        const product = await this.prisma.product.findFirst({
-            // @ts-ignore
-            where: { tenantId, barcode: normalized, active: true },
-        });
-
-        if (!product) throw new NotFoundException('Product not found');
-
-        const stockAggregate = await this.prisma.stock.aggregate({
-            where: { productId: product.id },
-            _sum: { quantity: true },
-        });
-
-        const result = {
-            ...product,
-            totalStock: stockAggregate._sum.quantity ?? 0,
-        };
-
-        // Guardar en caché por 3 minutos (búsqueda frecuente)
-        await this.cacheService.set(cacheKey, result, 180);
-
-        return result;
+      } catch (e) {
+        console.error('⚠️ [ProductsService] Error leyendo caché:', e.message);
+      }
     }
 
-    async update(tenantId: string, id: string, dto: UpdateProductDto) {
-        const exists: any = await (this.prisma as any).product.findFirst({
-            where: { id, tenantId, active: true },
-            select: { id: true, salePrice: true, creditPrice: true, allowCreditSale: true },
-        });
+    const where: any = {
+      tenantId,
+      active: true,
+    };
 
-        if (!exists) throw new NotFoundException('Product not found');
+    if (filters?.sellableOnly) {
+      where.isSellable = true;
+    }
 
-        const nextAllowCreditSale = dto.allowCreditSale ?? exists.allowCreditSale;
-        const nextCreditPrice = Number(dto.creditPrice ?? exists.creditPrice ?? dto.salePrice ?? exists.salePrice ?? 0);
-        if (nextAllowCreditSale && nextCreditPrice <= 0) {
-            throw new BadRequestException('El precio a credito debe ser mayor a 0.');
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { sku: { contains: search, mode: 'insensitive' } },
+        { barcode: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (filters?.categoryId) {
+      where.categoryId = filters.categoryId;
+    }
+
+    if (filters?.minPrice !== undefined || filters?.maxPrice !== undefined) {
+      where.salePrice = {};
+      if (filters.minPrice !== undefined)
+        where.salePrice.gte = filters.minPrice;
+      if (filters.maxPrice !== undefined)
+        where.salePrice.lte = filters.maxPrice;
+    }
+
+    if (filters?.stockStatus === 'inStock') {
+      where.inventory = {
+        some: {
+          quantity: { gt: 0 },
+        },
+      };
+    } else if (filters?.stockStatus === 'outOfStock') {
+      where.inventory = {
+        every: {
+          quantity: { lte: 0 },
+        },
+      };
+    }
+
+    const [products, total] = await Promise.all([
+      (this.prisma.product as any).findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          inventory: true,
+          visualVariants: {
+            orderBy: { sortOrder: 'asc' },
+          },
+        },
+      }),
+      this.prisma.product.count({ where }),
+    ]);
+
+    const productsWithStock = products.map((p) => {
+      const totalStock = (p.inventory || []).reduce(
+        (acc: number, s: any) => acc + s.quantity,
+        0,
+      );
+      const { inventory, ...rest } = p;
+      return {
+        ...rest,
+        costPrice: Number(p.costPrice),
+        salePrice: Number(p.salePrice),
+        creditPrice: Number(p.creditPrice || 0),
+        allowCreditSale: !!p.allowCreditSale,
+        creditDownPayment: Number(p.creditDownPayment || 0),
+        totalStock,
+        visualVariants: (p.visualVariants || []).map((v: any) => ({
+          id: v.id,
+          name: v.name,
+          image: v.image,
+          sortOrder: v.sortOrder,
+          isPublic: v.isPublic,
+        })),
+      };
+    });
+
+    const result = {
+      data: productsWithStock,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+
+    console.log(
+      `✅ [ProductsService] DB retornó ${products.length} productos procesados (Tenant: ${tenantId})`,
+    );
+
+    // 5. Guardar en caché
+    try {
+      await this.cacheService.set(cacheKey, result, 120);
+    } catch (e) {
+      console.error(
+        '⚠️ [ProductsService] Error guardando en caché:',
+        e.message,
+      );
+    }
+
+    return result;
+  }
+
+  async findOne(tenantId: string, id: string, refresh = false) {
+    // Intentar obtener del caché (a menos que se pida refrescar)
+    const cacheKey = this.cacheService.generateKey(
+      tenantId,
+      'products',
+      'detail',
+      id,
+    );
+
+    if (!refresh) {
+      const cached = await this.cacheService.get<any>(cacheKey);
+      if (cached) return cached;
+    }
+
+    const product = await (this.prisma.product as any).findFirst({
+      // @ts-ignore
+      where: { id, tenantId, active: true },
+      include: {
+        inventory: { select: { quantity: true } },
+        visualVariants: {
+          orderBy: { sortOrder: 'asc' },
+        },
+        // @ts-ignore
+        stockBatches: {
+          where: { remainingQuantity: { gt: 0 } },
+          orderBy: { entryDate: 'desc' },
+          select: {
+            id: true,
+            costPrice: true,
+            remainingQuantity: true,
+            entryDate: true,
+          },
+        },
+      },
+    });
+
+    if (!product) throw new NotFoundException('Product not found');
+
+    // @ts-ignore
+    const totalStock = (product.inventory || []).reduce(
+      (acc, s) => acc + s.quantity,
+      0,
+    );
+    // @ts-ignore
+    const { inventory, stockBatches, ...rest } = product;
+
+    // Agrupamos por costo usando un String como clave para evitar duplicados por precisión
+    const groupedMap = new Map<string, number>();
+    let leftToShow = totalStock;
+
+    if (stockBatches && stockBatches.length > 0) {
+      // Refuerzo: Ordenamos también en memoria por fecha descendente
+      // @ts-ignore
+      // Refuerzo: Ordenamos también en memoria por fecha descendente y luego por ID descendente
+      // @ts-ignore
+      const sortedBatches = (stockBatches || []).sort((a, b) => {
+        const dateDiff =
+          new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        // Si tienen la misma fecha exacta, usamos el ID que suele ser UUID v4 o secuencial, pero al menos da determinismo
+        // Aunque lo mejor sería 'createdAt', pero no lo estamos seleccionando. Asumimos que los nuevos entran después.
+        return b.id.localeCompare(a.id);
+      });
+
+      for (const batch of sortedBatches) {
+        if (leftToShow <= 0) break;
+
+        const qtyInBatch = batch.remainingQuantity || 0;
+        const qtyToShow = Math.min(qtyInBatch, leftToShow);
+
+        if (qtyToShow > 0) {
+          // Usamos el valor numérico formateado como clave para agrupar
+          const priceKey = Number(batch.costPrice).toString();
+          groupedMap.set(priceKey, (groupedMap.get(priceKey) || 0) + qtyToShow);
+          leftToShow -= qtyToShow;
         }
+      }
+    }
 
-        try {
-            const normalizedVisualVariants = dto.visualVariants !== undefined
-                ? (dto.visualVariants || [])
-                    .map((v, index) => ({
-                        name: String(v?.name || '').trim(),
-                        image: String(v?.image || '').trim(),
-                        sortOrder: Number(v?.sortOrder ?? index),
-                        isPublic: v?.isPublic ?? true,
-                    }))
-                    .filter(v => v.name.length > 0 && v.image.length > 0)
-                : null;
+    const activeCosts = Array.from(groupedMap.entries())
+      .map(([costStr, quantity]) => ({
+        cost: Number(costStr),
+        quantity,
+      }))
+      .sort((a, b) => b.cost - a.cost);
 
-            const result = await this.prisma.$transaction(async (tx) => {
-                if (normalizedVisualVariants !== null) {
-                    await (tx as any).productVisualVariant.deleteMany({
-                        where: { tenantId, productId: id }
-                    });
-                    if (normalizedVisualVariants.length > 0) {
-                        await (tx as any).productVisualVariant.createMany({
-                            data: normalizedVisualVariants.map(v => ({
-                                ...v,
-                                tenantId,
-                                productId: id,
-                            }))
-                        });
-                    }
-                }
+    const result = {
+      ...rest,
+      totalStock,
+      activeCosts,
+      visualVariants: product.visualVariants || [],
+    };
 
-                const { visualVariants, ...productData } = dto as any;
-                if (dto.creditPrice !== undefined) {
-                    productData.creditPrice = nextCreditPrice;
-                }
-                return (tx.product as any).update({
-                    where: { id },
-                    data: productData,
-                });
-            });
+    // Guardar en caché por 10 minutos
+    await this.cacheService.set(cacheKey, result, 600);
 
-            // Invalidar caché al actualizar
-            await this.invalidateProductCache(tenantId, id);
+    return result;
+  }
 
-            // Audit log
-            this.auditService.log({
-                action: 'UPDATE',
-                entity: 'Product',
-                entityId: id,
-                newValue: dto,
+  async findByBarcode(tenantId: string, barcode: string) {
+    const normalized = (barcode ?? '').trim();
+    if (!normalized) throw new BadRequestException('barcode is required');
+
+    // Caché por código de barras (crítico para vendedores)
+    const cacheKey = this.cacheService.generateKey(
+      tenantId,
+      'products',
+      'barcode',
+      normalized,
+    );
+    const cached = await this.cacheService.get<any>(cacheKey);
+
+    if (cached) {
+      return cached;
+    }
+
+    const product = await this.prisma.product.findFirst({
+      // @ts-ignore
+      where: { tenantId, barcode: normalized, active: true },
+    });
+
+    if (!product) throw new NotFoundException('Product not found');
+
+    const stockAggregate = await this.prisma.stock.aggregate({
+      where: { productId: product.id },
+      _sum: { quantity: true },
+    });
+
+    const result = {
+      ...product,
+      totalStock: stockAggregate._sum.quantity ?? 0,
+    };
+
+    // Guardar en caché por 3 minutos (búsqueda frecuente)
+    await this.cacheService.set(cacheKey, result, 180);
+
+    return result;
+  }
+
+  async update(tenantId: string, id: string, dto: UpdateProductDto) {
+    const exists: any = await (this.prisma as any).product.findFirst({
+      where: { id, tenantId, active: true },
+      select: {
+        id: true,
+        salePrice: true,
+        creditPrice: true,
+        allowCreditSale: true,
+        creditDownPayment: true,
+      },
+    });
+
+    if (!exists) throw new NotFoundException('Product not found');
+
+    const nextAllowCreditSale = dto.allowCreditSale ?? exists.allowCreditSale;
+    const nextCreditPrice = Number(
+      dto.creditPrice ??
+        exists.creditPrice ??
+        dto.salePrice ??
+        exists.salePrice ??
+        0,
+    );
+    const nextCreditDownPayment = Number(
+      dto.creditDownPayment ?? exists.creditDownPayment ?? 0,
+    );
+    if (nextAllowCreditSale && nextCreditPrice <= 0) {
+      throw new BadRequestException('El precio a credito debe ser mayor a 0.');
+    }
+    if (
+      nextAllowCreditSale &&
+      (nextCreditDownPayment < 0 || nextCreditDownPayment >= nextCreditPrice)
+    ) {
+      throw new BadRequestException(
+        'La cuota inicial sugerida debe ser mayor o igual a 0 y menor al precio de credito.',
+      );
+    }
+
+    try {
+      const normalizedVisualVariants =
+        dto.visualVariants !== undefined
+          ? (dto.visualVariants || [])
+              .map((v, index) => ({
+                name: String(v?.name || '').trim(),
+                image: String(v?.image || '').trim(),
+                sortOrder: Number(v?.sortOrder ?? index),
+                isPublic: v?.isPublic ?? true,
+              }))
+              .filter((v) => v.name.length > 0 && v.image.length > 0)
+          : null;
+
+      const result = await this.prisma.$transaction(async (tx) => {
+        if (normalizedVisualVariants !== null) {
+          await (tx as any).productVisualVariant.deleteMany({
+            where: { tenantId, productId: id },
+          });
+          if (normalizedVisualVariants.length > 0) {
+            await (tx as any).productVisualVariant.createMany({
+              data: normalizedVisualVariants.map((v) => ({
+                ...v,
                 tenantId,
+                productId: id,
+              })),
             });
-
-            return result;
-        } catch (error: any) {
-            throw new BadRequestException(error?.message ?? 'Error updating product');
+          }
         }
+
+        const { visualVariants, ...productData } = dto as any;
+        if (dto.creditPrice !== undefined) {
+          productData.creditPrice = nextCreditPrice;
+        }
+        if (
+          dto.creditDownPayment !== undefined ||
+          dto.allowCreditSale !== undefined ||
+          dto.creditPrice !== undefined
+        ) {
+          productData.creditDownPayment = nextAllowCreditSale
+            ? nextCreditDownPayment
+            : 0;
+        }
+        return (tx.product as any).update({
+          where: { id },
+          data: productData,
+        });
+      });
+
+      // Invalidar caché al actualizar
+      await this.invalidateProductCache(tenantId, id);
+
+      // Audit log
+      this.auditService.log({
+        action: 'UPDATE',
+        entity: 'Product',
+        entityId: id,
+        newValue: dto,
+        tenantId,
+      });
+
+      return result;
+    } catch (error: any) {
+      throw new BadRequestException(error?.message ?? 'Error updating product');
     }
+  }
 
+  async remove(tenantId: string, id: string) {
+    const product = await this.prisma.product.findFirst({
+      where: { id, tenantId },
+      select: { id: true, images: true, barcode: true },
+    });
 
-    async remove(tenantId: string, id: string) {
-        const product = await this.prisma.product.findFirst({
-            where: { id, tenantId },
-            select: { id: true, images: true, barcode: true },
+    if (!product) throw new NotFoundException('Product not found');
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        // Soft delete: marcamos como inactivo
+        await tx.product.update({
+          where: { id },
+          // @ts-ignore
+          data: { active: false },
         });
 
-        if (!product) throw new NotFoundException('Product not found');
+        // ✅ Limpiar stock y lotes FIFO del producto eliminado
+        // Poner stock en 0
+        await tx.stock.updateMany({
+          where: { productId: id },
+          data: { quantity: 0 },
+        });
 
-        try {
-            await this.prisma.$transaction(async (tx) => {
-                // Soft delete: marcamos como inactivo
-                await tx.product.update({
-                    where: { id },
-                    // @ts-ignore
-                    data: { active: false }
-                });
+        // Poner lotes FIFO en 0
+        await tx.stockBatch.updateMany({
+          where: { productId: id, remainingQuantity: { gt: 0 } },
+          data: { remainingQuantity: 0 },
+        });
 
-                // ✅ Limpiar stock y lotes FIFO del producto eliminado
-                // Poner stock en 0
-                await tx.stock.updateMany({
-                    where: { productId: id },
-                    data: { quantity: 0 }
-                });
+        // Registrar ajuste en Kardex
+        const stocks = await tx.stock.findMany({
+          where: { productId: id },
+          select: { warehouseId: true },
+        });
 
-                // Poner lotes FIFO en 0
-                await tx.stockBatch.updateMany({
-                    where: { productId: id, remainingQuantity: { gt: 0 } },
-                    data: { remainingQuantity: 0 }
-                });
-
-                // Registrar ajuste en Kardex
-                const stocks = await tx.stock.findMany({
-                    where: { productId: id },
-                    select: { warehouseId: true }
-                });
-
-                for (const s of stocks) {
-                    await tx.stockMovement.create({
-                        data: {
-                            productId: id,
-                            warehouseId: s.warehouseId,
-                            type: 'ADJUSTMENT',
-                            quantity: 0,
-                            balanceAfter: 0,
-                            notes: 'Producto eliminado (soft-delete) — stock ajustado a 0',
-                        }
-                    });
-                }
-            });
-
-            // Borrado real de imágenes del storage
-            const imagesToDelete = product.images && product.images.length > 0
-                ? product.images
-                : [];
-
-            if (imagesToDelete.length > 0) {
-                await this.deleteImagesFromStorage(imagesToDelete);
-            }
-
-            // Invalidar caché (incluyendo barcode)
-            await this.invalidateProductCache(tenantId, id, product.barcode);
-
-            // Audit log
-            this.auditService.log({
-                action: 'DELETE',
-                entity: 'Product',
-                entityId: id,
-                tenantId,
-            });
-
-            return { success: true };
-        } catch (error: any) {
-            throw new BadRequestException(error?.message ?? 'Error in soft-deleting product');
+        for (const s of stocks) {
+          await tx.stockMovement.create({
+            data: {
+              productId: id,
+              warehouseId: s.warehouseId,
+              type: 'ADJUSTMENT',
+              quantity: 0,
+              balanceAfter: 0,
+              notes: 'Producto eliminado (soft-delete) — stock ajustado a 0',
+            },
+          });
         }
+      });
+
+      // Borrado real de imágenes del storage
+      const imagesToDelete =
+        product.images && product.images.length > 0 ? product.images : [];
+
+      if (imagesToDelete.length > 0) {
+        await this.deleteImagesFromStorage(imagesToDelete);
+      }
+
+      // Invalidar caché (incluyendo barcode)
+      await this.invalidateProductCache(tenantId, id, product.barcode);
+
+      // Audit log
+      this.auditService.log({
+        action: 'DELETE',
+        entity: 'Product',
+        entityId: id,
+        tenantId,
+      });
+
+      return { success: true };
+    } catch (error: any) {
+      throw new BadRequestException(
+        error?.message ?? 'Error in soft-deleting product',
+      );
+    }
+  }
+
+  private async deleteImagesFromStorage(images: string[]) {
+    if (!images || images.length === 0) return;
+
+    try {
+      const supabase = this.supabaseService.getClient();
+      const paths = images
+        .filter((url) => url && url.includes('supabase'))
+        .map((url) => {
+          try {
+            const urlObj = new URL(url);
+            const parts = urlObj.pathname.split('/product-images/');
+            return parts.length > 1 ? parts[1] : null;
+          } catch (e) {
+            return null;
+          }
+        })
+        .filter((p) => p !== null);
+
+      if (paths.length > 0) {
+        console.log(
+          `🧹 [Storage] Eliminando ${paths.length} imágenes del storage para producto eliminado`,
+        );
+        await supabase.storage.from('product-images').remove(paths);
+      }
+    } catch (error) {
+      console.error(
+        '⚠️ [ProductsService] Error al eliminar imágenes del storage:',
+        error.message,
+      );
+      // No lanzamos excepción para no bloquear el borrado del producto si falla el storage
+    }
+  }
+
+  // ==================== CACHE HELPERS ====================
+
+  /**
+   * Invalida todo el caché de productos de un tenant
+   */
+  private async invalidateProductCache(
+    tenantId: string,
+    productId?: string,
+    barcode?: string | null,
+  ) {
+    // Invalidar lista general (todas las combinaciones de paginación/filtros)
+    const listPattern = this.cacheService.generateKey(
+      tenantId,
+      'products',
+      'list',
+      '*',
+    );
+    await this.cacheService.invalidatePattern(listPattern);
+
+    // Invalidar estadísticas de BI (siempre deben refrescarse si cambia el catálogo)
+    const analyticsPattern = this.cacheService.generateKey(
+      tenantId,
+      'analytics',
+      '*',
+    );
+    await this.cacheService.invalidatePattern(analyticsPattern);
+
+    // Si hay un productId, invalidar ese producto específico
+    if (productId) {
+      const detailKey = this.cacheService.generateKey(
+        tenantId,
+        'products',
+        'detail',
+        productId,
+      );
+      await this.cacheService.invalidate(detailKey);
     }
 
-    private async deleteImagesFromStorage(images: string[]) {
-        if (!images || images.length === 0) return;
-
-        try {
-            const supabase = this.supabaseService.getClient();
-            const paths = images
-                .filter(url => url && url.includes('supabase'))
-                .map(url => {
-                    try {
-                        const urlObj = new URL(url);
-                        const parts = urlObj.pathname.split('/product-images/');
-                        return parts.length > 1 ? parts[1] : null;
-                    } catch (e) { return null; }
-                })
-                .filter(p => p !== null) as string[];
-
-            if (paths.length > 0) {
-                console.log(`🧹 [Storage] Eliminando ${paths.length} imágenes del storage para producto eliminado`);
-                await supabase.storage.from('product-images').remove(paths);
-            }
-        } catch (error) {
-            console.error('⚠️ [ProductsService] Error al eliminar imágenes del storage:', error.message);
-            // No lanzamos excepción para no bloquear el borrado del producto si falla el storage
-        }
+    // ✅ Invalidar caché de barcode si se conoce
+    if (barcode) {
+      const barcodeKey = this.cacheService.generateKey(
+        tenantId,
+        'products',
+        'barcode',
+        barcode,
+      );
+      await this.cacheService.invalidate(barcodeKey);
     }
-
-    // ==================== CACHE HELPERS ====================
-
-    /**
-     * Invalida todo el caché de productos de un tenant
-     */
-    private async invalidateProductCache(tenantId: string, productId?: string, barcode?: string | null) {
-        // Invalidar lista general (todas las combinaciones de paginación/filtros)
-        const listPattern = this.cacheService.generateKey(tenantId, 'products', 'list', '*');
-        await this.cacheService.invalidatePattern(listPattern);
-
-        // Invalidar estadísticas de BI (siempre deben refrescarse si cambia el catálogo)
-        const analyticsPattern = this.cacheService.generateKey(tenantId, 'analytics', '*');
-        await this.cacheService.invalidatePattern(analyticsPattern);
-
-        // Si hay un productId, invalidar ese producto específico
-        if (productId) {
-            const detailKey = this.cacheService.generateKey(tenantId, 'products', 'detail', productId);
-            await this.cacheService.invalidate(detailKey);
-        }
-
-        // ✅ Invalidar caché de barcode si se conoce
-        if (barcode) {
-            const barcodeKey = this.cacheService.generateKey(tenantId, 'products', 'barcode', barcode);
-            await this.cacheService.invalidate(barcodeKey);
-        }
-    }
+  }
 }

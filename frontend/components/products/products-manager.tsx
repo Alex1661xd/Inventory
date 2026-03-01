@@ -24,6 +24,7 @@ type FormState = {
     costPrice: string
     salePrice: string
     creditPrice: string
+    creditDownPayment: string
     allowCreditSale: boolean
     isPublic: boolean
     isSellable: boolean
@@ -44,6 +45,7 @@ const emptyForm: FormState = {
     costPrice: '0',
     salePrice: '0',
     creditPrice: '0',
+    creditDownPayment: '0',
     allowCreditSale: false,
     isPublic: true,
     isSellable: true,
@@ -120,6 +122,7 @@ export function ProductsManager({
     const [variantsExpanded, setVariantsExpanded] = useState(false)
     const [itemToDelete, setItemToDelete] = useState<string | null>(null)
     const [isCostFlipped, setIsCostFlipped] = useState(false)
+    const [isSalePriceFlipped, setIsSalePriceFlipped] = useState(false)
     const [isStockFlipped, setIsStockFlipped] = useState(false)
     const [isComboCostFlipped, setIsComboCostFlipped] = useState(false)
     const [isComboStockFlipped, setIsComboStockFlipped] = useState(false)
@@ -180,20 +183,28 @@ export function ProductsManager({
     const load = async (page = 1, refresh = false) => {
         setLoading(true)
         try {
+            const isCreditCategoryFilter = selectedCategory === 'credit'
             const response = await api.products.list({
-                page,
-                limit: itemsPerPage,
+                page: isCreditCategoryFilter ? 1 : page,
+                limit: isCreditCategoryFilter ? 1000 : itemsPerPage,
                 search: debouncedSearch,
-                categoryId: selectedCategory || undefined,
+                categoryId: selectedCategory && selectedCategory !== 'credit' ? selectedCategory : undefined,
                 minPrice: debouncedPriceRange.min ? parseFloat(debouncedPriceRange.min) : undefined,
                 maxPrice: debouncedPriceRange.max ? parseFloat(debouncedPriceRange.max) : undefined,
                 stockStatus: stockFilter !== 'all' ? stockFilter : undefined,
                 refresh
             })
             const productsData = Array.isArray(response) ? response : (response?.data || [])
-            setProducts(productsData)
-            setTotalItems(Array.isArray(response) ? response.length : (response.total || 0))
-            setTotalPages(Array.isArray(response) ? 1 : (response.totalPages || 1))
+            if (isCreditCategoryFilter) {
+                const creditProducts = productsData.filter((p: Product) => !!p.allowCreditSale)
+                setProducts(creditProducts)
+                setTotalItems(creditProducts.length)
+                setTotalPages(1)
+            } else {
+                setProducts(productsData)
+                setTotalItems(Array.isArray(response) ? response.length : (response.total || 0))
+                setTotalPages(Array.isArray(response) ? 1 : (response.totalPages || 1))
+            }
         } catch (e: any) {
             toast.error(e.message)
         } finally {
@@ -372,6 +383,7 @@ export function ProductsManager({
     }
 
     const handleViewProduct = async (p: Product) => {
+        setIsSalePriceFlipped(false)
         setIsCostFlipped(false)
         setIsStockFlipped(false)
         setStockDetails([])
@@ -395,6 +407,7 @@ export function ProductsManager({
     }
 
     const closeViewModal = () => {
+        setIsSalePriceFlipped(false)
         setIsCostFlipped(false)
         setIsStockFlipped(false)
         setViewModal({ product: null, visible: false })
@@ -428,6 +441,7 @@ export function ProductsManager({
             costPrice: p.costPrice.toString(),
             salePrice: p.salePrice.toString(),
             creditPrice: Number(p.creditPrice || 0).toString(),
+            creditDownPayment: Number(p.creditDownPayment || 0).toString(),
             allowCreditSale: !!p.allowCreditSale,
             isPublic: p.isPublic,
             isSellable: p.isSellable,
@@ -716,6 +730,7 @@ export function ProductsManager({
         const cost = Number(form.costPrice)
         const sale = Number(form.salePrice)
         const creditPrice = Number(form.creditPrice)
+        const creditDownPayment = Number(form.creditDownPayment)
 
         if (isNaN(cost) || cost <= 0) return toast.error('El precio de costo debe ser superior a 0')
         if (isNaN(sale) || sale <= 0) return toast.error('El precio de venta debe ser superior a 0')
@@ -725,6 +740,12 @@ export function ProductsManager({
         }
         if (form.allowCreditSale && creditPrice < sale) {
             return toast.error('El precio de credito no puede ser menor que el precio de contado')
+        }
+        if (form.allowCreditSale && (isNaN(creditDownPayment) || creditDownPayment < 0)) {
+            return toast.error('La cuota inicial sugerida debe ser mayor o igual a 0')
+        }
+        if (form.allowCreditSale && creditDownPayment >= creditPrice) {
+            return toast.error('La cuota inicial sugerida debe ser menor al precio de credito')
         }
 
         setSaving(true)
@@ -746,6 +767,7 @@ export function ProductsManager({
                 costPrice: Number(form.costPrice),
                 salePrice: Number(form.salePrice),
                 creditPrice: form.allowCreditSale ? Number(form.creditPrice) : 0,
+                creditDownPayment: form.allowCreditSale ? Number(form.creditDownPayment) : 0,
                 allowCreditSale: form.allowCreditSale,
                 isPublic: form.isPublic,
                 isSellable: form.isSellable,
@@ -1167,6 +1189,7 @@ export function ProductsManager({
                                         onChange={(e) => setSelectedCategory(e.target.value)}
                                     >
                                         <option value="">Todas</option>
+                                        <option value="credit">Credito</option>
                                         {categories.map((cat) => (
                                             <option key={cat.id} value={cat.id}>{cat.name}</option>
                                         ))}
@@ -1847,16 +1870,28 @@ export function ProductsManager({
                                         </Label>
                                     </div>
                                     {form.allowCreditSale && (
-                                        <div className="space-y-2">
-                                            <Label className="flex items-center gap-1">
-                                                Precio credito
-                                                <span className="text-red-500">*</span>
-                                            </Label>
-                                            <Input
-                                                type="text"
-                                                value={formatCurrency(form.creditPrice)}
-                                                onChange={(e) => setForm((s) => ({ ...s, creditPrice: parseCurrencyInput(e.target.value) }))}
-                                            />
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            <div className="space-y-2">
+                                                <Label className="flex items-center gap-1">
+                                                    Precio credito
+                                                    <span className="text-red-500">*</span>
+                                                </Label>
+                                                <Input
+                                                    type="text"
+                                                    value={formatCurrency(form.creditPrice)}
+                                                    onChange={(e) => setForm((s) => ({ ...s, creditPrice: parseCurrencyInput(e.target.value) }))}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="flex items-center gap-1">
+                                                    Cuota inicial sugerida
+                                                </Label>
+                                                <Input
+                                                    type="text"
+                                                    value={formatCurrency(form.creditDownPayment)}
+                                                    onChange={(e) => setForm((s) => ({ ...s, creditDownPayment: parseCurrencyInput(e.target.value) }))}
+                                                />
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -2305,9 +2340,32 @@ export function ProductsManager({
                                     <div className="space-y-2">
                                         <div className="text-sm font-bold text-[rgb(120,115,110)] uppercase tracking-widest">Información Económica</div>
                                         <div className={cn("grid gap-4", isAdminView ? "grid-cols-2" : "grid-cols-1")}>
-                                            <div className="p-3 bg-emerald-50 rounded-xl">
-                                                <div className="text-[10px] text-emerald-600 font-bold uppercase">Precio Venta</div>
-                                                <div className="text-xl font-black text-emerald-900">{formatCurrency(viewModal.product.salePrice)}</div>
+                                            <div
+                                                className="relative perspective-1000 cursor-pointer h-[72px] group"
+                                                onClick={() => setIsSalePriceFlipped(!isSalePriceFlipped)}
+                                            >
+                                                <div className={cn(
+                                                    "relative w-full h-full transition-all duration-500 preserve-3d group-hover:scale-[1.02]",
+                                                    isSalePriceFlipped && "rotate-y-180",
+                                                    !!viewModal.product.allowCreditSale && !isSalePriceFlipped && "ring-2 ring-indigo-500/20 shadow-lg animate-pulse-soft"
+                                                )}>
+                                                    <div className="absolute inset-0 backface-hidden p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex flex-col justify-center shadow-sm">
+                                                        <div className="flex justify-between items-center">
+                                                            <div className="text-[10px] text-emerald-600 font-bold uppercase">Precio Contado</div>
+                                                            <div className="text-[8px] bg-stone-900 text-white px-2 py-0.5 rounded-full font-black">↻</div>
+                                                        </div>
+                                                        <div className="text-xl font-black text-emerald-900">{formatCurrency(viewModal.product.salePrice)}</div>
+                                                    </div>
+
+                                                    <div className="absolute inset-0 backface-hidden rotate-y-180 p-3 bg-indigo-900 rounded-xl text-white flex flex-col justify-center border border-indigo-700 shadow-xl">
+                                                        <div className="text-[10px] text-indigo-200 font-bold uppercase">Precio Credito</div>
+                                                        {viewModal.product.allowCreditSale && Number(viewModal.product.creditPrice || 0) > 0 ? (
+                                                            <div className="text-xl font-black text-indigo-100">{formatCurrency(viewModal.product.creditPrice || 0)}</div>
+                                                        ) : (
+                                                            <div className="text-sm font-bold text-indigo-200">No habilitado</div>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
 
                                             {isAdminView && (

@@ -223,6 +223,7 @@ model Product {
   salePrice   Decimal  @default(0) // Precio al público
   creditPrice Decimal  @default(0) // Precio al crédito
   allowCreditSale Boolean @default(false)
+  creditDownPayment Decimal @default(0) // Cuota inicial sugerida por unidad
   
   isPublic    Boolean  @default(true) // Si false, no sale en el catálogo web
   isSellable  Boolean  @default(true) // Si false, no se puede vender aún (POS)

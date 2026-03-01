@@ -49,7 +49,7 @@ export function SellerShell({
             <h1 className="font-bold text-xl text-white" style={{ fontFamily: 'var(--font-display)' }}>
               <Link href="/pos" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                 <ShoppingCart className="h-7 w-7" />
-                <span>POS System</span>
+                <span>InventoryPro</span>
               </Link>
             </h1>
           </div>
@@ -86,7 +86,7 @@ export function SellerShell({
                 <h1 className="font-bold text-lg text-white" style={{ fontFamily: 'var(--font-display)' }}>
                   <Link href="/pos" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                     <ShoppingCart className="h-6 w-6" />
-                    <span>POS System</span>
+                    <span>InventoryPro</span>
                   </Link>
                 </h1>
               </div>
@@ -114,7 +114,7 @@ export function SellerShell({
                   <h1 className="font-bold text-xl text-white" style={{ fontFamily: 'var(--font-display)' }}>
                     <Link href="/pos" onClick={() => setOpen(false)} className="flex items-center gap-3">
                       <ShoppingCart className="h-7 w-7" />
-                      <span>POS System</span>
+                      <span>InventoryPro</span>
                     </Link>
                   </h1>
                   <Button variant="ghost" onClick={() => setOpen(false)} aria-label="Cerrar menu" size="icon" className="text-white hover:bg-white/10">

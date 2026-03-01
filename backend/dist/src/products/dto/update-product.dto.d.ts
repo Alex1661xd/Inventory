@@ -13,6 +13,7 @@ export declare class UpdateProductDto {
     salePrice?: number;
     creditPrice?: number;
     allowCreditSale?: boolean;
+    creditDownPayment?: number;
     isPublic?: boolean;
     isSellable?: boolean;
     categoryId?: string;
