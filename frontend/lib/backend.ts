@@ -202,6 +202,8 @@ export type Product = {
     images: string[];
     costPrice: string;
     salePrice: string;
+    creditPrice?: string;
+    allowCreditSale?: boolean;
     isPublic: boolean;
     isSellable: boolean;
     tenantId: string;
@@ -217,6 +219,40 @@ export type Product = {
         sortOrder?: number;
         isPublic?: boolean;
     }>;
+};
+
+export type CreditSaleStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+
+export type CreditPayment = {
+    id: string;
+    amount: number;
+    paymentMethod: 'CASH' | 'CARD' | 'TRANSFER' | 'OTHER';
+    notes?: string | null;
+    paidAt: string;
+    createdById: string;
+    createdBy?: { id: string; name: string };
+    createdAt: string;
+};
+
+export type CreditSale = {
+    id: string;
+    invoiceId: string;
+    tenantId: string;
+    customerId: string;
+    customer: Customer;
+    totalAmount: number;
+    downPayment: number;
+    paidAmount: number;
+    balance: number;
+    installmentsCount: number;
+    installmentAmount: number;
+    nextDueDate?: string | null;
+    status: CreditSaleStatus;
+    notes?: string | null;
+    createdAt: string;
+    updatedAt: string;
+    invoice?: any;
+    payments?: CreditPayment[];
 };
 
 export type ComboPricingType = 'FIXED' | 'PERCENT_OFF';
@@ -409,6 +445,14 @@ export type AnalyticsDashboard = {
         netProfit: number;
         salesCount: number;
         averageTicket: number;
+        credit?: {
+            soldInPeriod: number;
+            creditSalesCount: number;
+            collectionsInPeriod: number;
+            collectionsCount: number;
+            outstandingBalance: number;
+            overdueBalance: number;
+        };
     };
     salesOverTime: Array<{ date: string; total: number; profit: number }>;
     topProducts: Array<{ name: string; quantity: number; revenue: number; profit: number }>;
@@ -452,6 +496,8 @@ export const api = {
             images?: string[];
             costPrice?: number;
             salePrice?: number;
+            creditPrice?: number;
+            allowCreditSale?: boolean;
             isPublic?: boolean;
             isSellable?: boolean;
             initialStock?: number;
@@ -466,6 +512,8 @@ export const api = {
             images?: string[];
             costPrice?: number;
             salePrice?: number;
+            creditPrice?: number;
+            allowCreditSale?: boolean;
             isPublic?: boolean;
             isSellable?: boolean;
             categoryId?: string;
@@ -638,7 +686,9 @@ export const api = {
         getCurrent: () => backendFetch<CashShift | null>('/cash-flow/current'),
         summary: () => backendFetch<{
             initialAmount: number;
+            cashSales?: number;
             totalSales: number;
+            cashCreditCollections?: number;
             deposits: number;
             withdrawals: number;
             expenses: number;
@@ -678,7 +728,16 @@ export const api = {
         profitLoss: (startDate: string, endDate: string) =>
             backendFetch<{
                 period: { startDate: string; endDate: string };
-                revenue: { totalSales: number; salesCount: number };
+                revenue: {
+                    totalSales: number;
+                    salesCount: number;
+                    cashSales?: number;
+                    creditSales?: number;
+                    creditSalesCount?: number;
+                    creditCollections?: number;
+                    outstandingCreditBalance?: number;
+                    overdueCreditBalance?: number;
+                };
                 costOfGoodsSold: number;
                 grossProfit: number;
                 grossMargin: number;
@@ -726,6 +785,21 @@ export const api = {
         pay: (id: string) => backendFetch<Purchase>(`/purchases/${id}/pay`, { method: 'PATCH' }),
         addPayment: (id: string, payload: { amount: number; notes?: string }) =>
             backendFetch<PurchasePayment>(`/purchases/${id}/payments`, { method: 'POST', json: payload }),
+    },
+    credits: {
+        list: (options?: { page?: number; limit?: number; search?: string; status?: CreditSaleStatus; from?: string; to?: string }) => {
+            const params = new URLSearchParams();
+            if (options?.page) params.set('page', options.page.toString());
+            if (options?.limit) params.set('limit', options.limit.toString());
+            if (options?.search) params.set('search', options.search);
+            if (options?.status) params.set('status', options.status);
+            if (options?.from) params.set('from', options.from);
+            if (options?.to) params.set('to', options.to);
+            return fetchPaginatedWithPrefetch<PaginatedResponse<CreditSale>>('/credits', params);
+        },
+        get: (id: string) => backendFetch<CreditSale>(`/credits/${id}`),
+        addPayment: (id: string, payload: { amount: number; paymentMethod: 'CASH' | 'CARD' | 'TRANSFER' | 'OTHER'; notes?: string; paidAt?: string }) =>
+            backendFetch<CreditSale>(`/credits/${id}/payments`, { method: 'POST', json: payload }),
     },
     catalog: {
         getSettings: () => backendFetch<{

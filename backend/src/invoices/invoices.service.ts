@@ -6,6 +6,15 @@ import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { AuditService } from '../audit/audit.service';
 import { SequenceService } from '../sequences/sequence.service';
 
+type CreditSaleStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+const CREDIT_STATUS = {
+    PENDING: 'PENDING' as CreditSaleStatus,
+    PARTIAL: 'PARTIAL' as CreditSaleStatus,
+    PAID: 'PAID' as CreditSaleStatus,
+    OVERDUE: 'OVERDUE' as CreditSaleStatus,
+    CANCELLED: 'CANCELLED' as CreditSaleStatus,
+};
+
 @Injectable()
 export class InvoicesService {
     constructor(
@@ -28,12 +37,29 @@ export class InvoicesService {
         await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'expenses', '*'));
         await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'products', '*'));
         await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'inventory', '*'));
+        await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'credits', '*'));
+        await this.cacheService.invalidatePattern(this.cacheService.generateKey(tenantId, 'cash-flow', '*'));
 
         await this.cacheService.invalidate(this.cacheService.generateKey(tenantId, 'products', 'list'));
     }
 
     private roundMoney(value: number) {
         return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+    }
+
+    private resolveCreditSaleStatus(params: {
+        balance: number;
+        paidAmount: number;
+        nextDueDate?: Date | null;
+    }): CreditSaleStatus {
+        const balance = this.roundMoney(Number(params.balance || 0));
+        const paidAmount = this.roundMoney(Number(params.paidAmount || 0));
+        const nextDueDate = params.nextDueDate || null;
+
+        if (balance <= 0) return CREDIT_STATUS.PAID;
+        if (nextDueDate && nextDueDate.getTime() < Date.now()) return CREDIT_STATUS.OVERDUE;
+        if (paidAmount > 0) return CREDIT_STATUS.PARTIAL;
+        return CREDIT_STATUS.PENDING;
     }
 
     private computeComboPricing(pricingType: string, fixedPrice: number, discountPercent: number, baseUnitPrice: number) {
@@ -55,6 +81,8 @@ export class InvoicesService {
     }
 
     async create(tenantId: string, sellerId: string, dto: CreateInvoiceDto) {
+        const isCreditSale = !!dto.isCreditSale;
+
         const seller = await this.prisma.user.findFirst({
             where: { id: sellerId, tenantId },
             select: { id: true, role: true, warehouseId: true },
@@ -98,6 +126,10 @@ export class InvoicesService {
             }
         }
 
+        if (isCreditSale && !selectedCustomer) {
+            throw new BadRequestException('Las ventas a credito requieren un cliente seleccionado.');
+        }
+
         const normalizedDirectItems = (dto.items || [])
             .map((item) => ({
                 productId: item.productId,
@@ -135,6 +167,10 @@ export class InvoicesService {
             comboId: string;
             comboName: string;
         }> = [];
+
+        if (isCreditSale && comboIds.length > 0) {
+            throw new BadRequestException('Las ventas a credito no permiten combos por ahora.');
+        }
 
         if (comboIds.length > 0) {
             const combos = await (this.prisma as any).combo.findMany({
@@ -257,18 +293,22 @@ export class InvoicesService {
         }
 
         const allProductIds = Array.from(new Set(expandedItems.map(item => item.productId)));
-        const productRecords = await this.prisma.product.findMany({
+        const productRecords = await (this.prisma as any).product.findMany({
             where: { tenantId, id: { in: allProductIds } },
-            select: { id: true, name: true, active: true, isSellable: true },
+            select: { id: true, name: true, active: true, isSellable: true, allowCreditSale: true },
         });
         const productMap = new Map(productRecords.map(p => [p.id, p]));
 
         for (const item of expandedItems) {
-            const product = productMap.get(item.productId);
+            const product: any = productMap.get(item.productId);
             if (!product || !product.active || !product.isSellable) {
                 throw new BadRequestException(
                     `El producto con ID "${item.productId}" no existe, esta desactivado o no esta habilitado para venta.`
                 );
+            }
+
+            if (isCreditSale && !product.allowCreditSale) {
+                throw new BadRequestException(`El producto "${product.name}" no esta habilitado para venta a credito.`);
             }
         }
 
@@ -290,6 +330,77 @@ export class InvoicesService {
         }
 
         const invoiceStatus = dto.status || 'PAID';
+        if (isCreditSale && invoiceStatus !== 'PAID') {
+            throw new BadRequestException('Una venta a credito no puede guardarse como pendiente.');
+        }
+
+        let creditTerms: {
+            totalAmount: number;
+            downPayment: number;
+            paidAmount: number;
+            balance: number;
+            installmentsCount: number;
+            installmentAmount: number;
+            nextDueDate: Date | null;
+            status: CreditSaleStatus;
+            notes?: string;
+        } | null = null;
+
+        if (isCreditSale) {
+            if (!dto.credit) {
+                throw new BadRequestException('Debes enviar las condiciones del credito.');
+            }
+
+            const downPayment = this.roundMoney(Number(dto.credit.downPayment || 0));
+            const installmentsCount = Math.floor(Number(dto.credit.installmentsCount || 0));
+            const nextDueDate = dto.credit.firstDueDate ? new Date(dto.credit.firstDueDate) : null;
+
+            if (downPayment < 0) {
+                throw new BadRequestException('La cuota inicial no puede ser negativa.');
+            }
+
+            if (downPayment > this.roundMoney(calculatedTotal) + 0.01) {
+                throw new BadRequestException('La cuota inicial no puede ser mayor al total de la venta.');
+            }
+
+            if (!Number.isFinite(installmentsCount) || installmentsCount < 1) {
+                throw new BadRequestException('La cantidad de cuotas debe ser mayor o igual a 1.');
+            }
+
+            if (nextDueDate && Number.isNaN(nextDueDate.getTime())) {
+                throw new BadRequestException('La fecha de primera cuota es invalida.');
+            }
+
+            const balance = this.roundMoney(calculatedTotal - downPayment);
+            if (balance <= 0) {
+                throw new BadRequestException('Para crear un credito debe existir saldo pendiente.');
+            }
+
+            const requestedInstallment = this.roundMoney(Number(dto.credit.installmentAmount || 0));
+            const installmentAmount = requestedInstallment > 0
+                ? requestedInstallment
+                : this.roundMoney(balance / installmentsCount);
+
+            if (installmentAmount <= 0) {
+                throw new BadRequestException('El valor de la cuota debe ser mayor que cero.');
+            }
+
+            creditTerms = {
+                totalAmount: this.roundMoney(calculatedTotal),
+                downPayment,
+                paidAmount: downPayment,
+                balance,
+                installmentsCount,
+                installmentAmount,
+                nextDueDate,
+                status: this.resolveCreditSaleStatus({
+                    balance,
+                    paidAmount: downPayment,
+                    nextDueDate,
+                }),
+                notes: dto.credit.notes?.trim() || undefined,
+            };
+        }
 
         const result = await this.prisma.$transaction(async (tx) => {
             const nextInvoiceNumber = await this.sequenceService.nextVal(tenantId, 'invoice', tx);
@@ -330,6 +441,7 @@ export class InvoicesService {
                     total: this.roundMoney(calculatedTotal),
                     status: invoiceStatus as any,
                     paymentMethod: dto.paymentMethod,
+                    isCreditSale,
                     tenantId,
                     sellerId,
                     customerId: selectedCustomer?.id,
@@ -363,6 +475,39 @@ export class InvoicesService {
                         tenantId,
                     }))
                 });
+            }
+
+            if (isCreditSale && creditTerms && selectedCustomer) {
+                const createdCreditSale = await (tx as any).creditSale.create({
+                    data: {
+                        tenantId,
+                        invoiceId: invoice.id,
+                        customerId: selectedCustomer.id,
+                        totalAmount: creditTerms.totalAmount,
+                        downPayment: creditTerms.downPayment,
+                        paidAmount: creditTerms.paidAmount,
+                        balance: creditTerms.balance,
+                        installmentsCount: creditTerms.installmentsCount,
+                        installmentAmount: creditTerms.installmentAmount,
+                        nextDueDate: creditTerms.nextDueDate,
+                        status: creditTerms.status,
+                        notes: creditTerms.notes,
+                    },
+                });
+
+                if (creditTerms.downPayment > 0) {
+                    await (tx as any).creditPayment.create({
+                        data: {
+                            tenantId,
+                            creditSaleId: createdCreditSale.id,
+                            createdById: sellerId,
+                            amount: creditTerms.downPayment,
+                            paymentMethod: dto.paymentMethod,
+                            notes: 'Abono inicial de venta a credito',
+                            paidAt: invoice.createdAt,
+                        },
+                    });
+                }
             }
 
             if (invoiceStatus === 'PAID') {
@@ -443,6 +588,8 @@ export class InvoicesService {
                 total: dto.total,
                 directItems: normalizedDirectItems.length,
                 comboLines: comboSnapshots.length,
+                isCreditSale,
+                downPayment: creditTerms?.downPayment || 0,
             },
             userId: sellerId,
             tenantId,
@@ -495,6 +642,16 @@ export class InvoicesService {
                     customer: true,
                     seller: true,
                     warehouse: true,
+                    creditSale: {
+                        select: {
+                            id: true,
+                            status: true,
+                            balance: true,
+                            paidAmount: true,
+                            installmentsCount: true,
+                            nextDueDate: true,
+                        }
+                    },
                     comboLines: true,
                     items: {
                         include: {
@@ -540,6 +697,18 @@ export class InvoicesService {
                 warehouse: true,
                 customer: true,
                 seller: true,
+                creditSale: {
+                    include: {
+                        payments: {
+                            orderBy: { paidAt: 'desc' },
+                            include: {
+                                createdBy: {
+                                    select: { id: true, name: true }
+                                }
+                            }
+                        }
+                    }
+                },
             },
         });
 
@@ -621,6 +790,13 @@ export class InvoicesService {
                         }
                     });
                 }
+            }
+
+            if ((invoice as any).isCreditSale) {
+                await (tx as any).creditSale.updateMany({
+                    where: { tenantId, invoiceId: id },
+                    data: { status: CREDIT_STATUS.CANCELLED },
+                });
             }
 
             return tx.invoice.update({

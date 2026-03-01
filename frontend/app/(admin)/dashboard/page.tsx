@@ -205,8 +205,8 @@ export default function DashboardPage() {
       </div>
 
       <Card className="bg-gradient-to-br from-[hsl(var(--foreground))] to-[hsl(var(--primary-dark))] text-white border-none animate-fade-in" style={{ animationDelay: '0.6s' }}>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
+        <div className="p-6 flex flex-col items-center justify-center min-h-[120px]">
+          <div className="flex items-center gap-4 w-full">
             <CreditCard className="h-8 w-8 text-white/80" />
             <div>
               <h3 className="text-xl font-bold mb-2" style={{ fontFamily: 'var(--font-display)' }}>
@@ -217,7 +217,7 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
-        </CardContent>
+        </div>
       </Card>
     </div>
   )

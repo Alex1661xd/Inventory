@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { api, type Supplier, type Warehouse, type Product } from '@/lib/backend'
 import { toast } from 'sonner'
@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { formatThousands } from '@/lib/utils'
+import { formatThousands, parseThousands } from '@/lib/utils'
 
 interface PurchaseLineItem {
     productId: string
@@ -47,6 +47,7 @@ export default function NewPurchasePage() {
     // Product search
     const [productSearch, setProductSearch] = useState('')
     const [showResults, setShowResults] = useState(false)
+    const searchBoxRef = useRef<HTMLDivElement | null>(null)
 
     useEffect(() => {
         const loadInitialData = async () => {
@@ -87,6 +88,23 @@ export default function NewPurchasePage() {
             console.log(` [NewPurchase] Resultados visibles: ${filteredProducts.length} items (búsqueda: "${productSearch}")`)
         }
     }, [productSearch, filteredProducts.length, showResults])
+
+    useEffect(() => {
+        const handleOutsideClick = (event: MouseEvent | TouchEvent) => {
+            if (!searchBoxRef.current) return
+            const target = event.target as Node | null
+            if (target && !searchBoxRef.current.contains(target)) {
+                setShowResults(false)
+            }
+        }
+
+        document.addEventListener('mousedown', handleOutsideClick)
+        document.addEventListener('touchstart', handleOutsideClick)
+        return () => {
+            document.removeEventListener('mousedown', handleOutsideClick)
+            document.removeEventListener('touchstart', handleOutsideClick)
+        }
+    }, [])
 
     const addItem = (product: Product) => {
         if (items.find(i => i.productId === product.id)) {
@@ -303,7 +321,7 @@ export default function NewPurchasePage() {
                         </CardHeader>
                         <CardContent className="p-4 md:p-6">
                             {/* Search Product Box */}
-                            <div className="relative mb-8">
+                            <div ref={searchBoxRef} className="relative mb-8">
                                 <div className="relative">
                                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[hsl(var(--muted))]" />
                                     <Input
@@ -398,10 +416,11 @@ export default function NewPurchasePage() {
                                                 <div>
                                                     <Label className="text-[10px] font-black uppercase text-[hsl(var(--muted))]">Costo Unit.</Label>
                                                     <Input
-                                                        type="number"
+                                                        type="text"
+                                                        inputMode="numeric"
                                                         className="h-10 text-right font-bold rounded-lg border-[hsl(var(--border))]"
-                                                        value={item.costPrice}
-                                                        onChange={(e) => updateItem(index, 'costPrice', parseFloat(e.target.value) || 0)}
+                                                        value={formatThousands(item.costPrice)}
+                                                        onChange={(e) => updateItem(index, 'costPrice', parseThousands(e.target.value))}
                                                     />
                                                 </div>
                                             </div>
@@ -456,14 +475,15 @@ export default function NewPurchasePage() {
                                                             onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 0)}
                                                         />
                                                     </td>
-                                                    <td className="px-4 py-4 w-32 text-right">
+                                                    <td className="px-4 py-4 w-44 text-right">
                                                         <div className="relative">
                                                             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-[hsl(var(--muted))]">$</span>
                                                             <Input
-                                                                type="number"
-                                                                className="h-10 text-right font-bold pl-5 rounded-lg border-[hsl(var(--border))]"
-                                                                value={item.costPrice}
-                                                                onChange={(e) => updateItem(index, 'costPrice', parseFloat(e.target.value) || 0)}
+                                                                type="text"
+                                                                inputMode="numeric"
+                                                                className="h-10 text-right font-bold tabular-nums pl-5 rounded-lg border-[hsl(var(--border))]"
+                                                                value={formatThousands(item.costPrice)}
+                                                                onChange={(e) => updateItem(index, 'costPrice', parseThousands(e.target.value))}
                                                             />
                                                         </div>
                                                     </td>
@@ -495,5 +515,3 @@ export default function NewPurchasePage() {
         </div>
     )
 }
-
-

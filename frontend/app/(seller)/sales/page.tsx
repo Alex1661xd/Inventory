@@ -79,6 +79,11 @@ function SaleDetailsDialog({ saleId, isOpen, onClose, formatCurrency }: { saleId
                                     <div className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-1">Factura</div>
                                     <DialogTitle className="text-2xl font-bold flex items-center gap-2">
                                         #{sale.id.slice(-6).toUpperCase()}
+                                        {sale.isCreditSale && (
+                                            <span className="text-xs px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300">
+                                                Credito
+                                            </span>
+                                        )}
                                         <span className={cn(
                                             "text-xs px-2 py-0.5 rounded-full",
                                             sale.status === 'PAID' ? "bg-emerald-500/20 text-emerald-400" : "bg-orange-500/20 text-orange-400"
@@ -88,7 +93,9 @@ function SaleDetailsDialog({ saleId, isOpen, onClose, formatCurrency }: { saleId
                                     </DialogTitle>
                                 </div>
                                 <div className="text-right">
-                                    <div className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-1">Total</div>
+                                    <div className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-1">
+                                        {sale.isCreditSale ? 'Total credito' : 'Total'}
+                                    </div>
                                     <div className="text-3xl font-black text-white">{formatCurrency(sale.total)}</div>
                                 </div>
                             </div>
@@ -194,6 +201,18 @@ function SaleDetailsDialog({ saleId, isOpen, onClose, formatCurrency }: { saleId
                                     {formatCurrency(Number(sale.total))}
                                 </span>
                             </div>
+                            {sale.isCreditSale && (
+                                <>
+                                    <div className="flex justify-between w-full max-w-[240px] text-emerald-700 font-semibold">
+                                        <span>Abono inicial</span>
+                                        <span>{formatCurrency(Number(sale.creditSale?.paidAmount || 0))}</span>
+                                    </div>
+                                    <div className="flex justify-between w-full max-w-[240px] text-amber-700 font-semibold">
+                                        <span>Saldo pendiente</span>
+                                        <span>{formatCurrency(Number(sale.creditSale?.balance || 0))}</span>
+                                    </div>
+                                </>
+                            )}
                         </div>
 
                         <div className="p-4 bg-white border-t border-gray-100 flex justify-end gap-3">
@@ -474,24 +493,24 @@ export default function SalesHistoryPage() {
                 {/* Stats Summary - Minimal Design */}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <Card className="bg-white border-gray-200">
-                        <CardContent className="h-24 flex flex-col items-center justify-center p-4">
+                        <div className="h-24 flex flex-col items-center justify-center p-4">
                             <div className="text-3xl font-bold text-gray-900">{totalItems}</div>
                             <div className="text-xs text-gray-500 font-medium uppercase tracking-wide mt-1">Total Ventas</div>
-                        </CardContent>
+                        </div>
                     </Card>
 
                     <Card className="bg-white border-gray-200">
-                        <CardContent className="h-24 flex flex-col items-center justify-center p-4">
+                        <div className="h-24 flex flex-col items-center justify-center p-4">
                             <div className="text-3xl font-bold text-gray-900">{stats.completedCount}</div>
                             <div className="text-xs text-gray-500 font-medium uppercase tracking-wide mt-1">Completadas (Pág)</div>
-                        </CardContent>
+                        </div>
                     </Card>
 
                     <Card className="bg-gray-900 border-gray-900 text-white col-span-2 md:col-span-1">
-                        <CardContent className="h-24 flex flex-col items-center justify-center p-4">
+                        <div className="h-24 flex flex-col items-center justify-center p-4">
                             <div className="text-2xl md:text-3xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
                             <div className="text-xs text-gray-400 font-medium uppercase tracking-wide mt-1">Subtotal Pág</div>
-                        </CardContent>
+                        </div>
                     </Card>
                 </div>
 
@@ -628,7 +647,7 @@ function SaleCard({ sale, formatCurrency, calculatePendingTotal, onResume, onDel
             "overflow-hidden transition-all hover:shadow-md border-gray-200",
             isPending && "bg-gray-50/50"
         )}>
-            <CardContent className="p-0">
+            <div className="p-0">
                 <div className="flex items-center justify-between gap-4 p-4 sm:p-5">
                     {/* Left side: Icon + Info */}
                     <div className="flex items-center gap-4 min-w-0">
@@ -650,6 +669,11 @@ function SaleCard({ sale, formatCurrency, calculatePendingTotal, onResume, onDel
                                 <span className="font-semibold text-gray-900 truncate">
                                     {sale.customer?.name || 'Cliente Ocasional'}
                                 </span>
+                                {sale.isCreditSale && (
+                                    <span className="text-xs px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 font-medium">
+                                        Credito
+                                    </span>
+                                )}
                                 {isPending && (
                                     <span className="text-xs px-2 py-0.5 rounded-full bg-gray-200 text-gray-600 font-medium">
                                         Pendiente
@@ -741,8 +765,7 @@ function SaleCard({ sale, formatCurrency, calculatePendingTotal, onResume, onDel
                         </div>
                     </div>
                 </div>
-            </CardContent>
+            </div>
         </Card>
     )
 }
-

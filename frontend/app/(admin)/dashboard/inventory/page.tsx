@@ -314,7 +314,7 @@ export default function InventoryPage() {
                     {/* Stats Summary - Redesigned with Valuation */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:col-span-2 lg:col-span-4 mb-4">
                         <Card className="bg-[hsl(var(--surface-elevated))] border-none shadow-sm overflow-hidden">
-                            <CardContent className="p-6 flex flex-col items-center justify-center min-h-[140px]">
+                            <div className="p-6 flex flex-col items-center justify-center min-h-[140px]">
                                 <div className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-tighter opacity-70 mb-2 text-center">Inversion (Costo)</div>
                                 <div className="text-xl md:text-2xl font-black text-[hsl(var(--foreground))] text-center mb-3">
                                     ${formatThousands(filteredValuation?.totalCost || 0)}
@@ -323,11 +323,11 @@ export default function InventoryPage() {
                                     <div className="h-1 bg-amber-500 rounded-full" style={{ width: '100%' }}></div>
                                 </div>
                                 <div className="text-[9px] font-medium text-[hsl(var(--muted))] opacity-60 text-center">Capital invertido en compras</div>
-                            </CardContent>
+                            </div>
                         </Card>
 
                         <Card className="bg-[hsl(var(--surface-elevated))] border-none shadow-sm overflow-hidden">
-                            <CardContent className="p-6 flex flex-col items-center justify-center min-h-[140px]">
+                            <div className="p-6 flex flex-col items-center justify-center min-h-[140px]">
                                 <div className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-tighter opacity-70 mb-2 text-center">Valor Venta Est.</div>
                                 <div className="text-xl md:text-2xl font-black text-emerald-600 text-center mb-3">
                                     ${formatThousands(filteredValuation?.totalValue || 0)}
@@ -336,11 +336,11 @@ export default function InventoryPage() {
                                     <div className="h-1 bg-emerald-500 rounded-full" style={{ width: '100%' }}></div>
                                 </div>
                                 <div className="text-[9px] font-medium text-[hsl(var(--muted))] opacity-60 text-center">Ingreso bruto potencial</div>
-                            </CardContent>
+                            </div>
                         </Card>
 
                         <Card className="bg-[hsl(var(--surface-elevated))] border-none shadow-sm overflow-hidden">
-                            <CardContent className="p-6 flex flex-col items-center justify-center min-h-[140px]">
+                            <div className="p-6 flex flex-col items-center justify-center min-h-[140px]">
                                 <div className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-tighter opacity-70 mb-2 text-center">Margen Potencial</div>
                                 <div className="text-xl md:text-2xl font-black text-blue-600 text-center mb-1">
                                     ${formatThousands(filteredValuation?.potentialProfit || 0)}
@@ -349,11 +349,11 @@ export default function InventoryPage() {
                                     {filteredValuation?.totalCost ? ((filteredValuation.potentialProfit / filteredValuation.totalCost) * 100).toFixed(1) : 0}% sobre costo
                                 </div>
                                 <div className="text-[9px] font-medium text-[hsl(var(--muted))] opacity-60 text-center">Utilidad bruta esperada</div>
-                            </CardContent>
+                            </div>
                         </Card>
 
                         <Card className="bg-[hsl(var(--primary))] text-white border-none shadow-md overflow-hidden">
-                            <CardContent className="p-6 flex flex-col items-center justify-center min-h-[140px]">
+                            <div className="p-6 flex flex-col items-center justify-center min-h-[140px]">
                                 <div className="text-[10px] font-black opacity-80 uppercase tracking-tighter mb-2 text-center">Total Unidades</div>
                                 <div className="text-xl md:text-2xl font-black text-center mb-2">
                                     {formatThousands(filteredValuation?.totalItems || 0)}
@@ -362,7 +362,7 @@ export default function InventoryPage() {
                                     {selectedWarehouse ? 'En esta bodega' : `En ${filteredValuation?.warehouseBreakdown?.length || 0} Bodegas`}
                                 </div>
                                 <div className="text-[9px] font-medium opacity-50 text-center">Conteo fisico de mercancia</div>
-                            </CardContent>
+                            </div>
                         </Card>
                     </div>
 
@@ -710,7 +710,7 @@ export default function InventoryPage() {
                                         onClick={() => setUpdateStockForm(prev => ({ ...prev, action: 'increase', reason: 'ADJUSTMENT' }))}
                                         className="h-10"
                                     >
-                                         Aumentar
+                                        Aumentar
                                     </Button>
                                     <Button
                                         type="button"
@@ -718,7 +718,7 @@ export default function InventoryPage() {
                                         onClick={() => setUpdateStockForm(prev => ({ ...prev, action: 'decrease', reason: 'ADJUSTMENT' }))}
                                         className="h-10"
                                     >
-                                         Disminuir
+                                        Disminuir
                                     </Button>
                                 </div>
                             </div>

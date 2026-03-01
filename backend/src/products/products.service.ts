@@ -79,6 +79,12 @@ export class ProductsService {
         }
 
         try {
+            const allowCreditSale = dto.allowCreditSale ?? false;
+            const creditPrice = Number(dto.creditPrice ?? dto.salePrice ?? 0);
+            if (allowCreditSale && creditPrice <= 0) {
+                throw new BadRequestException('El precio a credito debe ser mayor a 0.');
+            }
+
             const normalizedVisualVariants = (dto.visualVariants || [])
                 .map((v, index) => ({
                     name: String(v.name || '').trim(),
@@ -99,6 +105,8 @@ export class ProductsService {
                         images: dto.images ?? [],
                         costPrice: dto.costPrice ?? 0,
                         salePrice: dto.salePrice ?? 0,
+                        creditPrice,
+                        allowCreditSale,
                         isPublic: dto.isPublic ?? true,
                         categoryId: dto.categoryId,
                         visualVariants: normalizedVisualVariants.length > 0 ? {
@@ -154,7 +162,13 @@ export class ProductsService {
                 action: 'CREATE',
                 entity: 'Product',
                 entityId: product.id,
-                newValue: { name: dto.name, costPrice: dto.costPrice, salePrice: dto.salePrice },
+                newValue: {
+                    name: dto.name,
+                    costPrice: dto.costPrice,
+                    salePrice: dto.salePrice,
+                    creditPrice,
+                    allowCreditSale,
+                },
                 userId,
                 tenantId,
             });
@@ -268,8 +282,10 @@ export class ProductsService {
                 ...rest,
                 costPrice: Number(p.costPrice),
                 salePrice: Number(p.salePrice),
+                creditPrice: Number((p as any).creditPrice || 0),
+                allowCreditSale: !!(p as any).allowCreditSale,
                 totalStock,
-            visualVariants: ((p as any).visualVariants || []).map((v: any) => ({
+                visualVariants: ((p as any).visualVariants || []).map((v: any) => ({
                     id: v.id,
                     name: v.name,
                     image: v.image,
@@ -418,12 +434,18 @@ export class ProductsService {
     }
 
     async update(tenantId: string, id: string, dto: UpdateProductDto) {
-        const exists = await this.prisma.product.findFirst({
+        const exists: any = await (this.prisma as any).product.findFirst({
             where: { id, tenantId, active: true },
-            select: { id: true },
+            select: { id: true, salePrice: true, creditPrice: true, allowCreditSale: true },
         });
 
         if (!exists) throw new NotFoundException('Product not found');
+
+        const nextAllowCreditSale = dto.allowCreditSale ?? exists.allowCreditSale;
+        const nextCreditPrice = Number(dto.creditPrice ?? exists.creditPrice ?? dto.salePrice ?? exists.salePrice ?? 0);
+        if (nextAllowCreditSale && nextCreditPrice <= 0) {
+            throw new BadRequestException('El precio a credito debe ser mayor a 0.');
+        }
 
         try {
             const normalizedVisualVariants = dto.visualVariants !== undefined
@@ -454,6 +476,9 @@ export class ProductsService {
                 }
 
                 const { visualVariants, ...productData } = dto as any;
+                if (dto.creditPrice !== undefined) {
+                    productData.creditPrice = nextCreditPrice;
+                }
                 return (tx.product as any).update({
                     where: { id },
                     data: productData,

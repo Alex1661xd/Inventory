@@ -44,6 +44,14 @@ enum InvoiceStatus {
   CANCELLED
 }
 
+enum CreditSaleStatus {
+  PENDING
+  PARTIAL
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
 enum CashShiftStatus {
   OPEN
   CLOSED
@@ -93,6 +101,8 @@ model Tenant {
   expenses    Expense[]
   purchases   Purchase[]
   purchasePayments PurchasePayment[]
+  creditSales CreditSale[]
+  creditPayments CreditPayment[]
   stockBatches StockBatch[]
   visualVariants ProductVisualVariant[]
   combos      Combo[]
@@ -182,6 +192,7 @@ model User {
   stockMovements StockMovement[] // Movimientos de inventario realizados
   purchases   Purchase[]
   purchasePayments PurchasePayment[]
+  creditPayments CreditPayment[]
 
   @@index([tenantId])
   @@index([warehouseId])
@@ -210,6 +221,8 @@ model Product {
   // Precios (Usamos Decimal para evitar errores de dinero)
   costPrice   Decimal  @default(0) // Cuanto le costó a tu mamá (Privado)
   salePrice   Decimal  @default(0) // Precio al público
+  creditPrice Decimal  @default(0) // Precio al crédito
+  allowCreditSale Boolean @default(false)
   
   isPublic    Boolean  @default(true) // Si false, no sale en el catálogo web
   isSellable  Boolean  @default(true) // Si false, no se puede vender aún (POS)
@@ -397,6 +410,7 @@ model Customer {
   tenant    Tenant    @relation(fields: [tenantId], references: [id])
   
   invoices  Invoice[]
+  creditSales CreditSale[]
 
   @@index([tenantId, isBanned])
 }
@@ -408,6 +422,7 @@ model Invoice {
   discount        Decimal       @default(0)
   status          InvoiceStatus @default(PAID)
   paymentMethod   PaymentMethod
+  isCreditSale    Boolean       @default(false)
   
   // Fechas (Importante para que tu papá vea el flujo diario)
   createdAt       DateTime      @default(now()) 
@@ -431,9 +446,64 @@ model Invoice {
   
   items           InvoiceItem[]
   comboLines      InvoiceCombo[]
+  creditSale      CreditSale?
 }
 
 // Detalle de la factura (Qué productos se llevaron)
+model CreditSale {
+  id                String           @id @default(uuid())
+  invoiceId         String           @unique
+  invoice           Invoice          @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  customerId        String
+  customer          Customer         @relation(fields: [customerId], references: [id])
+
+  tenantId          String
+  tenant            Tenant           @relation(fields: [tenantId], references: [id])
+
+  totalAmount       Decimal
+  downPayment       Decimal          @default(0)
+  paidAmount        Decimal          @default(0)
+  balance           Decimal
+  installmentsCount Int
+  installmentAmount Decimal
+  nextDueDate       DateTime?
+  status            CreditSaleStatus @default(PENDING)
+  notes             String?
+
+  payments          CreditPayment[]
+
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([tenantId, status])
+  @@index([tenantId, customerId])
+  @@index([tenantId, nextDueDate])
+}
+
+model CreditPayment {
+  id            String      @id @default(uuid())
+
+  creditSaleId  String
+  creditSale    CreditSale  @relation(fields: [creditSaleId], references: [id], onDelete: Cascade)
+
+  tenantId      String
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+
+  createdById   String
+  createdBy     User        @relation(fields: [createdById], references: [id])
+
+  amount        Decimal
+  paymentMethod PaymentMethod
+  notes         String?
+  paidAt        DateTime    @default(now())
+
+  createdAt     DateTime    @default(now())
+
+  @@index([tenantId, paidAt])
+  @@index([tenantId, createdById])
+}
+
 model InvoiceItem {
   id              String   @id @default(uuid())
   quantity        Int

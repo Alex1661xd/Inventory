@@ -10,6 +10,7 @@ import {
   Boxes,
   Building2,
   ClipboardList,
+  CreditCard,
   FileText,
   FolderOpen,
   LayoutDashboard,
@@ -45,6 +46,7 @@ const navSections: NavSection[] = [
     title: 'FINANZAS',
     links: [
       { href: '/dashboard/cash-flow', label: 'Arqueos de Caja', icon: Banknote },
+      { href: '/dashboard/credit', label: 'Credito', icon: CreditCard },
       { href: '/dashboard/expenses', label: 'Gastos y Utilidad', icon: Receipt },
     ],
   },

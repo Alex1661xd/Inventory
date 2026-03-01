@@ -30,9 +30,10 @@ import { AuditModule } from './audit/audit.module';
 import { SequenceModule } from './sequences/sequence.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { N8nIntegrationModule } from './integrations/n8n/n8n-integration.module';
+import { CreditsModule } from './credits/credits.module';
 
 @Module({
-  imports: [ScheduleModule.forRoot(), CacheModule, PrismaModule, SupabaseModule, AuthModule, ProductsModule, WarehousesModule, InventoryModule, CategoriesModule, CombosModule, UsersModule, CustomersModule, InvoicesModule, SuppliersModule, CashFlowModule, ExpensesModule, AnalyticsModule, PurchasesModule, CatalogModule, SuperAdminModule, BackupModule, AuditModule, SequenceModule, N8nIntegrationModule],
+  imports: [ScheduleModule.forRoot(), CacheModule, PrismaModule, SupabaseModule, AuthModule, ProductsModule, WarehousesModule, InventoryModule, CategoriesModule, CombosModule, UsersModule, CustomersModule, InvoicesModule, SuppliersModule, CashFlowModule, ExpensesModule, AnalyticsModule, PurchasesModule, CreditsModule, CatalogModule, SuperAdminModule, BackupModule, AuditModule, SequenceModule, N8nIntegrationModule],
   controllers: [AppController],
   providers: [
     AppService,

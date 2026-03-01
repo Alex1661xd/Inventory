@@ -86,6 +86,79 @@ export class AnalyticsService {
             },
         });
 
+        const [creditSalesTotal, creditSalesCount, creditCollectionsTotal, creditCollectionsCount, creditOutstanding, overdueCreditBalance] = await Promise.all([
+            (this.prisma.invoice as any).aggregate({
+                where: {
+                    tenantId,
+                    status: 'PAID',
+                    isCreditSale: true,
+                    createdAt: { gte: startDate, lte: endDate },
+                },
+                _sum: {
+                    total: true,
+                },
+            }),
+            (this.prisma.invoice as any).count({
+                where: {
+                    tenantId,
+                    status: 'PAID',
+                    isCreditSale: true,
+                    createdAt: { gte: startDate, lte: endDate },
+                },
+            }),
+            (this.prisma as any).creditPayment.aggregate({
+                where: {
+                    tenantId,
+                    paidAt: { gte: startDate, lte: endDate },
+                    creditSale: {
+                        status: {
+                            not: 'CANCELLED',
+                        },
+                    },
+                },
+                _sum: {
+                    amount: true,
+                },
+            }),
+            (this.prisma as any).creditPayment.count({
+                where: {
+                    tenantId,
+                    paidAt: { gte: startDate, lte: endDate },
+                    creditSale: {
+                        status: {
+                            not: 'CANCELLED',
+                        },
+                    },
+                },
+            }),
+            (this.prisma as any).creditSale.aggregate({
+                where: {
+                    tenantId,
+                    status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] },
+                    invoice: {
+                        createdAt: { lte: endDate },
+                        status: { not: 'CANCELLED' },
+                    },
+                },
+                _sum: {
+                    balance: true,
+                },
+            }),
+            (this.prisma as any).creditSale.aggregate({
+                where: {
+                    tenantId,
+                    status: 'OVERDUE',
+                    invoice: {
+                        createdAt: { lte: endDate },
+                        status: { not: 'CANCELLED' },
+                    },
+                },
+                _sum: {
+                    balance: true,
+                },
+            }),
+        ]);
+
         // 2. Obtener gastos del periodo (Gastos generales + Gastos registrados por caja)
         const [expenses, cashExpenses] = await Promise.all([
             this.prisma.expense.findMany({
@@ -223,7 +296,7 @@ export class AnalyticsService {
             warehouseStatsMap.set(wId, wStat);
 
             // Estadísticas por Método de Pago
-            const pmName = inv.paymentMethod;
+            const pmName = inv.isCreditSale ? 'CREDIT' : inv.paymentMethod;
             const pmStat = paymentMethodStatsMap.get(pmName) || { name: pmName, total: 0 };
             pmStat.total += invoiceRevenue;
             paymentMethodStatsMap.set(pmName, pmStat);
@@ -313,6 +386,10 @@ export class AnalyticsService {
         // Ventas totales y utilidad neta del periodo
         const totalRevenue = invoices.reduce((acc, curr) => acc + Number(curr.total), 0);
         const totalProfit = salesOverTime.reduce((acc, curr) => acc + curr.profit, 0);
+        const creditSoldInPeriod = Number(creditSalesTotal?._sum?.total || 0);
+        const creditCollectionsInPeriod = Number(creditCollectionsTotal?._sum?.amount || 0);
+        const creditOutstandingBalance = Number(creditOutstanding?._sum?.balance || 0);
+        const overdueBalance = Number(overdueCreditBalance?._sum?.balance || 0);
 
         const result = {
             period: {
@@ -326,6 +403,14 @@ export class AnalyticsService {
                 netProfit: totalProfit - totalExpenses,
                 salesCount: invoices.length,
                 averageTicket: invoices.length > 0 ? totalRevenue / invoices.length : 0,
+                credit: {
+                    soldInPeriod: creditSoldInPeriod,
+                    creditSalesCount,
+                    collectionsInPeriod: creditCollectionsInPeriod,
+                    collectionsCount: creditCollectionsCount,
+                    outstandingBalance: creditOutstandingBalance,
+                    overdueBalance,
+                }
             },
             salesOverTime,
             topProducts,

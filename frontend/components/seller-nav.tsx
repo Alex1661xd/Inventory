@@ -12,6 +12,7 @@ import {
   ShoppingCart,
   Store,
   Users,
+  Wallet,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -32,6 +33,7 @@ const navSections: NavSection[] = [
     links: [
       { href: '/pos', label: 'Venta Nueva', icon: CreditCard },
       { href: '/sales', label: 'Historial Ventas', icon: ShoppingCart },
+      { href: '/credit', label: 'Credito', icon: Wallet },
       { href: '/customers', label: 'Clientes', icon: Users },
     ],
   },

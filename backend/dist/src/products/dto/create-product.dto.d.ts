@@ -11,6 +11,8 @@ export declare class CreateProductDto {
     images?: string[];
     costPrice: number;
     salePrice: number;
+    creditPrice?: number;
+    allowCreditSale?: boolean;
     isPublic?: boolean;
     isSellable?: boolean;
     categoryId: string;

@@ -77,6 +77,14 @@ export default function SellersPage() {
         load()
     }, [])
 
+    useEffect(() => {
+        // Si el formulario está abierto y aún no hay sede en estado,
+        // tomar la primera opción disponible para evitar "selección fantasma" en el <select>.
+        if (showForm && !warehouseId && warehouses.length > 0) {
+            setWarehouseId(warehouses[0].id)
+        }
+    }, [showForm, warehouseId, warehouses])
+
     const resetForm = () => {
         setEditingId(null)
         setName('')
@@ -145,7 +153,8 @@ export default function SellersPage() {
             return
         }
 
-        if (!warehouseId) {
+        const normalizedWarehouseId = warehouseId?.trim()
+        if (!normalizedWarehouseId) {
             toast.error('Debes asignar una sede al vendedor')
             return
         }
@@ -156,7 +165,7 @@ export default function SellersPage() {
                 // Not sending email update for now as it's complex with Auth
                 const payload: any = { name: name.trim() }
                 if (password.trim()) payload.password = password.trim()
-                if (warehouseId) payload.warehouseId = warehouseId
+                if (normalizedWarehouseId) payload.warehouseId = normalizedWarehouseId
 
                 await api.sellers.update(editingId, payload)
                 toast.success('Vendedor actualizado')
@@ -166,7 +175,7 @@ export default function SellersPage() {
                     email: email.trim(),
                     password: password.trim(),
                     role: 'SELLER',
-                    warehouseId: warehouseId || undefined
+                    warehouseId: normalizedWarehouseId
                 })
                 toast.success('Vendedor creado')
             }

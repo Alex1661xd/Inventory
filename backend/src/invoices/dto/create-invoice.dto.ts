@@ -1,5 +1,16 @@
-import { IsArray, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
+import {
+    IsArray,
+    IsBoolean,
+    IsDateString,
+    IsEnum,
+    IsNotEmpty,
+    IsNumber,
+    IsOptional,
+    IsString,
+    Min,
+    ValidateNested,
+} from 'class-validator';
 import { InvoiceStatus, PaymentMethod } from '@prisma/client';
 
 class InvoiceItemDto {
@@ -26,6 +37,29 @@ class InvoiceComboLineDto {
     quantity: number;
 }
 
+class CreditTermsDto {
+    @IsNumber()
+    @Min(0)
+    downPayment: number;
+
+    @IsNumber()
+    @Min(1)
+    installmentsCount: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    installmentAmount?: number;
+
+    @IsOptional()
+    @IsDateString()
+    firstDueDate?: string;
+
+    @IsOptional()
+    @IsString()
+    notes?: string;
+}
+
 export class CreateInvoiceDto {
     @IsNumber()
     @IsNotEmpty()
@@ -42,6 +76,15 @@ export class CreateInvoiceDto {
     @IsEnum(PaymentMethod)
     @IsNotEmpty()
     paymentMethod: PaymentMethod;
+
+    @IsOptional()
+    @IsBoolean()
+    isCreditSale?: boolean;
+
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => CreditTermsDto)
+    credit?: CreditTermsDto;
 
     @IsString()
     @IsOptional()

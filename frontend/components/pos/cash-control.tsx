@@ -153,10 +153,25 @@ export function CashCloseDialog({ isOpen, onClose, onSuccess }: { isOpen: boolea
                             <span>Base Inicial</span>
                             <span>${formatThousands(summary.initialAmount)}</span>
                         </div>
-                        <div className="flex justify-between items-center text-gray-600 font-medium">
-                            <span>Ventas Efectivo (+)</span>
-                            <span className="text-emerald-600">+${formatThousands(summary.totalSales)}</span>
-                        </div>
+                        {Number(summary.cashCreditCollections || 0) > 0 ? (
+                            <>
+                                <div className="flex justify-between items-center text-gray-600 font-medium">
+                                    <span>Ventas contado (+)</span>
+                                    <span className="text-emerald-600">
+                                        +${formatThousands(Number(summary.cashSales || (summary.totalSales - Number(summary.cashCreditCollections || 0))))}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center text-gray-600 font-medium">
+                                    <span>Abonos credito en efectivo (+)</span>
+                                    <span className="text-emerald-600">+${formatThousands(summary.cashCreditCollections)}</span>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="flex justify-between items-center text-gray-600 font-medium">
+                                <span>Ventas Efectivo (+)</span>
+                                <span className="text-emerald-600">+${formatThousands(summary.totalSales)}</span>
+                            </div>
+                        )}
                         {summary.deposits > 0 && (
                             <div className="flex justify-between items-center text-gray-600 font-medium">
                                 <span>Entradas Manuales (+)</span>

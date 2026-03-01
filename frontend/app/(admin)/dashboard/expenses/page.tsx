@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { api, Expense, ExpenseCategory, Supplier } from '@/lib/backend'
@@ -17,7 +17,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
     RENT: 'Arriendo',
     UTILITIES: 'Servicios',
-    PAYROLL: 'Nómina',
+    PAYROLL: 'NÃ³mina',
     SUPPLIES: 'Suministros',
     MAINTENANCE: 'Mantenimiento',
     TRANSPORT: 'Transporte',
@@ -37,8 +37,8 @@ const CATEGORY_ICONS: Record<ExpenseCategory, string> = {
     MAINTENANCE: '',
     TRANSPORT: '',
     MARKETING: '',
-    TAXES: '️',
-    INSURANCE: '️',
+    TAXES: 'ï¸',
+    INSURANCE: 'ï¸',
     INVENTORY: '',
     CASH_REGISTER: '',
     OTHER: '',
@@ -46,7 +46,16 @@ const CATEGORY_ICONS: Record<ExpenseCategory, string> = {
 
 type ProfitLossData = {
     period: { startDate: string; endDate: string };
-    revenue: { totalSales: number; salesCount: number };
+    revenue: {
+        totalSales: number;
+        salesCount: number;
+        cashSales?: number;
+        creditSales?: number;
+        creditSalesCount?: number;
+        creditCollections?: number;
+        outstandingCreditBalance?: number;
+        overdueCreditBalance?: number;
+    };
     costOfGoodsSold: number;
     grossProfit: number;
     grossMargin: number;
@@ -93,7 +102,7 @@ export default function ExpensesPage() {
     const handleQuickFilter = (type: string) => {
         if (type === activeDateFilter && type !== 'custom') return
 
-        setLoadingMessage('Actualizando período...')
+        setLoadingMessage('Actualizando perÃ­odo...')
         const now = new Date()
         const todayStr = now.toISOString().split('T')[0]
         setEndDate(todayStr)
@@ -178,10 +187,10 @@ export default function ExpensesPage() {
 
     const handleCreate = async () => {
         if (!formAmount || Number(parseThousands(formAmount)) <= 0) {
-            return toast.error('Ingresa un monto válido')
+            return toast.error('Ingresa un monto vÃ¡lido')
         }
         if (!formDescription.trim()) {
-            return toast.error('Ingresa una descripción')
+            return toast.error('Ingresa una descripciÃ³n')
         }
 
         setLoadingMessage('Registrando gasto...')
@@ -268,11 +277,11 @@ export default function ExpensesPage() {
                         <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-end justify-between">
                             <div className="flex flex-wrap gap-4 items-end">
                                 <div className="space-y-2">
-                                    <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Período</Label>
+                                    <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">PerÃ­odo</Label>
                                     <div className="flex p-1 bg-gray-100/80 rounded-xl w-fit border border-gray-200/50">
                                         {[
                                             { id: 'today', label: 'Hoy' },
-                                            { id: '15days', label: '14 Días' },
+                                            { id: '15days', label: '14 DÃ­as' },
                                             { id: 'month', label: 'Este Mes' },
                                             { id: 'custom', label: 'Personalizado' },
                                         ].map((f) => (
@@ -317,16 +326,16 @@ export default function ExpensesPage() {
                             </div>
 
                             <div className="space-y-2 w-full lg:w-auto">
-                                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Filtrar por Categoría</Label>
+                                <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Filtrar por CategorÃ­a</Label>
                                 <Select
                                     value={filterCategory || "ALL"}
                                     onValueChange={(v: string) => setFilterCategory(v === "ALL" ? "" : v)}
                                 >
                                     <SelectTrigger className="w-full lg:w-60 h-10 rounded-xl bg-white">
-                                        <SelectValue placeholder="Todas las categorías" />
+                                        <SelectValue placeholder="Todas las categorÃ­as" />
                                     </SelectTrigger>
                                     <SelectContent className="rounded-xl shadow-xl">
-                                        <SelectItem value="ALL">Todas las categorías</SelectItem>
+                                        <SelectItem value="ALL">Todas las categorÃ­as</SelectItem>
                                         {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
                                             <SelectItem key={key} value={key}>
                                                 <span className="flex items-center gap-2">
@@ -352,7 +361,7 @@ export default function ExpensesPage() {
                                         <TrendingUp className="h-6 w-6 text-emerald-600" />
                                     </div>
                                     <div>
-                                        <p className="text-sm text-emerald-700 font-medium">Ventas</p>
+                                        <p className="text-sm text-emerald-700 font-medium">Ventas Devengadas</p>
                                         <p className="text-2xl font-bold text-emerald-900">
                                             ${formatThousands(profitLoss.revenue.totalSales)}
                                         </p>
@@ -373,7 +382,7 @@ export default function ExpensesPage() {
                                         <p className="text-2xl font-bold text-orange-900">
                                             ${formatThousands(profitLoss.costOfGoodsSold)}
                                         </p>
-                                        <p className="text-xs text-orange-600">Costo de mercancía</p>
+                                        <p className="text-xs text-orange-600">Costo de mercancÃ­a</p>
                                     </div>
                                 </div>
                             </CardContent>
@@ -390,7 +399,7 @@ export default function ExpensesPage() {
                                         <p className="text-2xl font-bold text-blue-900">
                                             ${formatThousands(profitLoss.operatingExpenses.totalExpenses)}
                                         </p>
-                                        <p className="text-xs text-blue-600">{profitLoss.operatingExpenses.byCategory.length} categorías</p>
+                                        <p className="text-xs text-blue-600">{profitLoss.operatingExpenses.byCategory.length} categorÃ­as</p>
                                     </div>
                                 </div>
                             </CardContent>
@@ -439,6 +448,49 @@ export default function ExpensesPage() {
                     </div>
                 )}
 
+                {profitLoss && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <Card className="border border-slate-200 bg-white">
+                            <CardContent className="pt-5">
+                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Ventas Contado</p>
+                                <p className="text-xl font-bold text-slate-900 mt-2">
+                                    ${formatThousands(profitLoss.revenue.cashSales || 0)}
+                                </p>
+                            </CardContent>
+                        </Card>
+                        <Card className="border border-slate-200 bg-white">
+                            <CardContent className="pt-5">
+                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Ventas a Credito</p>
+                                <p className="text-xl font-bold text-slate-900 mt-2">
+                                    ${formatThousands(profitLoss.revenue.creditSales || 0)}
+                                </p>
+                                <p className="text-[11px] text-slate-500 mt-1">
+                                    {formatThousands(profitLoss.revenue.creditSalesCount || 0)} facturas a credito
+                                </p>
+                            </CardContent>
+                        </Card>
+                        <Card className="border border-slate-200 bg-white">
+                            <CardContent className="pt-5">
+                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Abonos Recaudados</p>
+                                <p className="text-xl font-bold text-emerald-700 mt-2">
+                                    ${formatThousands(profitLoss.revenue.creditCollections || 0)}
+                                </p>
+                            </CardContent>
+                        </Card>
+                        <Card className="border border-slate-200 bg-white">
+                            <CardContent className="pt-5">
+                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Cartera Pendiente</p>
+                                <p className="text-xl font-bold text-amber-700 mt-2">
+                                    ${formatThousands(profitLoss.revenue.outstandingCreditBalance || 0)}
+                                </p>
+                                <p className="text-[11px] text-red-600 mt-1">
+                                    Vencida: ${formatThousands(profitLoss.revenue.overdueCreditBalance || 0)}
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
                 {/* Resumen de Resultado */}
                 {profitLoss && (
                     <Card className="overflow-hidden">
@@ -453,13 +505,37 @@ export default function ExpensesPage() {
                         <CardContent className="p-0">
                             <div className="divide-y">
                                 <div className="flex justify-between items-center p-4 hover:bg-gray-50">
-                                    <span className="font-medium">Ingresos por Ventas</span>
+                                    <span className="font-medium">Ingresos por Ventas (Devengado)</span>
                                     <span className="text-lg font-bold text-emerald-600">
                                         +${formatThousands(profitLoss.revenue.totalSales)}
                                     </span>
                                 </div>
                                 <div className="flex justify-between items-center p-4 hover:bg-gray-50 pl-8">
-                                    <span className="text-gray-600">(-) Costo de Mercancía Vendida</span>
+                                    <span className="text-gray-600">Ventas de contado</span>
+                                    <span className="text-slate-700">
+                                        ${formatThousands(profitLoss.revenue.cashSales || 0)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center p-4 hover:bg-gray-50 pl-8">
+                                    <span className="text-gray-600">Ventas a credito</span>
+                                    <span className="text-slate-700">
+                                        ${formatThousands(profitLoss.revenue.creditSales || 0)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center p-4 hover:bg-gray-50 pl-8">
+                                    <span className="text-gray-600">Abonos recaudados (flujo de caja)</span>
+                                    <span className="text-emerald-600">
+                                        +${formatThousands(profitLoss.revenue.creditCollections || 0)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center p-4 hover:bg-gray-50 pl-8">
+                                    <span className="text-gray-600">Cartera pendiente al cierre</span>
+                                    <span className="text-amber-600">
+                                        ${formatThousands(profitLoss.revenue.outstandingCreditBalance || 0)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center p-4 hover:bg-gray-50 pl-8">
+                                    <span className="text-gray-600">(-) Costo de MercancÃ­a Vendida</span>
                                     <span className="text-red-600">
                                         -${formatThousands(profitLoss.costOfGoodsSold)}
                                     </span>
@@ -530,7 +606,7 @@ export default function ExpensesPage() {
                         ) : expenses.length === 0 ? (
                             <div className="text-center py-12">
                                 <div className="text-5xl mb-4"></div>
-                                <p className="text-gray-500">No hay gastos registrados en este período</p>
+                                <p className="text-gray-500">No hay gastos registrados en este perÃ­odo</p>
                                 <Button onClick={() => setShowCreate(true)} variant="outline" className="mt-4">
                                     Registrar primer gasto
                                 </Button>
@@ -539,15 +615,15 @@ export default function ExpensesPage() {
                             <>
                                 {loading && (
                                     <div className="mb-3 text-xs font-medium text-gray-500">
-                                        Actualizando página de gastos...
+                                        Actualizando pÃ¡gina de gastos...
                                     </div>
                                 )}
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Fecha</TableHead>
-                                            <TableHead>Categoría</TableHead>
-                                            <TableHead>Descripción</TableHead>
+                                            <TableHead>CategorÃ­a</TableHead>
+                                            <TableHead>DescripciÃ³n</TableHead>
                                             <TableHead>Proveedor</TableHead>
                                             <TableHead className="text-right">Monto</TableHead>
                                             <TableHead className="w-12"></TableHead>
@@ -592,11 +668,11 @@ export default function ExpensesPage() {
                                     </TableBody>
                                 </Table>
 
-                                {/* Paginación */}
+                                {/* PaginaciÃ³n */}
                                 {totalPages > 1 && (
                                     <div className="flex items-center justify-between px-2 py-4 border-t">
                                         <p className="text-sm text-gray-500 font-medium">
-                                            Página <span className="text-gray-900">{currentPage}</span> de
+                                            PÃ¡gina <span className="text-gray-900">{currentPage}</span> de
                                             <span className="text-gray-900"> {totalPages}</span>
                                         </p>
                                         <div className="flex items-center gap-2">
@@ -679,7 +755,7 @@ export default function ExpensesPage() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Categoría *</Label>
+                                <Label>CategorÃ­a *</Label>
                                 <Select value={formCategory} onValueChange={(v: string) => setFormCategory(v as ExpenseCategory)}>
                                     <SelectTrigger>
                                         <SelectValue />
@@ -695,7 +771,7 @@ export default function ExpensesPage() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Descripción *</Label>
+                                <Label>DescripciÃ³n *</Label>
                                 <Input
                                     placeholder="Ej: Pago de arriendo mes de febrero"
                                     value={formDescription}
@@ -738,8 +814,8 @@ export default function ExpensesPage() {
                     open={deleteConfirmOpen}
                     onOpenChange={setDeleteConfirmOpen}
                     onConfirm={confirmDelete}
-                    title="¿Eliminar este gasto?"
-                    description="Esta acción no se puede deshacer. El gasto será removido permanentemente de los registros y del estado de resultados."
+                    title="Â¿Eliminar este gasto?"
+                    description="Esta acciÃ³n no se puede deshacer. El gasto serÃ¡ removido permanentemente de los registros y del estado de resultados."
                     confirmText="Eliminar Gasto"
                     cancelText="No, mantener"
                     variant="destructive"
@@ -766,7 +842,7 @@ export default function ExpensesPage() {
                                 <TableHeader className="bg-slate-50 sticky top-0">
                                     <TableRow>
                                         <TableHead className="font-bold text-slate-500">Fecha</TableHead>
-                                        <TableHead className="font-bold text-slate-500">Descripción</TableHead>
+                                        <TableHead className="font-bold text-slate-500">DescripciÃ³n</TableHead>
                                         <TableHead className="text-right font-bold text-slate-500">Monto</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -795,7 +871,7 @@ export default function ExpensesPage() {
                                     {expenses.filter(e => e.category === breakdownCategory).length === 0 && (
                                         <TableRow>
                                             <TableCell colSpan={3} className="h-24 text-center text-slate-400">
-                                                No hay ítems registrados en este período
+                                                No hay Ã­tems registrados en este perÃ­odo
                                             </TableCell>
                                         </TableRow>
                                     )}
@@ -804,7 +880,7 @@ export default function ExpensesPage() {
                         </div>
                         <div className="p-4 bg-slate-50 border-t flex justify-end items-center gap-4">
                             <div className="text-right">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Categoría</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total CategorÃ­a</p>
                                 <p className="text-xl font-black text-slate-900">
                                     ${formatThousands(expenses.filter(e => e.category === breakdownCategory).reduce((acc, curr) => acc + Number(curr.amount), 0))}
                                 </p>
@@ -819,3 +895,4 @@ export default function ExpensesPage() {
         </>
     )
 }
+

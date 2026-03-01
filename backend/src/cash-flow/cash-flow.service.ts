@@ -52,12 +52,13 @@ export class CashFlowService {
         if (!shift) return null;
 
         // Sumar ventas en efectivo
-        const cashSales = await this.prisma.invoice.aggregate({
+        const cashSales = await (this.prisma.invoice as any).aggregate({
             where: {
                 tenantId,
                 sellerId,
                 paymentMethod: 'CASH',
                 status: 'PAID',
+                isCreditSale: false,
                 createdAt: {
                     gte: shift.openingTime
                 }
@@ -67,7 +68,26 @@ export class CashFlowService {
             }
         });
 
-        const totalSales = Number(cashSales._sum.total || 0);
+        const cashCreditCollections = await (this.prisma as any).creditPayment.aggregate({
+            where: {
+                tenantId,
+                createdById: sellerId,
+                paymentMethod: 'CASH',
+                paidAt: {
+                    gte: shift.openingTime,
+                },
+                creditSale: {
+                    status: {
+                        not: 'CANCELLED',
+                    },
+                },
+            },
+            _sum: {
+                amount: true,
+            },
+        });
+
+        const totalSales = Number(cashSales?._sum?.total || 0) + Number(cashCreditCollections?._sum?.amount || 0);
 
         // Agrupar transacciones manuales
         const transactions = shift.transactions;
@@ -88,7 +108,9 @@ export class CashFlowService {
         return {
             shiftId: shift.id,
             initialAmount: initial,
+            cashSales: Number(cashSales?._sum?.total || 0),
             totalSales,
+            cashCreditCollections: Number(cashCreditCollections?._sum?.amount || 0),
             deposits,
             withdrawals,
             expenses,
@@ -119,12 +141,13 @@ export class CashFlowService {
         const closingTime = new Date();
 
         // Calcular ventas en efectivo realizadas por este vendedor durante este turno
-        const cashSales = await this.prisma.invoice.aggregate({
+        const cashSales = await (this.prisma.invoice as any).aggregate({
             where: {
                 tenantId,
                 sellerId,
                 paymentMethod: 'CASH',
                 status: 'PAID',
+                isCreditSale: false,
                 createdAt: {
                     gte: shift.openingTime,
                     lte: closingTime
@@ -135,7 +158,27 @@ export class CashFlowService {
             }
         });
 
-        const totalSales = Number(cashSales._sum.total || 0);
+        const cashCreditCollections = await (this.prisma as any).creditPayment.aggregate({
+            where: {
+                tenantId,
+                createdById: sellerId,
+                paymentMethod: 'CASH',
+                paidAt: {
+                    gte: shift.openingTime,
+                    lte: closingTime,
+                },
+                creditSale: {
+                    status: {
+                        not: 'CANCELLED',
+                    },
+                },
+            },
+            _sum: {
+                amount: true,
+            },
+        });
+
+        const totalSales = Number(cashSales?._sum?.total || 0) + Number(cashCreditCollections?._sum?.amount || 0);
 
         // Calcular movimientos manuales
         // DEPOSIT suma, WITHDRAWAL resta, EXPENSE resta

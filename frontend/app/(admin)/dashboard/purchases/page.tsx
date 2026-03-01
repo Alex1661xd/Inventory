@@ -147,33 +147,33 @@ export default function PurchasesPage() {
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="bg-[hsl(var(--surface-elevated))] border-none shadow-sm overflow-hidden">
-                    <CardContent className="p-6 flex flex-col items-center justify-center min-h-[120px]">
+                    <div className="p-6 flex flex-col items-center justify-center min-h-[120px]">
                         <div className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-tighter opacity-70 mb-2">Inversión Total</div>
                         <div className="text-3xl font-black text-[hsl(var(--foreground))]">
                             ${formatThousands(stats.totalInvestment)}
                         </div>
                         <div className="mt-2 text-[9px] font-medium text-[hsl(var(--muted))] opacity-60">Capital invertido en stock</div>
-                    </CardContent>
+                    </div>
                 </Card>
 
                 <Card className="bg-[hsl(var(--surface-elevated))] border-none shadow-sm overflow-hidden">
-                    <CardContent className="p-6 flex flex-col items-center justify-center min-h-[120px]">
+                    <div className="p-6 flex flex-col items-center justify-center min-h-[120px]">
                         <div className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-tighter opacity-70 mb-2">Compras Realizadas</div>
                         <div className="text-3xl font-black text-blue-600">
                             {stats.count}
                         </div>
                         <div className="mt-2 text-[9px] font-medium text-[hsl(var(--muted))] opacity-60">Órdenes registradas</div>
-                    </CardContent>
+                    </div>
                 </Card>
 
                 <Card className="bg-[hsl(var(--primary))] text-white border-none shadow-md overflow-hidden">
-                    <CardContent className="p-6 flex flex-col items-center justify-center min-h-[120px]">
+                    <div className="p-6 flex flex-col items-center justify-center min-h-[120px]">
                         <div className="text-[10px] font-black opacity-80 uppercase tracking-tighter mb-2">Deuda a Proveedores</div>
                         <div className="text-3xl font-black">
                             ${formatThousands(stats.pendingPayment)}
                         </div>
                         <div className="mt-2 text-[9px] font-medium opacity-60">Compras pendientes de pago</div>
-                    </CardContent>
+                    </div>
                 </Card>
             </div>
 

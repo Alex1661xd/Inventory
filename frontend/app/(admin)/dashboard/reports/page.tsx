@@ -132,6 +132,44 @@ export default function ReportsPage() {
                 </Card>
             </div>
 
+            {data.summary.credit && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card className="bg-[hsl(var(--surface-elevated))] border border-[hsl(var(--border))] shadow-sm">
+                        <div className="p-4 flex flex-col items-center justify-center min-h-[120px]">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-[hsl(var(--muted))]">Ventas a Credito</p>
+                            <p className="text-xl font-black mt-2 text-[hsl(var(--foreground))] text-center">
+                                ${formatThousands(Math.round(data.summary.credit.soldInPeriod))}
+                            </p>
+                            <p className="text-[11px] text-[hsl(var(--muted))] mt-1 text-center">
+                                {formatThousands(data.summary.credit.creditSalesCount)} facturas a credito
+                            </p>
+                        </div>
+                    </Card>
+                    <Card className="bg-[hsl(var(--surface-elevated))] border border-[hsl(var(--border))] shadow-sm">
+                        <div className="p-4 flex flex-col items-center justify-center min-h-[120px]">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-[hsl(var(--muted))]">Abonos Recaudados</p>
+                            <p className="text-xl font-black mt-2 text-emerald-600 text-center">
+                                ${formatThousands(Math.round(data.summary.credit.collectionsInPeriod))}
+                            </p>
+                            <p className="text-[11px] text-[hsl(var(--muted))] mt-1 text-center">
+                                {formatThousands(data.summary.credit.collectionsCount)} pagos registrados
+                            </p>
+                        </div>
+                    </Card>
+                    <Card className="bg-[hsl(var(--surface-elevated))] border border-[hsl(var(--border))] shadow-sm">
+                        <div className="p-4 flex flex-col items-center justify-center min-h-[120px]">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-[hsl(var(--muted))]">Cartera Pendiente</p>
+                            <p className="text-xl font-black mt-2 text-amber-600 text-center">
+                                ${formatThousands(Math.round(data.summary.credit.outstandingBalance))}
+                            </p>
+                            <p className="text-[11px] text-red-600 mt-1 text-center">
+                                Vencida: ${formatThousands(Math.round(data.summary.credit.overdueBalance))}
+                            </p>
+                        </div>
+                    </Card>
+                </div>
+            )}
+
             {/* Expenses Summary if needed, or just more detail */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex items-center gap-3 p-4 bg-red-500/5 border border-red-500/10 rounded-2xl">
@@ -565,7 +603,7 @@ export default function ReportsPage() {
                                     {data.deadStock.length === 0 && (
                                         <tr>
                                             <td colSpan={4} className="px-6 py-12 text-center text-[hsl(var(--muted))] font-bold italic opacity-50">
-                                                 No tienes productos con stock estancado. ¡Excelente rotación!
+                                                No tienes productos con stock estancado. ¡Excelente rotación!
                                             </td>
                                         </tr>
                                     )}

@@ -9,9 +9,9 @@ export declare class SupabaseStrategy extends SupabaseStrategy_base {
     private readonly prisma;
     constructor(supabaseService: SupabaseService, prisma: PrismaService);
     validate(token: string): Promise<{
+        email: string;
         id: string;
         name: string;
-        email: string;
         role: import("@prisma/client").$Enums.Role;
         tenantId: string;
         warehouseId: string | null;

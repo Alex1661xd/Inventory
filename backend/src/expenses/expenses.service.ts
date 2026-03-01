@@ -297,6 +297,104 @@ export class ExpensesService {
         const totalSales = Number(salesResult._sum.total || 0);
         const salesCount = salesResult._count;
 
+        const [
+            cashSalesResult,
+            creditSalesResult,
+            creditSalesCount,
+            creditCollectionsResult,
+            creditOutstandingResult,
+            overdueCreditBalanceResult
+        ] = await Promise.all([
+            (this.prisma.invoice as any).aggregate({
+                where: {
+                    tenantId,
+                    status: 'PAID',
+                    isCreditSale: false,
+                    createdAt: {
+                        gte: startDate,
+                        lte: endDate,
+                    }
+                },
+                _sum: {
+                    total: true
+                }
+            }),
+            (this.prisma.invoice as any).aggregate({
+                where: {
+                    tenantId,
+                    status: 'PAID',
+                    isCreditSale: true,
+                    createdAt: {
+                        gte: startDate,
+                        lte: endDate,
+                    }
+                },
+                _sum: {
+                    total: true
+                }
+            }),
+            (this.prisma.invoice as any).count({
+                where: {
+                    tenantId,
+                    status: 'PAID',
+                    isCreditSale: true,
+                    createdAt: {
+                        gte: startDate,
+                        lte: endDate,
+                    }
+                },
+            }),
+            (this.prisma as any).creditPayment.aggregate({
+                where: {
+                    tenantId,
+                    paidAt: {
+                        gte: startDate,
+                        lte: endDate,
+                    },
+                    creditSale: {
+                        status: {
+                            not: 'CANCELLED',
+                        },
+                    },
+                },
+                _sum: {
+                    amount: true,
+                },
+            }),
+            (this.prisma as any).creditSale.aggregate({
+                where: {
+                    tenantId,
+                    status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] },
+                    invoice: {
+                        createdAt: { lte: endDate },
+                        status: { not: 'CANCELLED' },
+                    },
+                },
+                _sum: {
+                    balance: true,
+                },
+            }),
+            (this.prisma as any).creditSale.aggregate({
+                where: {
+                    tenantId,
+                    status: 'OVERDUE',
+                    invoice: {
+                        createdAt: { lte: endDate },
+                        status: { not: 'CANCELLED' },
+                    },
+                },
+                _sum: {
+                    balance: true,
+                },
+            }),
+        ]);
+
+        const totalCashSales = Number(cashSalesResult?._sum?.total || 0);
+        const totalCreditSales = Number(creditSalesResult?._sum?.total || 0);
+        const totalCreditCollections = Number(creditCollectionsResult?._sum?.amount || 0);
+        const outstandingCreditBalance = Number(creditOutstandingResult?._sum?.balance || 0);
+        const overdueCreditBalance = Number(overdueCreditBalanceResult?._sum?.balance || 0);
+
         // Costo de ventas (basado en productos vendidos - PRIORIZA FIFO)
         const invoiceItems = await this.prisma.invoiceItem.findMany({
             where: {
@@ -337,7 +435,13 @@ export class ExpensesService {
             period: { startDate: startDateStr, endDate: endDateStr },
             revenue: {
                 totalSales,
-                salesCount
+                salesCount,
+                cashSales: totalCashSales,
+                creditSales: totalCreditSales,
+                creditSalesCount,
+                creditCollections: totalCreditCollections,
+                outstandingCreditBalance,
+                overdueCreditBalance,
             },
             costOfGoodsSold,
             grossProfit,

@@ -23,6 +23,8 @@ type FormState = {
     images: string[]
     costPrice: string
     salePrice: string
+    creditPrice: string
+    allowCreditSale: boolean
     isPublic: boolean
     isSellable: boolean
     initialStock: string
@@ -41,6 +43,8 @@ const emptyForm: FormState = {
     images: [],
     costPrice: '0',
     salePrice: '0',
+    creditPrice: '0',
+    allowCreditSale: false,
     isPublic: true,
     isSellable: true,
     initialStock: '0',
@@ -423,6 +427,8 @@ export function ProductsManager({
             images: p.images || [],
             costPrice: p.costPrice.toString(),
             salePrice: p.salePrice.toString(),
+            creditPrice: Number(p.creditPrice || 0).toString(),
+            allowCreditSale: !!p.allowCreditSale,
             isPublic: p.isPublic,
             isSellable: p.isSellable,
             initialStock: '0',
@@ -709,10 +715,17 @@ export function ProductsManager({
 
         const cost = Number(form.costPrice)
         const sale = Number(form.salePrice)
+        const creditPrice = Number(form.creditPrice)
 
         if (isNaN(cost) || cost <= 0) return toast.error('El precio de costo debe ser superior a 0')
         if (isNaN(sale) || sale <= 0) return toast.error('El precio de venta debe ser superior a 0')
         if (sale <= cost) return toast.error('El precio de venta debe ser mayor al costo')
+        if (form.allowCreditSale && (isNaN(creditPrice) || creditPrice <= 0)) {
+            return toast.error('El precio de credito debe ser superior a 0')
+        }
+        if (form.allowCreditSale && creditPrice < sale) {
+            return toast.error('El precio de credito no puede ser menor que el precio de contado')
+        }
 
         setSaving(true)
         setUploading(true)
@@ -732,6 +745,8 @@ export function ProductsManager({
                 images: finalImages,
                 costPrice: Number(form.costPrice),
                 salePrice: Number(form.salePrice),
+                creditPrice: form.allowCreditSale ? Number(form.creditPrice) : 0,
+                allowCreditSale: form.allowCreditSale,
                 isPublic: form.isPublic,
                 isSellable: form.isSellable,
                 categoryId: form.categoryId || undefined,
@@ -1818,6 +1833,34 @@ export function ProductsManager({
                                     />
                                 </div>
 
+                                <div className="space-y-3 md:col-span-2">
+                                    <div className="flex items-center gap-3 p-3 bg-[rgb(250,248,245)] rounded-xl border border-[rgb(230,225,220)]">
+                                        <input
+                                            id="allowCreditSale"
+                                            type="checkbox"
+                                            className="h-5 w-5 rounded border-[rgb(25,35,25)] accent-[rgb(25,35,25)]"
+                                            checked={form.allowCreditSale}
+                                            onChange={(e) => setForm((s) => ({ ...s, allowCreditSale: e.target.checked }))}
+                                        />
+                                        <Label htmlFor="allowCreditSale" className="font-bold cursor-pointer">
+                                            Permitir venta a credito para este producto
+                                        </Label>
+                                    </div>
+                                    {form.allowCreditSale && (
+                                        <div className="space-y-2">
+                                            <Label className="flex items-center gap-1">
+                                                Precio credito
+                                                <span className="text-red-500">*</span>
+                                            </Label>
+                                            <Input
+                                                type="text"
+                                                value={formatCurrency(form.creditPrice)}
+                                                onChange={(e) => setForm((s) => ({ ...s, creditPrice: parseCurrencyInput(e.target.value) }))}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
                                 <div className="space-y-4 row-span-2">
                                     <Label>Imagen del Producto</Label>
                                     <div className="border-2 border-dashed border-[rgb(230,225,220)] rounded-xl p-4 flex flex-col items-center justify-center gap-4 bg-[rgb(250,248,245)] hover:bg-[rgb(245,240,235)] transition-colors relative overflow-hidden group min-h-[200px]">
@@ -2456,3 +2499,4 @@ export function ProductsManager({
         </div >
     )
 }
+

@@ -50,6 +50,15 @@ export class CreateProductDto {
     salePrice!: number;
 
     @IsOptional()
+    @IsNumber()
+    @Min(0)
+    creditPrice?: number;
+
+    @IsOptional()
+    @IsBoolean()
+    allowCreditSale?: boolean;
+
+    @IsOptional()
     @IsBoolean()
     isPublic?: boolean;
 
