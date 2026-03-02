@@ -773,13 +773,13 @@ export function ProductsManager({
                 isSellable: form.isSellable,
                 categoryId: form.categoryId || undefined,
                 visualVariants: form.visualVariants
+                    .filter(v => v.name.trim().length > 0 || v.image.trim().length > 0)
                     .map((v, index) => ({
-                        name: v.name.trim(),
+                        name: v.name.trim() || `Variante ${index + 1}`,
                         image: v.image.trim(),
                         sortOrder: index,
                         isPublic: v.isPublic,
-                    }))
-                    .filter(v => v.name.length > 0 && v.image.length > 0),
+                    })),
             }
 
             const initialStock = Number(form.initialStock)
@@ -966,6 +966,16 @@ export function ProductsManager({
         try {
             const productToDelete = products.find(p => p.id === id)
             await api.products.remove(id)
+
+            // Delete images from storage
+            if (productToDelete) {
+                const imagesToClean = [
+                    ...(productToDelete.images || []),
+                    ...(productToDelete.visualVariants?.map(v => v.image).filter(Boolean) || [])
+                ]
+                await deleteImagesFromStorage(imagesToClean as string[])
+            }
+
             toast.success('Producto eliminado')
             await load(currentPage, true)
         } catch (e: any) {
@@ -1917,7 +1927,7 @@ export function ProductsManager({
                                                                 handleRemoveImage(idx)
                                                             }}
                                                         >
-                                                            
+
                                                         </Button>
                                                     </div>
                                                 </div>
