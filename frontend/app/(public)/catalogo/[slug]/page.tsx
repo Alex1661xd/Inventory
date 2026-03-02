@@ -34,6 +34,11 @@ interface CatalogProduct {
         productName: string
         quantity: number
     }>
+    visualVariants?: Array<{
+        name: string
+        image: string
+        isPublic: boolean
+    }>
 }
 
 const DEFAULT_CREDIT_INSTALLMENTS = 6
@@ -359,7 +364,10 @@ export default function CatalogPage() {
                                     {/* Product Image (Slider) */}
                                     <div className="relative aspect-square bg-stone-100 overflow-hidden rounded-t-2xl">
                                         <ImageSlider
-                                            images={product.images}
+                                            images={[
+                                                ...product.images,
+                                                ...((product as any).visualVariants || []).map((v: any) => v.image).filter(Boolean)
+                                            ].filter((img, idx, arr) => arr.indexOf(img) === idx)}
                                             name={product.name}
                                             sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                                             quality={90}
@@ -470,7 +478,13 @@ export default function CatalogPage() {
                             {/* Left: Image Slider */}
                             <div className="w-full md:w-[60%] h-[40vh] md:h-auto relative bg-[hsl(var(--muted-light))]">
                                 <ImageSlider
-                                    images={selectedProduct.images}
+                                    images={[
+                                        ...selectedProduct.images,
+                                        ...(selectedProduct.visualVariants || [])
+                                            .filter(v => v.isPublic !== false)
+                                            .map(v => v.image)
+                                            .filter(Boolean)
+                                    ].filter((img, idx, arr) => arr.indexOf(img) === idx)}
                                     name={selectedProduct.name}
                                     interval={5000}
                                     showControls={true}
@@ -542,6 +556,28 @@ export default function CatalogPage() {
                                                     {selectedProduct.comboItems.map((item) => (
                                                         <div key={`${selectedProduct.id}-${item.productId}`} className="text-sm font-semibold text-[hsl(var(--foreground))]">
                                                             {item.quantity}x {item.productName}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {selectedProduct.visualVariants && selectedProduct.visualVariants.filter(v => v.isPublic !== false).length > 0 && (
+                                            <div className="space-y-3">
+                                                <h4 className="text-[10px] font-black text-[hsl(var(--muted))] uppercase tracking-[0.3em]">Opciones Disponibles</h4>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {selectedProduct.visualVariants.filter(v => v.isPublic !== false).map((variant, idx) => (
+                                                        <div key={idx} className="flex flex-col items-center gap-1">
+                                                            <div className="w-12 h-12 rounded-lg border-2 border-[hsl(var(--border)/0.5)] overflow-hidden bg-[hsl(var(--muted-light))] shadow-sm">
+                                                                {variant.image ? (
+                                                                    <img src={variant.image} alt={variant.name} className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-[hsl(var(--muted))]">N/A</div>
+                                                                )}
+                                                            </div>
+                                                            <span className="text-[10px] font-bold text-[hsl(var(--muted))] max-w-[60px] truncate text-center leading-tight">
+                                                                {variant.name}
+                                                            </span>
                                                         </div>
                                                     ))}
                                                 </div>
