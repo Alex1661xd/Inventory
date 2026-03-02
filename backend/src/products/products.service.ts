@@ -19,7 +19,7 @@ export class ProductsService {
     private readonly cacheService: CacheService,
     private readonly supabaseService: SupabaseService,
     private readonly auditService: AuditService,
-  ) {}
+  ) { }
 
   private generateBarcode() {
     return `PRD-${randomBytes(4).toString('hex').toUpperCase()}`;
@@ -103,12 +103,13 @@ export class ProductsService {
 
       const normalizedVisualVariants = (dto.visualVariants || [])
         .map((v, index) => ({
-          name: String(v.name || '').trim(),
+          tenantId,
+          name: String(v.name || '').trim() || `Variante ${index + 1}`,
           image: String(v.image || '').trim(),
           sortOrder: Number(v.sortOrder ?? index),
           isPublic: v.isPublic ?? true,
         }))
-        .filter((v) => v.name.length > 0 && v.image.length > 0);
+        .filter((v) => v.name.length > 0 || v.image.length > 0);
 
       const product = await this.prisma.$transaction(async (tx) => {
         const product = await (tx.product as any).create({
@@ -129,8 +130,8 @@ export class ProductsService {
             visualVariants:
               normalizedVisualVariants.length > 0
                 ? {
-                    create: normalizedVisualVariants,
-                  }
+                  create: normalizedVisualVariants,
+                }
                 : undefined,
           },
         });
@@ -506,10 +507,10 @@ export class ProductsService {
     const nextAllowCreditSale = dto.allowCreditSale ?? exists.allowCreditSale;
     const nextCreditPrice = Number(
       dto.creditPrice ??
-        exists.creditPrice ??
-        dto.salePrice ??
-        exists.salePrice ??
-        0,
+      exists.creditPrice ??
+      dto.salePrice ??
+      exists.salePrice ??
+      0,
     );
     const nextCreditDownPayment = Number(
       dto.creditDownPayment ?? exists.creditDownPayment ?? 0,
@@ -530,13 +531,13 @@ export class ProductsService {
       const normalizedVisualVariants =
         dto.visualVariants !== undefined
           ? (dto.visualVariants || [])
-              .map((v, index) => ({
-                name: String(v?.name || '').trim(),
-                image: String(v?.image || '').trim(),
-                sortOrder: Number(v?.sortOrder ?? index),
-                isPublic: v?.isPublic ?? true,
-              }))
-              .filter((v) => v.name.length > 0 && v.image.length > 0)
+            .map((v, index) => ({
+              name: String(v?.name || '').trim() || `Variante ${index + 1}`,
+              image: String(v?.image || '').trim(),
+              sortOrder: Number(v?.sortOrder ?? index),
+              isPublic: v?.isPublic ?? true,
+            }))
+            .filter((v) => v.name.length > 0 || v.image.length > 0)
           : null;
 
       const result = await this.prisma.$transaction(async (tx) => {
